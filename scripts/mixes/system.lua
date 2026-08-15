@@ -285,7 +285,7 @@ local function run()
 
 
   local rud =
-    -normStick(
+    normStick(
       getValue("rud")
     )
 
