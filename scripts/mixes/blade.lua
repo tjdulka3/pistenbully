@@ -60,7 +60,7 @@ local COORD_RUD_DEADBAND = 0.08
 -- Change only if an actuator moves backwards.
 -- ============================================================
 
-local LIFT_SIGN  = -1
+local LIFT_SIGN  =  1
 local TILT_SIGN  =  1
 local ANGLE_SIGN =  1
 local SLEW_SIGN  =  1
