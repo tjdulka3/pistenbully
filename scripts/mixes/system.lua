@@ -929,8 +929,8 @@ return {
   output = {
     "TrackL",
     "TrackR",
-    "TillerMot",
-    "BladeTr",
-    "TillerTr"
+    "TMotor",
+    "TranB",
+    "TranT"
   }
 }
