@@ -311,14 +311,14 @@ This keeps blade and tiller coordination synchronized through a single operator 
 
 Global Variables are reserved for settings that are useful to adjust live from the transmitter.
 
-| GV | Setting | Purpose |
-|---|---|---|
-| GV1 | Coordination Intensity | Overall strength of automatic blade/tiller coordination |
-| GV2 | Blade Working Depth | Blade operating height/depth |
-| GV3 | Tiller Groom Depth | Normal tiller grooming height/depth |
-| GV4 | Reverse Lift Height | Amount the tiller raises before reverse is permitted |
-| GV5 | Tiller Working Angle | Normal tiller working angle |
-| GV6-GV9 | Reserved | Available for future operator-adjustable settings |
+| GV | Setting | Range | Default | Purpose |
+|---|---|---|---|---|
+| GV1 | Coordination Intensity | 0-100 | 60 | Overall strength of automatic blade/tiller coordination |
+| GV2 | Blade Working Depth | 0-100 | 60 | Blade operating height/depth |
+| GV3 | Tiller Groom Depth | 0-100 | 70 | Normal tiller grooming height/depth |
+| GV4 | Reverse Lift Height | 0-100 | 10 | Amount the tiller raises before reverse is permitted 
+| GV5 | Tiller Working Angle | 0-100 | 50 | Normal tiller working angle |
+| GV6-GV9 | Reserved | | | Available for future operator-adjustable settings |
 
 Mechanical timing, actuator direction, steering characteristics, deadbands, and other machine calibration values are maintained directly in the Lua source.
 
