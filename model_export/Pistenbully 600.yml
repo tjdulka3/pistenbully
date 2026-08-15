@@ -1,0 +1,1593 @@
+semver: 2.12.1
+header:
+  name: Pistenbully 600
+  bitmap: pb600.png
+  labels: RADIOMASTER
+  modelId:
+    0:
+      val: 0
+noGlobalFunctions: 0
+thrTrim: 0
+trimInc: 0
+displayTrims: 0
+ignoreSensorIds: 0
+showInstanceIds: 0
+disableThrottleWarning: 1
+enableCustomThrottleWarning: 0
+customThrottleWarningPosition: 0
+beepANACenter: 0
+extendedLimits: 0
+extendedTrims: 0
+throttleReversed: 0
+checklistInteractive: 0
+flightModeData:
+  0:
+    trim:
+      2:
+        value: -20
+        mode: 0
+    name: ""
+    fadeIn: 0
+    fadeOut: 0
+    gvars:
+      0:
+        val: 60
+      1:
+        val: 60
+      2:
+        val: 70
+      3:
+        val: 10
+      4:
+        val: 50
+mixData:
+  - destCh: 0
+    srcRaw: lua(2,0)
+    weight: -100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 1
+    srcRaw: MAX
+    weight: -100
+    swtch: SH2
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 1
+    srcRaw: I1
+    weight: 100
+    swtch: SC0
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: blift
+  - destCh: 1
+    srcRaw: lua(0,0)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 2
+    srcRaw: lua(2,1)
+    weight: -100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 3
+    srcRaw: I3
+    weight: 100
+    swtch: SC0
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: btilt
+  - destCh: 3
+    srcRaw: lua(0,1)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 4
+    srcRaw: SL1
+    weight: -100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 4
+    srcRaw: lua(0,4)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 5
+    srcRaw: SL2
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 5
+    srcRaw: "!lua(0,5)"
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 6
+    srcRaw: I4
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 6
+    srcRaw: lua(1,2)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 7
+    srcRaw: I7
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 7
+    srcRaw: lua(1,3)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 8
+    srcRaw: MAX
+    weight: 0
+    swtch: SH2
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 8
+    srcRaw: P2
+    weight: 100
+    swtch: SB0
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 8
+    srcRaw: Rud
+    weight: 0
+    swtch: "!SB0"
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 5
+    speedDown: 5
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 9
+    srcRaw: Ele
+    weight: 100
+    swtch: SC1
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: bangle
+  - destCh: 9
+    srcRaw: lua(0,2)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 10
+    srcRaw: I3
+    weight: 100
+    swtch: SC1
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: bslew
+  - destCh: 10
+    srcRaw: lua(0,3)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 11
+    srcRaw: MAX
+    weight: -100
+    swtch: SH2
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 11
+    srcRaw: I1
+    weight: 100
+    swtch: SC2
+    curve:
+      type: 3
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: slift
+  - destCh: 11
+    srcRaw: lua(1,1)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 12
+    srcRaw: I3
+    weight: 100
+    swtch: SC2
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: sangle
+  - destCh: 12
+    srcRaw: lua(1,0)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 13
+    srcRaw: I9
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 14
+    srcRaw: SF
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 16
+    srcRaw: lua(2,0)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 17
+    srcRaw: lua(2,1)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 22
+    srcRaw: lua(0,0)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 23
+    srcRaw: lua(0,1)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 24
+    srcRaw: lua(0,2)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 25
+    srcRaw: lua(0,3)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 26
+    srcRaw: lua(0,4)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 27
+    srcRaw: lua(0,5)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 28
+    srcRaw: lua(1,1)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 29
+    srcRaw: lua(1,0)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 30
+    srcRaw: lua(1,2)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 31
+    srcRaw: lua(1,3)
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+limitData:
+  0:
+    min: 0
+    max: 0
+    revert: 1
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: rtrack
+    curve: 0
+  1:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: blift
+    curve: 0
+  2:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: ltrack
+    curve: 0
+  3:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: btilt
+    curve: 0
+  4:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: lwing
+    curve: 0
+  5:
+    min: 0
+    max: 0
+    revert: 1
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: rwing
+    curve: 0
+  6:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: lfsh
+    curve: 0
+  7:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: rfsh
+    curve: 0
+  8:
+    min: 480
+    max: -480
+    revert: 0
+    offset: 0
+    ppmCenter: -155
+    symetrical: 0
+    name: sservo
+    curve: 0
+  9:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: bangle
+    curve: 0
+  10:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: bslew
+    curve: 0
+  11:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: slift
+    curve: 0
+  12:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: sangle
+    curve: 0
+  13:
+    min: 0
+    max: 0
+    revert: 0
+    offset: 0
+    ppmCenter: 0
+    symetrical: 0
+    name: tiller
+    curve: 0
+expoData:
+  - srcRaw: Rud
+    scale: 0
+    mode: 3
+    chn: 0
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: Ele
+    scale: 0
+    mode: 3
+    chn: 1
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: Thr
+    scale: 0
+    mode: 3
+    chn: 2
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 50
+    trimSource: 0
+    name: ""
+  - srcRaw: Ail
+    scale: 0
+    mode: 3
+    chn: 3
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 0
+    name: ""
+  - srcRaw: SE
+    scale: 0
+    mode: 3
+    chn: 4
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+  - srcRaw: SL1
+    scale: 0
+    mode: 3
+    chn: 5
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+  - srcRaw: SL2
+    scale: 0
+    mode: 3
+    chn: 6
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+  - srcRaw: SG
+    scale: 0
+    mode: 3
+    chn: 7
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+  - srcRaw: SF
+    scale: 0
+    mode: 3
+    chn: 8
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+  - srcRaw: P1
+    scale: 0
+    mode: 3
+    chn: 9
+    swtch: NONE
+    flightModes: 000000000
+    weight: 100
+    offset: 0
+    curve:
+      type: 1
+      value: 0
+    trimSource: 1
+    name: ""
+inputNames:
+  0:
+    val: LTRK
+  1:
+    val: Ele
+  2:
+    val: RTRK
+  3:
+    val: Ail
+  4:
+    val: lfsh
+  5:
+    val: lwng
+  6:
+    val: rwng
+  7:
+    val: rfsh
+  8:
+    val: sse
+  9:
+    val: till
+curves:
+  0:
+    type: 1
+    smooth: 1
+    points: 2
+    name: spd
+  1:
+    type: 1
+    smooth: 1
+    points: -2
+    name: abs
+points:
+  0:
+    val: -100
+  1:
+    val: -30
+  2:
+    val: -5
+  3:
+    val: 0
+  4:
+    val: 5
+  5:
+    val: 30
+  6:
+    val: 100
+  7:
+    val: -50
+  8:
+    val: -20
+  9:
+    val: 0
+  10:
+    val: 20
+  11:
+    val: 50
+  12:
+    val: 100
+  13:
+    val: 0
+  14:
+    val: 100
+  15:
+    val: 0
+logicalSw:
+  0:
+    func: FUNC_VPOS
+    def: Thr,25
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  1:
+    func: FUNC_AND
+    def: SF0,L1
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  2:
+    func: FUNC_VNEG
+    def: Thr,-20
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  3:
+    func: FUNC_VEQUAL
+    def: SD,100
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  4:
+    func: FUNC_VPOS
+    def: ch(16),0
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  5:
+    func: FUNC_VPOS
+    def: ch(17),0
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  6:
+    func: FUNC_OR
+    def: L5,L6
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  7:
+    func: FUNC_AND
+    def: L3,L4
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  8:
+    func: FUNC_OR
+    def: L7,L8
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+customFn:
+  0:
+    swtch: SW42
+    func: RGB_LED
+    def: white,1,On
+  1:
+    swtch: SW52
+    func: RGB_LED
+    def: off,1,On
+  2:
+    swtch: SW62
+    func: RGB_LED
+    def: flow,1,On
+  3:
+    swtch: SA2
+    func: SCREENSHOT
+    def: 1
+swashR:
+  type: TYPE_NONE
+  value: 0
+  collectiveSource: NONE
+  aileronSource: NONE
+  elevatorSource: NONE
+  collectiveWeight: 0
+  aileronWeight: 0
+  elevatorWeight: 0
+thrTraceSrc: Thr
+switchWarning:
+  SH:
+    pos: mid
+  SJ:
+    pos: up
+thrTrimSw: 0
+potsWarnMode: WARN_OFF
+potsWarnEnabled: 0
+jitterFilter: GLOBAL
+displayChecklist: 0
+gvars:
+  0:
+    name: ci
+    min: 0
+    max: 100
+    popup: 0
+    prec: 0
+    unit: 0
+  1:
+    name: bwd
+    min: 0
+    max: 100
+    popup: 0
+    prec: 0
+    unit: 0
+  2:
+    name: tgd
+    min: 0
+    max: 100
+    popup: 0
+    prec: 0
+    unit: 0
+  3:
+    name: rlh
+    min: 0
+    max: 100
+    popup: 0
+    prec: 0
+    unit: 0
+  4:
+    name: twa
+    min: 0
+    max: 100
+    popup: 0
+    prec: 0
+    unit: 0
+telemetryProtocol: 0
+varioData:
+  source: none
+  centerSilent: 0
+  centerMax: 0
+  centerMin: 0
+  min: 0
+  max: 0
+rssiSource: none
+rfAlarms:
+  warning: 45
+  critical: 42
+disableTelemetryWarning: 0
+moduleData:
+  0:
+    type: TYPE_CROSSFIRE
+    channelsStart: 0
+    channelsCount: 16
+    failsafeMode: NOT_SET
+    mod:
+      crsf:
+        telemetryBaudrate: 0
+        crsfArmingMode: 0
+        crsfArmingTrigger: NONE
+trainerData:
+  mode: OFF
+  channelsStart: 0
+  channelsCount: 0
+  frameLength: 0
+  delay: 0
+  pulsePol: 0
+scriptsData:
+  0:
+    file: blade
+    name: blade
+  1:
+    file: tiller
+    name: tiller
+  2:
+    file: system
+    name: system
+screenData:
+  0:
+    LayoutId: Layout1x1
+    layoutData:
+      zones:
+        0:
+          widgetName: PB600OP
+          widgetData: ~
+      options:
+        0:
+          type: Bool
+          value:
+            boolValue: 1
+        1:
+          type: Bool
+          value:
+            boolValue: 0
+        2:
+          type: Bool
+          value:
+            boolValue: 0
+        3:
+          type: Bool
+          value:
+            boolValue: 0
+        4:
+          type: Bool
+          value:
+            boolValue: 0
+  1:
+    LayoutId: Layout1x1
+    layoutData:
+      zones:
+        0:
+          widgetName: PB600 DEBUG FINAL
+          widgetData: ~
+      options:
+        0:
+          type: Bool
+          value:
+            boolValue: 1
+        1:
+          type: Bool
+          value:
+            boolValue: 0
+        2:
+          type: Bool
+          value:
+            boolValue: 0
+        3:
+          type: Bool
+          value:
+            boolValue: 0
+        4:
+          type: Bool
+          value:
+            boolValue: 0
+topbarData:
+  zones:
+    0:
+      widgetName: Date Time
+      widgetData:
+        options:
+          0:
+            type: Color
+            value:
+              color: COLIDX1
+    1:
+      widgetName: ModelBmp
+      widgetData:
+        options:
+          0:
+            type: Color
+            value:
+              color: COLIDX8
+          1:
+            type: Unsigned
+            value:
+              unsignedValue: 0
+          2:
+            type: Bool
+            value:
+              boolValue: 1
+          3:
+            type: Color
+            value:
+              color: COLIDX12
+          4:
+            type: Bool
+            value:
+              boolValue: 1
+    2:
+      widgetName: Radio Info
+      widgetData:
+        options:
+          0:
+            type: Color
+            value:
+              color: 0xf04030
+          1:
+            type: Color
+            value:
+              color: 0xf8c000
+          2:
+            type: Color
+            value:
+              color: 0x48ac50
+    3:
+      widgetName: BattAnalog
+      widgetData:
+        options:
+          0:
+            type: Source
+            value:
+              source: TX_VOLTAGE
+          1:
+            type: Unsigned
+            value:
+              unsignedValue: 1
+          2:
+            type: Unsigned
+            value:
+              unsignedValue: 1
+          3:
+            type: Bool
+            value:
+              boolValue: 1
+          4:
+            type: Color
+            value:
+              color: COLIDX29
+topbarWidgetWidth:
+  0:
+    val: 1
+  1:
+    val: 4
+  2:
+    val: 1
+  3:
+    val: 1
+view: 1
+modelRegistrationID: 174252Q-
+hatsMode: GLOBAL
+customSwitches:
+  SW1:
+    type: 2POS
+    group: 0
+    start: START_PREVIOUS
+    state: 1
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 248
+      g: 252
+      b: 248
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+  SW2:
+    type: 2POS
+    group: 0
+    start: START_PREVIOUS
+    state: 1
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 224
+      g: 100
+      b: 24
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+  SW3:
+    type: 2POS
+    group: 0
+    start: START_PREVIOUS
+    state: 1
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 248
+      g: 252
+      b: 248
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+  SW4:
+    type: 2POS
+    group: 1
+    start: START_PREVIOUS
+    state: 0
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 248
+      g: 252
+      b: 248
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+  SW5:
+    type: 2POS
+    group: 1
+    start: START_PREVIOUS
+    state: 1
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 0
+      g: 0
+      b: 0
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+  SW6:
+    type: 2POS
+    group: 1
+    start: START_PREVIOUS
+    state: 0
+    name: ""
+    onColorLuaOverride: OFF
+    offColorLuaOverride: OFF
+    onColor:
+      r: 0
+      g: 152
+      b: 8
+    offColor:
+      r: 0
+      g: 0
+      b: 0
+cfsGroupOn:
+  1:
+    v: 1
+  2:
+    v: 0
+  3:
+    v: 0
+usbJoystickExtMode: 0
+usbJoystickIfMode: JOYSTICK
+usbJoystickCircularCut: 0
+radioThemesDisabled: GLOBAL
+radioGFDisabled: GLOBAL
+radioTrainerDisabled: GLOBAL
+modelHeliDisabled: GLOBAL
+modelFMDisabled: GLOBAL
+modelCurvesDisabled: GLOBAL
+modelGVDisabled: GLOBAL
+modelLSDisabled: GLOBAL
+modelSFDisabled: GLOBAL
+modelCustomScriptsDisabled: ON
+modelTelemetryDisabled: GLOBAL

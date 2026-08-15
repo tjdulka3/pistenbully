@@ -1,336 +1,158 @@
-# ==============================================================
-# PistenBully TX16S Deployment Script
-#
-# Copies changed Lua files from the Git repository to the
-# EdgeTX SD card.
-#
-# The Git repository is the source of truth.
-# The radio SD card is a deployment target only.
-# ==============================================================
+param (
+    [Parameter(Mandatory = $true)]
+    [ValidateSet("Test", "Production")]
+    [string]$Environment
+)
 
 $ErrorActionPreference = "Stop"
 
-# --------------------------------------------------------------
-# Configuration
-# --------------------------------------------------------------
+# ============================================================
+# Select deployment target
+# ============================================================
 
-$RadioRoot = "C:\radio\"
+if ($Environment -eq "Test") {
 
-$RadioIdentifier = Join-Path $RadioRoot "PistenBully-Radio.txt"
+    $TargetRoot = "C:\radio"
 
+}
+elseif ($Environment -eq "Production") {
+
+    $TargetRoot = "D:\"
+
+}
+
+# Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-$DeployStateFile = Join-Path $PSScriptRoot ".last-deployed"
+
+Write-Host ""
+Write-Host "============================================"
+Write-Host " PistenBully Deployment"
+Write-Host "============================================"
+Write-Host ""
+Write-Host " Environment : $Environment"
+Write-Host " Target      : $TargetRoot"
+Write-Host ""
 
 
-# --------------------------------------------------------------
-# Functions
-# --------------------------------------------------------------
+# ============================================================
+# Validate target
+# ============================================================
 
-function Write-Step {
-    param([string]$Message)
+if ($Environment -eq "Test") {
 
-    Write-Host ""
-    Write-Host "==> $Message"
-}
+    # Create the test SD structure if necessary
 
+    if (!(Test-Path $TargetRoot)) {
 
-function Get-RadioDestination {
-    param([string]$RepoPath)
+        Write-Host "Creating test radio folder..."
 
-    # Normalize Git paths to forward slashes
-    $RepoPath = $RepoPath.Replace("\", "/")
-
-    # Mixer scripts
-    if ($RepoPath.StartsWith("scripts/mixes/")) {
-
-        $RelativePath = $RepoPath.Substring(
-            "scripts/mixes/".Length
-        )
-
-        return Join-Path `
-            $RadioRoot `
-            ("SCRIPTS\MIXES\" + $RelativePath)
-    }
-
-    # Widgets
-    if ($RepoPath.StartsWith("widgets/")) {
-
-        $RelativePath = $RepoPath.Substring(
-            "widgets/".Length
-        )
-
-        return Join-Path `
-            $RadioRoot `
-            ("WIDGETS\" + $RelativePath)
-    }
-
-    return $null
-}
-
-
-function Deploy-File {
-    param(
-        [string]$RepoPath
-    )
-
-    $Destination = Get-RadioDestination $RepoPath
-
-    if ($null -eq $Destination) {
-        return
-    }
-
-    $Source = Join-Path $RepoRoot $RepoPath
-
-    if (!(Test-Path $Source)) {
-        Write-Warning "Source not found: $RepoPath"
-        return
-    }
-
-    $DestinationDirectory = Split-Path `
-        -Parent `
-        $Destination
-
-    if (!(Test-Path $DestinationDirectory)) {
         New-Item `
             -ItemType Directory `
-            -Path $DestinationDirectory `
+            -Path $TargetRoot `
             -Force | Out-Null
     }
 
-    Copy-Item `
-        -Path $Source `
-        -Destination $Destination `
-        -Force
-
-    Write-Host "  DEPLOYED  $RepoPath"
 }
 
+if ($Environment -eq "Production") {
 
-function Remove-RadioFile {
-    param(
-        [string]$RepoPath
-    )
+    if (!(Test-Path $TargetRoot)) {
 
-    $Destination = Get-RadioDestination $RepoPath
-
-    if ($null -eq $Destination) {
-        return
+        Write-Error "Production drive D:\ was not found."
+        exit 1
     }
 
-    if (Test-Path $Destination) {
+    $Identifier = Join-Path `
+        $TargetRoot `
+        "PistenBully-Radio.txt"
 
-        Remove-Item `
-            -Path $Destination `
-            -Force
+    if (!(Test-Path $Identifier)) {
 
-        Write-Host "  REMOVED   $RepoPath"
-    }
-}
+        Write-Error @"
+D:\ exists, but it does not appear to be the
+PistenBully TX16S SD card.
 
+Missing:
 
-# --------------------------------------------------------------
-# Validate radio
-# --------------------------------------------------------------
+    D:\PistenBully-Radio.txt
 
-Write-Step "Checking TX16S SD card"
-
-if (!(Test-Path $RadioRoot)) {
-
-    Write-Error @"
-Radio drive not found.
-
-Expected:
-
-    $RadioRoot
-
-Connect the TX16S or SD card and try again.
+PRODUCTION DEPLOYMENT CANCELLED.
 "@
 
-    exit 1
-}
-
-
-if (!(Test-Path $RadioIdentifier)) {
-
-    Write-Error @"
-Drive $RadioRoot was found, but it does not appear to be
-the PistenBully TX16S SD card.
-
-Expected identification file:
-
-    $RadioIdentifier
-
-Deployment cancelled.
-"@
-
-    exit 1
-}
-
-
-Write-Host "  Radio found: $RadioRoot"
-
-
-# --------------------------------------------------------------
-# Make sure we're in a Git repository
-# --------------------------------------------------------------
-
-Write-Step "Checking Git repository"
-
-Push-Location $RepoRoot
-
-try {
-
-    git rev-parse --is-inside-work-tree 2>$null |
-        Out-Null
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Not inside a Git repository."
+        exit 1
     }
 
-    $CurrentCommit = (
-        git rev-parse HEAD
-    ).Trim()
-
-    Write-Host "  Current commit: $CurrentCommit"
-
-
-    # ----------------------------------------------------------
-    # Determine what needs deploying
-    # ----------------------------------------------------------
-
-    if (!(Test-Path $DeployStateFile)) {
-
-        Write-Step "First deployment"
-
-        Write-Host "  No previous deployment was recorded."
-        Write-Host "  Deploying all managed files."
-
-        $Files = git ls-files
-
-        foreach ($File in $Files) {
-
-            if (
-                $File.StartsWith("scripts/mixes/") -or
-                $File.StartsWith("widgets/")
-            ) {
-
-                Deploy-File $File
-            }
-        }
-    }
-    else {
-
-        $LastCommit = (
-            Get-Content `
-                $DeployStateFile `
-                -Raw
-        ).Trim()
-
-        Write-Step "Finding changes since last deployment"
-
-        Write-Host "  Last deployed: $LastCommit"
-        Write-Host "  Current:       $CurrentCommit"
-
-        if ($LastCommit -eq $CurrentCommit) {
-
-            Write-Host ""
-            Write-Host "Nothing to deploy."
-            Write-Host "The radio already has this Git commit."
-
-            exit 0
-        }
-
-
-        # ------------------------------------------------------
-        # Get changed files and their status
-        # ------------------------------------------------------
-
-        $Changes = git diff `
-            --name-status `
-            $LastCommit `
-            $CurrentCommit
-
-
-        foreach ($Change in $Changes) {
-
-            if ([string]::IsNullOrWhiteSpace($Change)) {
-                continue
-            }
-
-            $Parts = $Change -split "`t"
-
-            $Status = $Parts[0]
-
-
-            # --------------------------------------------------
-            # Added or modified
-            # --------------------------------------------------
-
-            if (
-                $Status.StartsWith("A") -or
-                $Status.StartsWith("M")
-            ) {
-
-                $File = $Parts[1]
-
-                Deploy-File $File
-            }
-
-
-            # --------------------------------------------------
-            # Deleted
-            # --------------------------------------------------
-
-            elseif ($Status.StartsWith("D")) {
-
-                $File = $Parts[1]
-
-                Remove-RadioFile $File
-            }
-
-
-            # --------------------------------------------------
-            # Renamed
-            # --------------------------------------------------
-
-            elseif ($Status.StartsWith("R")) {
-
-                $OldFile = $Parts[1]
-                $NewFile = $Parts[2]
-
-                Remove-RadioFile $OldFile
-                Deploy-File $NewFile
-            }
-        }
-    }
-
-
-    # ----------------------------------------------------------
-    # Record successful deployment
-    # ----------------------------------------------------------
-
-    Set-Content `
-        -Path $DeployStateFile `
-        -Value $CurrentCommit `
-        -NoNewline
-
-
-    # ----------------------------------------------------------
-    # Complete
-    # ----------------------------------------------------------
-
-    Write-Step "Deployment complete"
-
-    Write-Host ""
-    Write-Host "Radio:  $RadioRoot"
-    Write-Host "Commit: $CurrentCommit"
-    Write-Host ""
-    Write-Host "TX16S files are now synchronized with this commit."
-    Write-Host ""
-
 }
-finally {
 
-    Pop-Location
-}
+
+# ============================================================
+# Create required EdgeTX directories
+# ============================================================
+
+$TargetMixes = Join-Path `
+    $TargetRoot `
+    "SCRIPTS\MIXES"
+
+$TargetWidgets = Join-Path `
+    $TargetRoot `
+    "WIDGETS"
+
+
+New-Item `
+    -ItemType Directory `
+    -Path $TargetMixes `
+    -Force | Out-Null
+
+New-Item `
+    -ItemType Directory `
+    -Path $TargetWidgets `
+    -Force | Out-Null
+
+
+# ============================================================
+# Deploy mixer scripts
+# ============================================================
+
+$SourceMixes = Join-Path `
+    $RepoRoot `
+    "scripts\mixes"
+
+Write-Host "Deploying mixer scripts..."
+
+Copy-Item `
+    "$SourceMixes\*" `
+    $TargetMixes `
+    -Recurse `
+    -Force
+
+
+# ============================================================
+# Deploy widgets
+# ============================================================
+
+$SourceWidgets = Join-Path `
+    $RepoRoot `
+    "widgets"
+
+Write-Host "Deploying widgets..."
+
+Copy-Item `
+    "$SourceWidgets\*" `
+    $TargetWidgets `
+    -Recurse `
+    -Force
+
+
+# ============================================================
+# Finished
+# ============================================================
+
+Write-Host ""
+Write-Host "============================================"
+Write-Host " Deployment successful"
+Write-Host "============================================"
+Write-Host ""
+Write-Host " Environment : $Environment"
+Write-Host " Target      : $TargetRoot"
+Write-Host ""

@@ -1,23 +1,55 @@
 {
     "version": "2.0.0",
+
     "tasks": [
+
         {
-            "label": "Deploy to TX16S",
+            "label": "TX16S: Deploy TEST",
             "type": "shell",
             "command": "powershell.exe",
+
             "args": [
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\deployment\\deploy.ps1"
+                "${workspaceFolder}\\deployment\\deploy.ps1",
+                "-Environment",
+                "Test"
             ],
+
             "problemMatcher": [],
+
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+
+        {
+            "label": "TX16S: Deploy PRODUCTION",
+            "type": "shell",
+            "command": "powershell.exe",
+
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\deployment\\deploy.ps1",
+                "-Environment",
+                "Production"
+            ],
+
+            "problemMatcher": [],
+
             "presentation": {
                 "reveal": "always",
                 "panel": "dedicated",
                 "clear": true
             }
         }
+
     ]
 }
