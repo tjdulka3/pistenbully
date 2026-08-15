@@ -31,7 +31,8 @@
 -- PHYSICAL CALIBRATION
 -- ============================================================
 
-local TILLER_LIFT_FULL  = 12.5
+local TILLER_LIFT_DOWN_FULL = 11.0
+local TILLER_LIFT_UP_FULL   = 14.0
 local TILLER_ANGLE_FULL = 3.75
 local FIN_FULL_TIME     = 2.0
 
@@ -182,6 +183,70 @@ local function moveToward(position, target, fullTime, outputSign, dt)
     1024
 
   return position, output, done
+end
+
+
+-- Tiller lift uses measured asymmetric travel times.
+local function moveLiftToward(position, target, dt)
+
+  local err = target - position
+
+  if math.abs(err) < 0.001 then
+    return target, 0, true
+  end
+
+  local direction
+  local fullTime
+
+  if err > 0 then
+    -- Toward zero = raising
+    direction = 1
+    fullTime = TILLER_LIFT_UP_FULL
+  else
+    -- More negative = lowering
+    direction = -1
+    fullTime = TILLER_LIFT_DOWN_FULL
+  end
+
+  local step = dt / fullTime
+  local done = false
+
+  if step <= 0 then
+    return position, 0, false
+  end
+
+  if math.abs(err) <= step then
+    position = target
+    done = true
+  else
+    position = position + (direction * step)
+  end
+
+  local output = direction * LIFT_SIGN * 1024
+
+  return position, output, done
+end
+
+
+-- Keep modeled tiller lift synchronized during manual movement.
+local function manualLiftPosition(position, command, dt)
+
+  if command == 0 then
+    return position
+  end
+
+  local physicalDirection = command / LIFT_SIGN
+  local fullTime
+
+  if physicalDirection > 0 then
+    fullTime = TILLER_LIFT_UP_FULL
+  else
+    fullTime = TILLER_LIFT_DOWN_FULL
+  end
+
+  position = position + (physicalDirection * dt / fullTime)
+
+  return clamp(position, -1, 0)
 end
 
 
@@ -364,11 +429,9 @@ local function run()
     local angleDone
 
     liftPos, liftCmd, liftDone =
-      moveToward(
+      moveLiftToward(
         liftPos,
         modeLiftTarget,
-        TILLER_LIFT_FULL,
-        LIFT_SIGN,
         dt
       )
 
@@ -445,11 +508,9 @@ local function run()
       local done
 
       liftPos, liftCmd, done =
-        moveToward(
+        moveLiftToward(
           liftPos,
           reverseLiftTarget,
-          TILLER_LIFT_FULL,
-          LIFT_SIGN,
           dt
         )
 
@@ -485,11 +546,9 @@ local function run()
       local done
 
       liftPos, liftCmd, done =
-        moveToward(
+        moveLiftToward(
           liftPos,
           reverseReturnLift,
-          TILLER_LIFT_FULL,
-          LIFT_SIGN,
           dt
         )
 
@@ -521,11 +580,9 @@ local function run()
         ail * 1024
 
       liftPos =
-        manualPosition(
+        manualLiftPosition(
           liftPos,
           ele,
-          TILLER_LIFT_FULL,
-          LIFT_SIGN,
           dt
         )
 

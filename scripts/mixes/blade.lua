@@ -31,7 +31,8 @@
 -- PHYSICAL CALIBRATION / CODE TUNING
 -- ============================================================
 
-local LIFT_FULL_TIME  = 6.7
+local LIFT_DOWN_FULL_TIME = 11.0
+local LIFT_UP_FULL_TIME   = 14.0
 local TILT_FULL_TIME  = 5.0
 local ANGLE_FULL_TIME = 6.7
 local SLEW_FULL_TIME  = 6.7
@@ -200,6 +201,66 @@ local function moveToward(position, target, fullTime, outputSign, dt)
     direction * outputSign * 1024
 
   return position, output
+end
+
+
+-- Blade lift uses different calibrated travel times up vs. down.
+local function moveLiftToward(position, target, dt)
+
+  local err = target - position
+
+  if math.abs(err) < 0.001 then
+    return target, 0
+  end
+
+  local direction
+  local fullTime
+
+  if err > 0 then
+    -- Toward zero = raising
+    direction = 1
+    fullTime = LIFT_UP_FULL_TIME
+  else
+    -- More negative = lowering
+    direction = -1
+    fullTime = LIFT_DOWN_FULL_TIME
+  end
+
+  local step = dt / fullTime
+
+  if step <= 0 then
+    return position, 0
+  end
+
+  if math.abs(err) <= step then
+    position = target
+  else
+    position = position + (direction * step)
+  end
+
+  return position, direction * LIFT_SIGN * 1024
+end
+
+
+-- Keep the modeled blade-lift position synchronized during manual motion.
+local function manualLiftPosition(position, command, dt)
+
+  if command == 0 then
+    return position
+  end
+
+  local physicalDirection = command / LIFT_SIGN
+  local fullTime
+
+  if physicalDirection > 0 then
+    fullTime = LIFT_UP_FULL_TIME
+  else
+    fullTime = LIFT_DOWN_FULL_TIME
+  end
+
+  position = position + (physicalDirection * dt / fullTime)
+
+  return clamp(position, -1, 0)
 end
 
 
@@ -400,11 +461,9 @@ local function run()
   if modeTransition then
 
     pos.lift, liftCmd =
-      moveToward(
+      moveLiftToward(
         pos.lift,
         modeTarget.lift,
-        LIFT_FULL_TIME,
-        LIFT_SIGN,
         dt
       )
 
@@ -485,11 +544,9 @@ local function run()
         ail * 1024
 
       pos.lift =
-        manualPosition(
+        manualLiftPosition(
           pos.lift,
           ele,
-          LIFT_FULL_TIME,
-          LIFT_SIGN,
           dt
         )
 

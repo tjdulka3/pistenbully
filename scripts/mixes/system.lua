@@ -17,7 +17,7 @@
 --
 -- TillerMot:
 --   1024 = motor permitted
---      0 = motor locked out
+--  -1024 = motor locked out
 --
 -- HYDROSTATIC TARGETS:
 --   0 -> full power   ~5.0 sec
@@ -29,11 +29,13 @@
 -- IMPLEMENT CALIBRATION
 -- ============================================================
 
-local BLADE_LIFT_FULL   = 6.7
+local BLADE_LIFT_DOWN_FULL = 11.0
+local BLADE_LIFT_UP_FULL   = 14.0
 local BLADE_ANGLE_FULL  = 6.7
 local WING_FULL         = 3.75
 
-local TILLER_LIFT_FULL  = 12.5
+local TILLER_LIFT_DOWN_FULL = 11.0
+local TILLER_LIFT_UP_FULL   = 14.0
 local TILLER_ANGLE_FULL = 3.75
 local FIN_FULL_TIME     = 2.0
 
@@ -351,9 +353,14 @@ local function run()
   -- BLADE
   -- ----------------------------------------------------------
 
-  local bladeLiftTime =
+  local bladeLiftDownTime =
     bladeDepth *
-    BLADE_LIFT_FULL
+    BLADE_LIFT_DOWN_FULL
+
+
+  local bladeLiftUpTime =
+    bladeDepth *
+    BLADE_LIFT_UP_FULL
 
 
   local bladeWingTime =
@@ -366,21 +373,18 @@ local function run()
     BLADE_ANGLE_FULL
 
 
-  local bladeTransitionTime =
-    math.max(
-      bladeLiftTime,
-      bladeWingTime,
-      bladeAngleTime
-    )
-
-
   -- ----------------------------------------------------------
   -- TILLER
   -- ----------------------------------------------------------
 
-  local tillerLiftTime =
+  local tillerLiftDownTime =
     groomDepth *
-    TILLER_LIFT_FULL
+    TILLER_LIFT_DOWN_FULL
+
+
+  local tillerLiftUpTime =
+    groomDepth *
+    TILLER_LIFT_UP_FULL
 
 
   local tillerAngleTime =
@@ -388,21 +392,18 @@ local function run()
     TILLER_ANGLE_FULL
 
 
-  local tillerTransitionTime =
-    math.max(
-      tillerLiftTime,
-      tillerAngleTime,
-      FIN_FULL_TIME
-    )
-
-
   -- ----------------------------------------------------------
   -- REVERSE CLEARANCE
   -- ----------------------------------------------------------
 
-  local reverseLiftTime =
+  local reverseLiftUpTime =
     reverseLift *
-    TILLER_LIFT_FULL
+    TILLER_LIFT_UP_FULL
+
+
+  local reverseLiftDownTime =
+    reverseLift *
+    TILLER_LIFT_DOWN_FULL
 
 
   -- ==========================================================
@@ -478,8 +479,27 @@ local function run()
       or to == -1024
     then
 
-      bladeTransitionRemaining =
-        bladeTransitionTime
+      if to == -1024 then
+
+        -- Going TO Transport = blade raising
+        bladeTransitionRemaining =
+          math.max(
+            bladeLiftUpTime,
+            bladeWingTime,
+            bladeAngleTime
+          )
+
+      else
+
+        -- Leaving Transport = blade lowering
+        bladeTransitionRemaining =
+          math.max(
+            bladeLiftDownTime,
+            bladeWingTime,
+            bladeAngleTime
+          )
+
+      end
     end
 
 
@@ -494,8 +514,27 @@ local function run()
       or to == 1024
     then
 
-      tillerTransitionRemaining =
-        tillerTransitionTime
+      if to == 1024 then
+
+        -- Enter Groom = tiller lowering
+        tillerTransitionRemaining =
+          math.max(
+            tillerLiftDownTime,
+            tillerAngleTime,
+            FIN_FULL_TIME
+          )
+
+      else
+
+        -- Leave Groom = tiller raising
+        tillerTransitionRemaining =
+          math.max(
+            tillerLiftUpTime,
+            tillerAngleTime,
+            FIN_FULL_TIME
+          )
+
+      end
 
 
       -- Mode change cancels automatic reverse sequence.
@@ -567,7 +606,7 @@ local function run()
       "lifting"
 
     reverseRemaining =
-      reverseLiftTime
+      reverseLiftUpTime
   end
 
 
@@ -603,7 +642,7 @@ local function run()
           "returning"
 
         reverseRemaining =
-          reverseLiftTime
+          reverseLiftDownTime
 
       end
     end
@@ -621,7 +660,7 @@ local function run()
         "returning"
 
       reverseRemaining =
-        reverseLiftTime
+        reverseLiftDownTime
     end
 
 
@@ -930,4 +969,3 @@ return {
     "TranT"
   }
 }
-

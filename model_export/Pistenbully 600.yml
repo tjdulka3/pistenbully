@@ -6,6 +6,8 @@ header:
   modelId:
     0:
       val: 0
+    1:
+      val: 0
 noGlobalFunctions: 0
 thrTrim: 0
 trimInc: 0
@@ -22,48 +24,25 @@ throttleReversed: 0
 checklistInteractive: 0
 flightModeData:
   0:
-    trim:
-      2:
-        value: -20
-        mode: 0
     name: ""
     fadeIn: 0
     fadeOut: 0
     gvars:
       0:
-        val: 60
+        val: 40
       1:
-        val: 60
+        val: 40
       2:
-        val: 70
+        val: 35
       3:
         val: 10
       4:
         val: 50
 mixData:
   - destCh: 0
-    srcRaw: lua(2,0)
-    weight: -100
+    srcRaw: lua(2,1)
+    weight: 100
     swtch: NONE
-    curve:
-      type: 0
-      value: 0
-    delayPrec: 0
-    delayUp: 0
-    delayDown: 0
-    speedPrec: 0
-    speedUp: 0
-    speedDown: 0
-    carryTrim: 0
-    mltpx: ADD
-    mixWarn: 0
-    flightModes: 000000000
-    offset: 0
-    name: ""
-  - destCh: 1
-    srcRaw: MAX
-    weight: -100
-    swtch: SH2
     curve:
       type: 0
       value: 0
@@ -118,8 +97,8 @@ mixData:
     offset: 0
     name: ""
   - destCh: 2
-    srcRaw: lua(2,1)
-    weight: -100
+    srcRaw: lua(2,0)
+    weight: 100
     swtch: NONE
     curve:
       type: 0
@@ -327,25 +306,6 @@ mixData:
     offset: 0
     name: ""
   - destCh: 8
-    srcRaw: MAX
-    weight: 0
-    swtch: SH2
-    curve:
-      type: 0
-      value: 0
-    delayPrec: 0
-    delayUp: 0
-    delayDown: 0
-    speedPrec: 0
-    speedUp: 0
-    speedDown: 0
-    carryTrim: 0
-    mltpx: ADD
-    mixWarn: 0
-    flightModes: 000000000
-    offset: 0
-    name: ""
-  - destCh: 8
     srcRaw: P2
     weight: 100
     swtch: SB0
@@ -460,25 +420,6 @@ mixData:
     offset: 0
     name: ""
   - destCh: 11
-    srcRaw: MAX
-    weight: -100
-    swtch: SH2
-    curve:
-      type: 0
-      value: 0
-    delayPrec: 0
-    delayUp: 0
-    delayDown: 0
-    speedPrec: 0
-    speedUp: 0
-    speedDown: 0
-    carryTrim: 0
-    mltpx: ADD
-    mixWarn: 0
-    flightModes: 000000000
-    offset: 0
-    name: ""
-  - destCh: 11
     srcRaw: I1
     weight: 100
     swtch: SC2
@@ -559,7 +500,7 @@ mixData:
     weight: 100
     swtch: NONE
     curve:
-      type: 0
+      type: 1
       value: 0
     delayPrec: 0
     delayUp: 0
@@ -573,8 +514,46 @@ mixData:
     flightModes: 000000000
     offset: 0
     name: ""
+  - destCh: 13
+    srcRaw: MAX
+    weight: -100
+    swtch: L10
+    curve:
+      type: 0
+      value: 0
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: REPL
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
   - destCh: 14
-    srcRaw: SF
+    srcRaw: Thr
+    weight: 100
+    swtch: NONE
+    curve:
+      type: 3
+      value: -3
+    delayPrec: 0
+    delayUp: 0
+    delayDown: 0
+    speedPrec: 0
+    speedUp: 0
+    speedDown: 0
+    carryTrim: 0
+    mltpx: ADD
+    mixWarn: 0
+    flightModes: 000000000
+    offset: 0
+    name: ""
+  - destCh: 15
+    srcRaw: SA
     weight: 100
     swtch: NONE
     curve:
@@ -593,7 +572,7 @@ mixData:
     offset: 0
     name: ""
   - destCh: 16
-    srcRaw: lua(2,0)
+    srcRaw: SW1
     weight: 100
     swtch: NONE
     curve:
@@ -610,26 +589,7 @@ mixData:
     mixWarn: 0
     flightModes: 000000000
     offset: 0
-    name: ""
-  - destCh: 17
-    srcRaw: lua(2,1)
-    weight: 100
-    swtch: NONE
-    curve:
-      type: 0
-      value: 0
-    delayPrec: 0
-    delayUp: 0
-    delayDown: 0
-    speedPrec: 0
-    speedUp: 0
-    speedDown: 0
-    carryTrim: 0
-    mltpx: ADD
-    mixWarn: 0
-    flightModes: 000000000
-    offset: 0
-    name: ""
+    name: lights
   - destCh: 22
     srcRaw: lua(0,0)
     weight: 100
@@ -824,7 +784,7 @@ limitData:
   0:
     min: 0
     max: 0
-    revert: 1
+    revert: 0
     offset: 0
     ppmCenter: 0
     symetrical: 0
@@ -833,7 +793,7 @@ limitData:
   1:
     min: 0
     max: 0
-    revert: 0
+    revert: 1
     offset: 0
     ppmCenter: 0
     symetrical: 0
@@ -984,7 +944,7 @@ expoData:
     offset: 0
     curve:
       type: 1
-      value: 50
+      value: 0
     trimSource: 0
     name: ""
   - srcRaw: Ail
@@ -1084,7 +1044,7 @@ inputNames:
   1:
     val: Ele
   2:
-    val: RTRK
+    val: thr
   3:
     val: Ail
   4:
@@ -1110,6 +1070,11 @@ curves:
     smooth: 1
     points: -2
     name: abs
+  2:
+    type: 1
+    smooth: 0
+    points: 4
+    name: snd
 points:
   0:
     val: -100
@@ -1143,6 +1108,38 @@ points:
     val: 100
   15:
     val: 0
+  16:
+    val: -100
+  17:
+    val: -94
+  18:
+    val: -85
+  19:
+    val: -75
+  20:
+    val: 0
+  21:
+    val: 75
+  22:
+    val: 85
+  23:
+    val: 94
+  24:
+    val: 100
+  25:
+    val: -75
+  26:
+    val: -40
+  27:
+    val: -15
+  28:
+    val: 0
+  29:
+    val: 15
+  30:
+    val: 40
+  31:
+    val: 75
 logicalSw:
   0:
     func: FUNC_VPOS
@@ -1211,6 +1208,38 @@ logicalSw:
   8:
     func: FUNC_OR
     def: L7,L8
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  9:
+    func: FUNC_VEQUAL
+    def: lua(2,2),-100
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  10:
+    func: FUNC_VEQUAL
+    def: lua(2,3),100
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  11:
+    func: FUNC_VEQUAL
+    def: lua(2,4),100
+    delay: 0
+    duration: 0
+    andsw: NONE
+    lsPersist: 0
+    lsState: 0
+  12:
+    func: FUNC_OR
+    def: L11,L12
     delay: 0
     duration: 0
     andsw: NONE
@@ -1313,6 +1342,19 @@ moduleData:
         telemetryBaudrate: 0
         crsfArmingMode: 0
         crsfArmingTrigger: NONE
+  1:
+    type: TYPE_MULTIMODULE
+    subType: 74,0
+    channelsStart: 0
+    channelsCount: 16
+    failsafeMode: NOT_SET
+    mod:
+      multi:
+        disableTelemetry: 0
+        disableMapping: 0
+        autoBindMode: 0
+        lowPowerMode: 0
+        optionValue: 0
 trainerData:
   mode: OFF
   channelsStart: 0
@@ -1470,7 +1512,7 @@ topbarWidgetWidth:
     val: 1
   3:
     val: 1
-view: 1
+view: 0
 modelRegistrationID: 174252Q-
 hatsMode: GLOBAL
 customSwitches:
@@ -1478,7 +1520,7 @@ customSwitches:
     type: 2POS
     group: 0
     start: START_PREVIOUS
-    state: 1
+    state: 0
     name: ""
     onColorLuaOverride: OFF
     offColorLuaOverride: OFF
@@ -1494,7 +1536,7 @@ customSwitches:
     type: 2POS
     group: 0
     start: START_PREVIOUS
-    state: 1
+    state: 0
     name: ""
     onColorLuaOverride: OFF
     offColorLuaOverride: OFF
@@ -1510,7 +1552,7 @@ customSwitches:
     type: 2POS
     group: 0
     start: START_PREVIOUS
-    state: 1
+    state: 0
     name: ""
     onColorLuaOverride: OFF
     offColorLuaOverride: OFF
