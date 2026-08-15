@@ -18,6 +18,10 @@
 -- TillerMot:
 --   1024 = motor permitted
 --      0 = motor locked out
+--
+-- HYDROSTATIC TARGETS:
+--   0 -> full power   ~5.0 sec
+--   full -> zero      ~2.0 sec
 -- ============================================================
 
 
@@ -39,17 +43,29 @@ local WORK_ANGLE     = 0.50
 
 
 -- ============================================================
--- TRACK TUNING
---
--- These are code constants rather than GVs.
+-- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
-local TURN_GAIN        = 0.25
-local SPEED_FACTOR     = 0.60
+-- Steering behavior
+local TURN_GAIN    = 0.25
+local SPEED_FACTOR = 0.60
 
-local ACCEL_RATE       = 60
-local DECEL_RATE       = 180
-local REVERSE_BOOST    = 140
+-- Time-based output rates in channel units per second.
+--
+-- 1024 / 205 ~= 5.0 sec
+-- 1024 / 512 = 2.0 sec
+local ACCEL_RATE = 205
+local DECEL_RATE = 512
+
+-- Additional pressure-dump rate while crossing zero
+-- during a direction reversal.
+--
+-- Effective crossing-zero rate:
+--   512 + 250 = 762 units/sec
+--
+-- Full power -> zero during reversal:
+--   1024 / 762 ~= 1.34 sec
+local REVERSE_BOOST = 250
 
 local RUDDER_DEADBAND  = 0.02
 local REVERSE_DEADBAND = 0.02
@@ -69,16 +85,20 @@ local lastTime = getTime()
 local bladeTransitionRemaining  = 0
 local tillerTransitionRemaining = 0
 
+-- Current smoothed track outputs
 local lastL = 0
 local lastR = 0
 
 
--- Automatic reverse sequence:
+-- ============================================================
+-- AUTOMATIC REVERSE STATE
 --
 -- idle
 -- lifting
 -- ready
 -- returning
+-- ============================================================
+
 local reverseState = "idle"
 
 local reverseRemaining = 0
@@ -103,6 +123,7 @@ local function normStick(v)
     return 0
   end
 
+  -- EdgeTX sources may appear as +/-1024 or +/-100.
   if math.abs(v) > 100 then
     return v / 1024
   end
@@ -111,60 +132,110 @@ local function normStick(v)
 end
 
 
+-- ============================================================
+-- TIME-BASED HYDROSTATIC SMOOTHING
+--
+-- accelRate / decelRate / reverseBoost are channel units/sec.
+--
+-- This makes response timing independent of Lua execution rate.
+-- ============================================================
+
 local function smoothDirectional(
   prev,
   target,
   accelRate,
   decelRate,
-  reverseBoost
+  reverseBoost,
+  dt
 )
 
   local delta =
     target - prev
 
+
+  -- Already effectively at target.
+  if math.abs(delta) < 1 then
+    return target
+  end
+
+
   local crossingZero =
     (prev > 0 and target < 0) or
     (prev < 0 and target > 0)
 
+
   local sameDirection =
     (prev >= 0 and target >= 0) or
     (prev <= 0 and target <= 0)
+
 
   local accelerating =
     sameDirection and
     (math.abs(target) > math.abs(prev))
 
 
-  if math.abs(delta) < accelRate then
+  local rate
+
+
+  -- ----------------------------------------------------------
+  -- DIRECTION REVERSAL
+  --
+  -- Simulates rapid hydrostatic pressure dump as output
+  -- crosses through zero.
+  -- ----------------------------------------------------------
+
+  if crossingZero then
+
+    rate =
+      decelRate +
+      reverseBoost
+
+
+  -- ----------------------------------------------------------
+  -- ACCELERATING
+  --
+  -- Pump builds pressure relatively slowly.
+  -- ----------------------------------------------------------
+
+  elseif accelerating then
+
+    rate =
+      accelRate
+
+
+  -- ----------------------------------------------------------
+  -- DECELERATING
+  --
+  -- Hydrostatic braking reduces power more quickly.
+  -- ----------------------------------------------------------
+
+  else
+
+    rate =
+      decelRate
+
+  end
+
+
+  local step =
+    rate * dt
+
+
+  -- Prevent overshooting the target.
+  if math.abs(delta) <= step then
     return target
   end
 
 
-  if crossingZero then
+  if delta > 0 then
 
-    if prev > 0 then
-      return prev - (decelRate + reverseBoost)
-    else
-      return prev + (decelRate + reverseBoost)
-    end
-  end
-
-
-  if accelerating then
-
-    if delta > 0 then
-      return prev + accelRate
-    else
-      return prev - accelRate
-    end
+    return
+      prev + step
 
   else
 
-    if delta > 0 then
-      return prev + decelRate
-    else
-      return prev - decelRate
-    end
+    return
+      prev - step
 
   end
 end
@@ -176,17 +247,29 @@ end
 
 local function run()
 
-  local now = getTime()
-  local dt = (now - lastTime) / 100
-  lastTime = now
+  local now =
+    getTime()
 
-  if dt < 0 then dt = 0 end
-  if dt > 0.25 then dt = 0.25 end
+  local dt =
+    (now - lastTime) / 100
+
+  lastTime =
+    now
 
 
-  -- ----------------------------------------------------------
+  -- Protect against unusual scheduler pauses.
+  if dt < 0 then
+    dt = 0
+  end
+
+  if dt > 0.25 then
+    dt = 0.25
+  end
+
+
+  -- ==========================================================
   -- INPUTS
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local sd =
     getValue("sd") or 0
@@ -194,26 +277,35 @@ local function run()
   local sf =
     getValue("sf") or 0
 
+
   local thr =
-    normStick(getValue("thr"))
+    normStick(
+      getValue("thr")
+    )
+
 
   local rud =
-    -normStick(getValue("rud"))
+    -normStick(
+      getValue("rud")
+    )
+
 
   if math.abs(rud) < RUDDER_DEADBAND then
     rud = 0
   end
 
+
   local eStop =
     sf > 0
+
 
   local isGroom =
     sd > 500
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- GLOBAL VARIABLES
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local bladeDepth =
     clamp(
@@ -222,6 +314,7 @@ local function run()
       1
     )
 
+
   local groomDepth =
     clamp(
       (getValue("gvar3") or 0) / 100,
@@ -229,12 +322,14 @@ local function run()
       1
     )
 
+
   local reverseLift =
     clamp(
       (getValue("gvar4") or 0) / 100,
       0,
       1
     )
+
 
   local groomAngle =
     clamp(
@@ -244,24 +339,32 @@ local function run()
     )
 
 
-  -- ----------------------------------------------------------
-  -- CALCULATED IMPLEMENT TRANSITION TIMES
+  -- ==========================================================
+  -- IMPLEMENT TRANSITION TIMES
   --
-  -- These mirror the physical movement expected from
+  -- These mirror the physical movements commanded by
   -- blade.lua and tiller.lua.
+  -- ==========================================================
+
+
+  -- ----------------------------------------------------------
+  -- BLADE
   -- ----------------------------------------------------------
 
   local bladeLiftTime =
     bladeDepth *
     BLADE_LIFT_FULL
 
+
   local bladeWingTime =
     WORK_WING_OPEN *
     WING_FULL
 
+
   local bladeAngleTime =
     WORK_ANGLE *
     BLADE_ANGLE_FULL
+
 
   local bladeTransitionTime =
     math.max(
@@ -271,13 +374,19 @@ local function run()
     )
 
 
+  -- ----------------------------------------------------------
+  -- TILLER
+  -- ----------------------------------------------------------
+
   local tillerLiftTime =
     groomDepth *
     TILLER_LIFT_FULL
 
+
   local tillerAngleTime =
     groomAngle *
     TILLER_ANGLE_FULL
+
 
   local tillerTransitionTime =
     math.max(
@@ -287,64 +396,84 @@ local function run()
     )
 
 
+  -- ----------------------------------------------------------
+  -- REVERSE CLEARANCE
+  -- ----------------------------------------------------------
+
   local reverseLiftTime =
     reverseLift *
     TILLER_LIFT_FULL
 
 
-  -- ----------------------------------------------------------
-  -- INITIALIZE
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- INITIALIZATION
+  -- ==========================================================
 
   if not initialized then
 
-    lastSd = sd
-    initialized = true
+    lastSd =
+      sd
+
+    initialized =
+      true
   end
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- E-STOP
   --
-  -- Everything stops immediately.
+  -- Track outputs and tiller rotor go to zero immediately.
   --
-  -- Importantly, transition/reverse timers do NOT advance
-  -- while E-stop is held, so the system cannot believe an
-  -- actuator completed movement while power was stopped.
-  -- ----------------------------------------------------------
+  -- Timers intentionally do not advance while E-stop is held.
+  -- ==========================================================
 
   if eStop then
 
     lastL = 0
     lastR = 0
 
+
     return
       0, -- TrackL
       0, -- TrackR
       0, -- TillerMot
-      bladeTransitionRemaining > 0 and 1024 or -1024,
+
+      bladeTransitionRemaining > 0
+        and 1024
+        or -1024,
+
       (
-        tillerTransitionRemaining > 0 or
-        reverseState == "lifting" or
-        reverseState == "returning"
-      ) and 1024 or -1024
+        tillerTransitionRemaining > 0
+        or reverseState == "lifting"
+        or reverseState == "returning"
+      )
+        and 1024
+        or -1024
   end
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- MODE TRANSITION DETECTION
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   if lastSd ~= nil
     and sd ~= lastSd
   then
 
-    local from = lastSd
-    local to   = sd
+    local from =
+      lastSd
+
+    local to =
+      sd
 
 
-    -- Blade only changes base position when Transport
-    -- is entered or exited.
+    -- --------------------------------------------------------
+    -- BLADE
+    --
+    -- Blade changes base position only when Transport is
+    -- entered or exited.
+    -- --------------------------------------------------------
+
     if from == -1024
       or to == -1024
     then
@@ -354,8 +483,13 @@ local function run()
     end
 
 
-    -- Tiller only changes base position when Groom
-    -- is entered or exited.
+    -- --------------------------------------------------------
+    -- TILLER
+    --
+    -- Tiller changes base position only when Groom is
+    -- entered or exited.
+    -- --------------------------------------------------------
+
     if from == 1024
       or to == 1024
     then
@@ -363,23 +497,31 @@ local function run()
       tillerTransitionRemaining =
         tillerTransitionTime
 
-      -- Changing mode cancels an automatic backing sequence.
-      reverseState = "idle"
-      reverseRemaining = 0
+
+      -- Mode change cancels automatic reverse sequence.
+      reverseState =
+        "idle"
+
+      reverseRemaining =
+        0
     end
 
-    lastSd = sd
+
+    lastSd =
+      sd
   end
 
 
-  -- ----------------------------------------------------------
-  -- DECREMENT NORMAL TRANSITION TIMERS
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- NORMAL TRANSITION TIMERS
+  -- ==========================================================
 
   if bladeTransitionRemaining > 0 then
 
     bladeTransitionRemaining =
-      bladeTransitionRemaining - dt
+      bladeTransitionRemaining -
+      dt
+
 
     if bladeTransitionRemaining < 0 then
       bladeTransitionRemaining = 0
@@ -390,7 +532,9 @@ local function run()
   if tillerTransitionRemaining > 0 then
 
     tillerTransitionRemaining =
-      tillerTransitionRemaining - dt
+      tillerTransitionRemaining -
+      dt
+
 
     if tillerTransitionRemaining < 0 then
       tillerTransitionRemaining = 0
@@ -403,15 +547,15 @@ local function run()
   -- ==========================================================
 
   local reverseRequested =
-    isGroom and
-    thr < -REVERSE_DEADBAND
+    isGroom
+    and thr < -REVERSE_DEADBAND
 
 
   -- ----------------------------------------------------------
-  -- START LIFT
+  -- START AUTO-LIFT
   --
-  -- Do not start reverse lift while the tiller is still
-  -- completing the normal movement into Groom.
+  -- Do not begin until the normal transition into Groom has
+  -- completed.
   -- ----------------------------------------------------------
 
   if reverseState == "idle"
@@ -434,11 +578,15 @@ local function run()
   if reverseState == "lifting" then
 
     reverseRemaining =
-      reverseRemaining - dt
+      reverseRemaining -
+      dt
+
 
     if reverseRemaining <= 0 then
 
-      reverseRemaining = 0
+      reverseRemaining =
+        0
+
 
       if reverseRequested then
 
@@ -447,13 +595,16 @@ local function run()
 
       else
 
-        -- Reverse command was released before the lift
-        -- completed. Finish the lift, then return.
+        -- Operator released reverse early.
+        --
+        -- The tiller.lua logic still completes the full lift
+        -- and then returns.
         reverseState =
           "returning"
 
         reverseRemaining =
           reverseLiftTime
+
       end
     end
 
@@ -475,18 +626,23 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- RETURNING TO GROOM
+  -- RETURNING
   -- ----------------------------------------------------------
 
   elseif reverseState == "returning" then
 
     reverseRemaining =
-      reverseRemaining - dt
+      reverseRemaining -
+      dt
+
 
     if reverseRemaining <= 0 then
 
-      reverseRemaining = 0
-      reverseState = "idle"
+      reverseRemaining =
+        0
+
+      reverseState =
+        "idle"
     end
 
   end
@@ -513,25 +669,24 @@ local function run()
   -- ==========================================================
   -- TILLER MOTOR SAFETY
   --
-  -- Rotor is permitted only when:
+  -- Tiller rotor is allowed only:
   --
-  --   • Groom mode
-  --   • no normal tiller transition
-  --   • no automatic reverse cycle
-  --   • E-stop is not active
-  --
-  -- Reverse request locks rotor immediately, before physical
-  -- lift movement begins.
+  --   Groom
+  --   + normal tiller transition finished
+  --   + no reverse lift/backing/return cycle active
   -- ==========================================================
 
-  local tillerMotorEnable = 0
+  local tillerMotorEnable =
+    0
+
 
   if isGroom
     and tillerTransitionRemaining <= 0
     and reverseState == "idle"
   then
 
-    tillerMotorEnable = 1024
+    tillerMotorEnable =
+      1024
   end
 
 
@@ -539,12 +694,25 @@ local function run()
   -- TRACK CONTROL
   -- ==========================================================
 
+
+  -- ----------------------------------------------------------
+  -- HIGH-SPEED STEERING REDUCTION
+  -- ----------------------------------------------------------
+
   local speedScale =
     1 -
-    (math.abs(thr) * SPEED_FACTOR)
+    (math.abs(thr) *
+     SPEED_FACTOR)
+
+
+  -- ----------------------------------------------------------
+  -- PROGRESSIVE RUDDER
+  -- ----------------------------------------------------------
 
   local rudCurve =
-    rud * math.abs(rud)
+    rud *
+    math.abs(rud)
+
 
   local turn =
     rudCurve *
@@ -552,9 +720,9 @@ local function run()
     speedScale
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- PIVOT + DRIVE BLENDING
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local pivotBlend =
     clamp(
@@ -563,35 +731,44 @@ local function run()
       1
     )
 
+
   local driveLeft =
     thr *
     (1 + turn * 0.7)
+
 
   local driveRight =
     thr *
     (1 - turn * 0.4)
 
+
   local pivotLeft =
     turn
+
 
   local pivotRight =
     -turn
 
+
   local left =
-    (driveLeft * pivotBlend) +
+    (driveLeft * pivotBlend)
+    +
     (pivotLeft * (1 - pivotBlend))
 
+
   local right =
-    (driveRight * pivotBlend) +
+    (driveRight * pivotBlend)
+    +
     (pivotRight * (1 - pivotBlend))
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- THROTTLE CEILING
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local maxT =
     math.abs(thr)
+
 
   left =
     clamp(
@@ -599,6 +776,7 @@ local function run()
       -maxT,
       maxT
     )
+
 
   right =
     clamp(
@@ -609,10 +787,10 @@ local function run()
 
 
   -- ==========================================================
-  -- REVERSE SAFETY
+  -- GROOM REVERSE SAFETY
   --
-  -- In Groom, negative track motion is permitted ONLY after
-  -- the automatic tiller lift reaches "ready".
+  -- Reverse track output is permitted only after the
+  -- automatic tiller clearance movement completes.
   -- ==========================================================
 
   local reverseAllowed =
@@ -636,7 +814,7 @@ local function run()
 
 
   -- ==========================================================
-  -- NORMAL IMPLEMENT TRANSITION CREEP
+  -- IMPLEMENT TRANSITION CREEP
   -- ==========================================================
 
   if bladeTransitionActive
@@ -644,15 +822,24 @@ local function run()
   then
 
     left =
-      left * TRANSITION_POWER
+      left *
+      TRANSITION_POWER
+
 
     right =
-      right * TRANSITION_POWER
+      right *
+      TRANSITION_POWER
   end
 
 
-  -- During the upward reverse clearance movement, reverse
-  -- remains fully blocked regardless of the creep multiplier.
+  -- ==========================================================
+  -- REVERSE-LIFT HARD BLOCK
+  --
+  -- Even though transition creep is normally permitted,
+  -- absolutely no reverse output is allowed while the tiller
+  -- is still lifting.
+  -- ==========================================================
+
   if reverseState == "lifting" then
 
     if left < 0 then
@@ -666,15 +853,22 @@ local function run()
 
 
   -- ==========================================================
-  -- TRACK OUTPUT SMOOTHING
+  -- TRACK OUTPUT TARGETS
   -- ==========================================================
 
   local targetL =
-    left * 1024
+    left *
+    1024
+
 
   local targetR =
-    right * 1024
+    right *
+    1024
 
+
+  -- ==========================================================
+  -- TIME-BASED HYDROSTATIC OUTPUT SMOOTHING
+  -- ==========================================================
 
   local leftOut =
     smoothDirectional(
@@ -682,7 +876,8 @@ local function run()
       targetL,
       ACCEL_RATE,
       DECEL_RATE,
-      REVERSE_BOOST
+      REVERSE_BOOST,
+      dt
     )
 
 
@@ -692,12 +887,14 @@ local function run()
       targetR,
       ACCEL_RATE,
       DECEL_RATE,
-      REVERSE_BOOST
+      REVERSE_BOOST,
+      dt
     )
 
 
   lastL =
     leftOut
+
 
   lastR =
     rightOut
@@ -708,16 +905,27 @@ local function run()
   -- ==========================================================
 
   return
+
     leftOut,
+
+    -- Right track physical direction is reversed.
     -rightOut,
+
     tillerMotorEnable,
-    bladeTransitionActive and 1024 or -1024,
-    tillerTransitionActive and 1024 or -1024
+
+    bladeTransitionActive
+      and 1024
+      or -1024,
+
+    tillerTransitionActive
+      and 1024
+      or -1024
 end
 
 
 return {
   run = run,
+
   output = {
     "TrackL",
     "TrackR",
