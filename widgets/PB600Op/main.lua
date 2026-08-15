@@ -54,10 +54,11 @@ local function getMachineStatus()
     getValue("thr") or 0
 
   local tranB =
-    getValue("l11") or -1024
+    getLogicalSwitchValue(11)
 
   local tranT =
-    getValue("l12") or -1024
+    getLogicalSwitchValue(12)
+
 
 
   local eStop =
@@ -523,7 +524,7 @@ lcd.drawText(cx + 85, cy - 10, "RW", rw_flags)
   --------------------------------------------------
 
   lcd.drawText(cx - 30, y - 25, "BLADE", SMLSIZE)
-  if (getValue("l11") == 1024) then
+  if (getLogicalSwitchValue(11) > 0 ) then
     lcd.drawText(cx - 35, y +5, "Transition", SMLSIZE+INVERS+COL_FWD)
   end
 
@@ -666,8 +667,9 @@ local function drawHeader(x, y)
   --------------------------------------------------
   -- 🔥 TRANSITION DETECTION (SAFE)
   --------------------------------------------------
-  local bladeTr  = getValue("l11") == 1024
-  local tillerTr = getValue("l12") == 1024
+  local bladeTr  = getLogicalSwitchValue(11)> 0
+  local tillerTr = getLogicalSwitchValue(12) > 0
+
 
   local inTransition = bladeTr or tillerTr
 
@@ -685,8 +687,8 @@ local function drawHeader(x, y)
 
   local flags = SMLSIZE
 
-  local blade_transition = getValue("l11")
-  local tiller_transition = getValue("l12")
+  local blade_transition = getLogicalSwitchValue(11)
+  local tiller_transition = getLogicalSwitchValue(12)
   if blade_transition == 1024 or tiller_transition == 1024 then
     flags = SMLSIZE + INVERS
   end
