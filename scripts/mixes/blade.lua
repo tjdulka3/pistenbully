@@ -51,8 +51,7 @@ local COORD_SLEW_RANGE  = 0.12
 local COORD_TILT_RANGE  = 0.08
 local COORD_ANGLE_RANGE = 0.10
 
-
-
+local COORD_RUD_DEADBAND = 0.08
 
 -- ============================================================
 -- OUTPUT DIRECTION CALIBRATION
@@ -247,6 +246,17 @@ local function setModeTarget(sd, bladeDepth)
   end
 end
 
+local function applyDeadband(v, db)
+
+  if math.abs(v) <= db then
+    return 0
+  end
+
+  local sign = (v >= 0) and 1 or -1
+
+  return sign *
+    ((math.abs(v) - db) / (1 - db))
+end
 
 -- ============================================================
 -- MAIN
@@ -273,7 +283,12 @@ local function run()
 
   local ail = deadband(normStick(getValue("ail")))
   local ele = deadband(normStick(getValue("ele")))
-  local rud = deadband(normStick(getValue("rud")))
+
+  local rud =
+    applyDeadband(
+      normStick(getValue("rud")),
+      COORD_RUD_DEADBAND
+    )
 
   local ls = deadband(normStick(getValue("ls")))
   local rs = deadband(normStick(getValue("rs")))
