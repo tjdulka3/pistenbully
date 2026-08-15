@@ -40,63 +40,124 @@ local function smoothValue(key, target, speed)
 end
 
 ----------------------------------------------------------
--- FORMAT LOCK STATE FOR UI
+-- MACHINE STATUS
 ----------------------------------------------------------
-local function fmtLockout(lockMode, lockReason)
+local function getMachineStatus()
+
+  local sf =
+    getValue("sf") or 0
+
+  local sd =
+    getValue("sd") or 0
+
+  local thr =
+    getValue("thr") or 0
+
+  local tranB =
+    getValue("ch17") or -1024
+
+  local tranT =
+    getValue("ch18") or -1024
+
+
+  local eStop =
+    sf > 0
+
+  local bladeTransition =
+    tranB > 500
+
+  local tillerTransition =
+    tranT > 500
+
+  local inGroom =
+    sd > 500
+
+  local reverseRequested =
+    thr < -50
+
 
   --------------------------------------------------------
-  -- STATE (based on LockMode)
+  -- 1. E-STOP
   --------------------------------------------------------
-  local state
 
-  if lockMode == -1024 then
-    state = "RUN"
-
-  elseif lockMode == 0 then
-    state = "TRANSITION"
-
-  elseif lockMode == 1024 then
-    state = "LOCKED"
-
-  else
-    state = "UNKNKOWN"
+  if eStop then
+    return "E-STOP", "alert", true
   end
 
+
   --------------------------------------------------------
-  -- REASON (based on LockReason)
+  -- 2. REVERSE AUTO-LIFT
   --------------------------------------------------------
-  local reason
 
-  if lockReason == -1024 then
-    reason = nil
+  if inGroom
+    and reverseRequested
+    and tillerTransition
+  then
 
-  elseif lockReason == -512 then
-    reason = "BLADE"
-
-  elseif lockReason == 0 then
-    reason = "TILLER"
-
-  elseif lockReason == 512 then
-    reason = "GROOM REVERSE"
-
-  elseif lockReason == 1024 then
-    reason = "E-STOP"
-
-  else
-    reason = "UNKNOWN"
+    return
+      "REVERSE: TILLER LIFT",
+      "warn",
+      false
   end
 
-  --------------------------------------------------------
-  -- COMBINE STATE + REASON
-  --------------------------------------------------------
-  if state == "RUN" then
-    return "RUN"
 
-  elseif reason then
-    return state .. ": " .. reason
+  --------------------------------------------------------
+  -- 3. MODE TRANSITIONS
+  --------------------------------------------------------
+
+  if bladeTransition
+    and tillerTransition
+  then
+
+    return
+      "TRANSITION: BLADE + TILLER",
+      "warn",
+      false
+  end
+
+
+  if bladeTransition then
+
+    return
+      "TRANSITION: BLADE",
+      "warn",
+      false
+  end
+
+
+  if tillerTransition then
+
+    return
+      "TRANSITION: TILLER",
+      "warn",
+      false
+  end
+
+
+  --------------------------------------------------------
+  -- 4. NORMAL MACHINE STATE
+  --------------------------------------------------------
+
+  if sd < -500 then
+
+    return
+      "RUN: TRANSPORT",
+      "run",
+      false
+
+  elseif sd > 500 then
+
+    return
+      "RUN: GROOM",
+      "run",
+      false
 
   else
-    return state
+
+    return
+      "RUN: PLOW",
+      "run",
+      false
   end
 end
 
@@ -193,40 +254,86 @@ local function drawTracks(x, y)
 
   lcd.drawText(x + 40, y - 25, "TRACKS", SMLSIZE)
 
-  local lockState  = getValue("ch19")
-  local lockReason = getValue("ch20")
-  local thr      = getValue("thr")
+  local thr = getValue("thr")
 
-  -- FINAL LOCK LOGIC
-  local lockout = ((lockState == 0) or (lockState == 1024))
+  ----------------------------------------------------------
+  -- CURRENT MACHINE STATUS
+  ----------------------------------------------------------
 
-  local isLocked   = (lockState == 1024)
-  local isSoft     = (lockState == 0)
-  local isEstop    = (lockReason == 1024)
+  local status, statusType, beep =
+    getMachineStatus()
 
-  local beep = false
-  lcd.drawText(180, 390, "STATUS: " , SMLSIZE)
-  if lockout then
-    if isLocked then
-      lcd.drawText(260, 390, fmtLockout(lockState, lockReason), SMLSIZE + INVERS + BLINK + COL_ALERT)
-      beep = true
-    elseif isSoft then
-      lcd.drawText(260, 390, fmtLockout(lockState, lockReason), SMLSIZE + INVERS + BLINK + COL_WARN)
-      beep = false
-    elseif isEstop then
-      lcd.drawText(260, 390, fmtLockout(lockState, lockReason), SMLSIZE + INVERS + BLINK + COL_ALERT)
-      beep = true
-    end
+  lcd.drawText(
+    180,
+    390,
+    "STATUS:",
+    SMLSIZE
+  )
 
-    if beep then
-      local now = getTime()
-      if (now - lastBeep) > 60 then
-        playTone(1200, 150, 0, PLAY_NOW)
-        lastBeep = now
-      end
-    end
+  if statusType == "alert" then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ALERT
+    )
+
+    lcd.drawText(
+      260,
+      390,
+      status,
+      SMLSIZE + INVERS + BLINK
+    )
+
+  elseif statusType == "warn" then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_WARN
+    )
+
+    lcd.drawText(
+      260,
+      390,
+      status,
+      SMLSIZE + INVERS
+    )
+
   else
-    lcd.drawText(260, 390, fmtLockout(lockState, lockReason), SMLSIZE+ COL_FWD)
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_FWD
+    )
+
+    lcd.drawText(
+      260,
+      390,
+      status,
+      SMLSIZE
+    )
+
+  end
+
+
+  ----------------------------------------------------------
+  -- E-STOP WARNING TONE
+  ----------------------------------------------------------
+
+  if beep then
+
+    local now = getTime()
+
+    if (now - lastBeep) > 60 then
+
+      playTone(
+        1200,
+        150,
+        0,
+        PLAY_NOW
+      )
+
+      lastBeep = now
+    end
   end
 
   if thr > 50 then
