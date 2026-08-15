@@ -65,10 +65,10 @@ local function getMachineStatus()
     sf > 0
 
   local bladeTransition =
-    tranB > 500
+    tranB
 
   local tillerTransition =
-    tranT > 500
+    tranT
 
   local inGroom =
     sd > 500
