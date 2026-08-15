@@ -46,10 +46,10 @@ local WORK_ANGLE     = -0.50
 
 -- Coordination ranges as fractions of full actuator stroke.
 -- GV1 scales all of these together.
-local COORD_WING_RANGE  = 0.15
-local COORD_SLEW_RANGE  = 0.12
-local COORD_TILT_RANGE  = 0.08
-local COORD_ANGLE_RANGE = 0.10
+local COORD_WING_RANGE  = 0.50
+local COORD_SLEW_RANGE  = 0.40
+local COORD_TILT_RANGE  = 0.25
+local COORD_ANGLE_RANGE = 0.30
 
 
 -- ============================================================
