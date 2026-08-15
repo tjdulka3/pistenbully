@@ -436,7 +436,7 @@ local function run()
     return
       0, -- TrackL
       0, -- TrackR
-      0, -- TillerMot
+      -1024, -- TillerMot
 
       bladeTransitionRemaining > 0
         and 1024
@@ -676,17 +676,13 @@ local function run()
   --   + no reverse lift/backing/return cycle active
   -- ==========================================================
 
-  local tillerMotorEnable =
-    0
-
+  local tillerMotorEnable = -1024
 
   if isGroom
     and tillerTransitionRemaining <= 0
     and reverseState == "idle"
   then
-
-    tillerMotorEnable =
-      1024
+    tillerMotorEnable = 1024
   end
 
 
@@ -934,3 +930,4 @@ return {
     "TranT"
   }
 }
+
