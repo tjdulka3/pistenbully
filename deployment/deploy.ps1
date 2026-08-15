@@ -98,6 +98,10 @@ $TargetWidgets = Join-Path `
     $TargetRoot `
     "WIDGETS"
 
+$TargetModels = Join-Path `
+    $TargetRoot `
+    "MODELS"
+
 
 New-Item `
     -ItemType Directory `
@@ -107,6 +111,11 @@ New-Item `
 New-Item `
     -ItemType Directory `
     -Path $TargetWidgets `
+    -Force | Out-Null
+
+New-Item `
+    -ItemType Directory `
+    -Path $TargetModels `
     -Force | Out-Null
 
 
@@ -143,6 +152,21 @@ Copy-Item `
     -Recurse `
     -Force
 
+# ============================================================
+# Deploy models
+# ============================================================
+
+$SourceModels = Join-Path `
+    $RepoRoot `
+    "models"
+
+Write-Host "Deploying models..."
+
+Copy-Item `
+    "$SourceModels\*" `
+    $TargetModels `
+    -Recurse `
+    -Force
 
 # ============================================================
 # Finished
