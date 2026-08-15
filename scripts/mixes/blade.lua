@@ -1,243 +1,676 @@
--- =========================
--- CONSTANTS
--- =========================
-local BLADE_ANGLE_TIME_FULL = 6.7
-local BLADE_LIFT_TIME_FULL  = 6.7
+-- ============================================================
+-- PB600 BLADE CONTROL
+--
+-- Outputs:
+--   1 Lift
+--   2 Tilt
+--   3 Angle
+--   4 Slew
+--   5 Left Wing
+--   6 Right Wing
+--
+-- GV1 = Coordination intensity %
+-- GV2 = Blade working depth %
+--
+-- SD:
+--   -1024 = Transport
+--       0 = Plow
+--    1024 = Groom
+--
+-- SC:
+--   Up    = ELE Lift / AIL Tilt
+--   Middle= AIL Slew / ELE Angle
+--
+-- LS / RS = manual wings
+-- SB Up   = coordination enabled
+-- SF Up   = E-stop
+-- ============================================================
 
--- =========================
+
+-- ============================================================
+-- PHYSICAL CALIBRATION / CODE TUNING
+-- ============================================================
+
+local LIFT_FULL_TIME  = 6.7
+local TILT_FULL_TIME  = 5.0
+local ANGLE_FULL_TIME = 6.7
+local SLEW_FULL_TIME  = 6.7
+local WING_FULL_TIME  = 3.75
+
+local INPUT_DEADBAND = 0.02
+
+-- Default non-Transport blade geometry.
+-- These normally should not need live adjustment.
+local WORK_WING_OPEN = 0.40
+local WORK_ANGLE     = -0.50
+
+-- Coordination ranges as fractions of full actuator stroke.
+-- GV1 scales all of these together.
+local COORD_WING_RANGE  = 0.15
+local COORD_SLEW_RANGE  = 0.12
+local COORD_TILT_RANGE  = 0.08
+local COORD_ANGLE_RANGE = 0.10
+
+
+-- ============================================================
+-- OUTPUT DIRECTION CALIBRATION
+--
+-- These preserve the directions used by the working scripts.
+-- Change only if an actuator moves backwards.
+-- ============================================================
+
+local LIFT_SIGN  = -1
+local TILT_SIGN  =  1
+local ANGLE_SIGN =  1
+local SLEW_SIGN  =  1
+local LW_SIGN    =  1
+local RW_SIGN    =  1
+
+
+-- ============================================================
 -- STATE
--- =========================
-local pos = { lift=0, tilt=0, slew=0, lw=0, rw=0 }
-local prev = { lift=0, tilt=0, slew=0, lw=0, rw=0 }
+-- ============================================================
 
-local lastTime = getTime()
-local homeStart = nil
+-- Physical-position estimate.
+--
+-- Lift:
+--   0 = Transport/full up
+--  -1 = Full down
+--
+-- Wings:
+--   0 = closed
+--   1 = fully open
+--
+-- Tilt/Slew/Angle:
+--   0 = centered/Transport reference
+local pos = {
+  lift  = 0,
+  tilt  = 0,
+  angle = 0,
+  slew  = 0,
+  lw    = 0,
+  rw    = 0
+}
 
-local angleMoveStart = nil
-local angleDirection = 0
+-- Separate coordination offsets so returning the rudder to
+-- center returns the coordinated motion without changing the
+-- operator's manually selected base position.
+local coordPos = {
+  tilt  = 0,
+  angle = 0,
+  slew  = 0,
+  lw    = 0,
+  rw    = 0
+}
 
-local liftMoveStart = nil
-local liftDirection = 0
-
+local initialized = false
 local lastSd = nil
+local lastTime = getTime()
 
--- =========================
+local modeTransition = false
+
+local modeTarget = {
+  lift  = 0,
+  tilt  = 0,
+  angle = 0,
+  slew  = 0,
+  lw    = 0,
+  rw    = 0
+}
+
+
+-- ============================================================
 -- HELPERS
--- =========================
-local function clamp(x)
-  if x > 1 then return 1 end
-  if x < -1 then return -1 end
-  return x
+-- ============================================================
+
+local function clamp(v, lo, hi)
+  if v < lo then return lo end
+  if v > hi then return hi end
+  return v
 end
 
-local function delta(a,b) return a-b end
 
-local function zero(x, db)
-  if math.abs(x) < (db * 2) then return 0 end
-  return x
+local function clamp1024(v)
+  return clamp(v, -1024, 1024)
 end
 
--- =========================
+
+-- Handles either +/-1024 or +/-100 source scaling.
+local function normStick(v)
+
+  if type(v) ~= "number" then
+    return 0
+  end
+
+  if math.abs(v) > 100 then
+    return v / 1024
+  end
+
+  return v / 100
+end
+
+
+local function deadband(v)
+
+  if math.abs(v) < INPUT_DEADBAND then
+    return 0
+  end
+
+  return v
+end
+
+
+-- Move an internally modeled actuator position toward a target.
+--
+-- Positions are expressed as fractions of full actuator stroke.
+-- fullTime is full-stroke travel time.
+--
+-- Returns:
+--   newPosition, channelOutput
+local function moveToward(position, target, fullTime, outputSign, dt)
+
+  local err = target - position
+
+  if math.abs(err) < 0.001 then
+    return target, 0
+  end
+
+  local step = dt / fullTime
+
+  if step <= 0 then
+    return position, 0
+  end
+
+  local direction
+
+  if err > 0 then
+    direction = 1
+  else
+    direction = -1
+  end
+
+  if math.abs(err) <= step then
+    position = target
+  else
+    position = position + (direction * step)
+  end
+
+  local output =
+    direction * outputSign * 1024
+
+  return position, output
+end
+
+
+-- Update position estimate while an operator directly drives an axis.
+local function manualPosition(position, command, fullTime, outputSign, dt)
+
+  if command == 0 then
+    return position
+  end
+
+  local physicalDirection =
+    command / outputSign
+
+  position =
+    position +
+    (physicalDirection * dt / fullTime)
+
+  return clamp(position, -1, 1)
+end
+
+
+local function setModeTarget(sd, bladeDepth)
+
+  if sd == -1024 then
+
+    -- TRANSPORT
+    modeTarget.lift  = 0
+    modeTarget.tilt  = 0
+    modeTarget.angle = 0
+    modeTarget.slew  = 0
+    modeTarget.lw    = 0
+    modeTarget.rw    = 0
+
+  else
+
+    -- PLOW / GROOM working geometry
+    modeTarget.lift  = -bladeDepth
+    modeTarget.tilt  = 0
+    modeTarget.angle = WORK_ANGLE
+    modeTarget.slew  = 0
+    modeTarget.lw    = WORK_WING_OPEN
+    modeTarget.rw    = WORK_WING_OPEN
+
+  end
+end
+
+
+-- ============================================================
 -- MAIN
--- =========================
+-- ============================================================
+
 local function run()
 
   local now = getTime()
   local dt = (now - lastTime) / 100
   lastTime = now
 
-  local rud = getValue("rud") / 1024
-  local sb  = getValue("sb")
-  local sd  = getValue("sd")
+  if dt < 0 then dt = 0 end
+  if dt > 0.25 then dt = 0.25 end
 
-  if math.abs(rud) < 0.02 then rud = 0 end
 
-  local coordMode = sb
+  -- ----------------------------------------------------------
+  -- INPUTS
+  -- ----------------------------------------------------------
 
-  -- =========================
+  local sd = getValue("sd") or 0
+  local sc = getValue("sc") or 0
+  local sb = getValue("sb") or 0
+  local sf = getValue("sf") or 0
+
+  local ail = deadband(normStick(getValue("ail")))
+  local ele = deadband(normStick(getValue("ele")))
+  local rud = deadband(normStick(getValue("rud")))
+
+  local ls = deadband(normStick(getValue("ls")))
+  local rs = deadband(normStick(getValue("rs")))
+
+  local eStop =
+    sf > 0
+
+  local inGroom =
+    sd > 500
+
+  local coordEnabled =
+    inGroom and sb > 500
+
+
+  -- ----------------------------------------------------------
   -- GLOBAL VARIABLES
-  -- =========================
-  local gWing  = getValue("gvar1") / 100
-  local gAngle = getValue("gvar2") / 100
-  local gSlew  = getValue("gvar3") / 100
-  local gTilt  = getValue("gvar4") / 100
-  local gCoord = getValue("gvar5") / 100
+  -- ----------------------------------------------------------
 
-  local gOut   = getValue("gvar6")
-  local gSpeed = getValue("gvar7") / 100
-  local gDB    = getValue("gvar8") / 100
-  local gHome  = getValue("gvar9") / 10
+  local gCoord =
+    clamp((getValue("gvar1") or 0) / 100, 0, 1)
 
-  local liftTime = (getValue("gvar14") / 100) * BLADE_LIFT_TIME_FULL
+  local bladeDepth =
+    clamp((getValue("gvar2") or 0) / 100, 0, 1)
 
-  local gBladeAnglePercent = getValue("gvar10") / 100
-  local gBladeAngleTime = gBladeAnglePercent * BLADE_ANGLE_TIME_FULL
 
-  -- =========================
-  -- TRANSITIONS
-  -- =========================
+  -- ----------------------------------------------------------
+  -- INITIALIZATION
+  --
+  -- Avoids unexplained actuator motion immediately after
+  -- loading/rebooting the radio.
+  -- ----------------------------------------------------------
+
+  if not initialized then
+
+    setModeTarget(sd, bladeDepth)
+
+    pos.lift  = modeTarget.lift
+    pos.tilt  = modeTarget.tilt
+    pos.angle = modeTarget.angle
+    pos.slew  = modeTarget.slew
+    pos.lw    = modeTarget.lw
+    pos.rw    = modeTarget.rw
+
+    lastSd = sd
+    initialized = true
+  end
+
+
+  -- ----------------------------------------------------------
+  -- E-STOP
+  --
+  -- Do not advance modeled actuator positions while stopped.
+  -- ----------------------------------------------------------
+
+  if eStop then
+
+    return
+      0, -- Lift
+      0, -- Tilt
+      0, -- Angle
+      0, -- Slew
+      0, -- LW
+      0  -- RW
+  end
+
+
+  -- ----------------------------------------------------------
+  -- MODE TRANSITION DETECTION
+  --
+  -- Blade automatically moves only when Transport is involved.
+  -- Plow <-> Groom does not reposition the base blade.
+  -- ----------------------------------------------------------
+
   if lastSd ~= nil and sd ~= lastSd then
 
-    local from = lastSd
-    local to   = sd
+    if lastSd == -1024 or sd == -1024 then
 
-    if (from == -1024) or (to == -1024) then
-      angleMoveStart = now
-      angleDirection = (to == -1024) and 1 or -1
+      setModeTarget(sd, bladeDepth)
+      modeTransition = true
+
+      -- Remove old coordination before moving modes.
+      coordPos.tilt  = 0
+      coordPos.angle = 0
+      coordPos.slew  = 0
+      coordPos.lw    = 0
+      coordPos.rw    = 0
     end
 
-    local enteringTransport = (to == -1024)
-    local leavingTransport  = (from == -1024 and to ~= -1024)
-
-    if enteringTransport or leavingTransport then
-      liftMoveStart = now
-      liftDirection = enteringTransport and 1 or -1
-    else
-      liftMoveStart = nil
-    end
+    lastSd = sd
   end
 
-  lastSd = sd
 
- -- =========================
-  -- LIFT CONTROL (POSITION-BASED + SH OVERRIDE)
-  -- =========================
-  local sh = getValue("sh") or 0
-  local shActive = (sh > 0)
+  -- ----------------------------------------------------------
+  -- OUTPUT COMMANDS
+  -- ----------------------------------------------------------
 
-  local FLOAT_POS     = 0.0
-  local TRANSPORT_POS = 1.0
-  local BUMP_POS      = 0.10
+  local liftCmd  = 0
+  local tiltCmd  = 0
+  local angleCmd = 0
+  local slewCmd  = 0
+  local lwCmd    = 0
+  local rwCmd    = 0
 
-  -- determine base target from SD
-  local baseTarget
-  if sd == -1024 then
-    baseTarget = TRANSPORT_POS
+
+  -- ==========================================================
+  -- AUTOMATIC MODE TRANSITION
+  -- ==========================================================
+
+  if modeTransition then
+
+    pos.lift, liftCmd =
+      moveToward(
+        pos.lift,
+        modeTarget.lift,
+        LIFT_FULL_TIME,
+        LIFT_SIGN,
+        dt
+      )
+
+    pos.tilt, tiltCmd =
+      moveToward(
+        pos.tilt,
+        modeTarget.tilt,
+        TILT_FULL_TIME,
+        TILT_SIGN,
+        dt
+      )
+
+    pos.angle, angleCmd =
+      moveToward(
+        pos.angle,
+        modeTarget.angle,
+        ANGLE_FULL_TIME,
+        ANGLE_SIGN,
+        dt
+      )
+
+    pos.slew, slewCmd =
+      moveToward(
+        pos.slew,
+        modeTarget.slew,
+        SLEW_FULL_TIME,
+        SLEW_SIGN,
+        dt
+      )
+
+    pos.lw, lwCmd =
+      moveToward(
+        pos.lw,
+        modeTarget.lw,
+        WING_FULL_TIME,
+        LW_SIGN,
+        dt
+      )
+
+    pos.rw, rwCmd =
+      moveToward(
+        pos.rw,
+        modeTarget.rw,
+        WING_FULL_TIME,
+        RW_SIGN,
+        dt
+      )
+
+
+    local finished =
+      pos.lift  == modeTarget.lift  and
+      pos.tilt  == modeTarget.tilt  and
+      pos.angle == modeTarget.angle and
+      pos.slew  == modeTarget.slew  and
+      pos.lw    == modeTarget.lw    and
+      pos.rw    == modeTarget.rw
+
+    if finished then
+      modeTransition = false
+    end
+
+
+  -- ==========================================================
+  -- MANUAL BLADE CONTROL
+  -- ==========================================================
+
   else
-    baseTarget = FLOAT_POS
-  end
 
-  -- SH override
-  local liftTarget
-  if shActive then
-    liftTarget = BUMP_POS
-  else
-    liftTarget = baseTarget
-  end
+    -- SC UP:
+    -- ELE = Lift
+    -- AIL = Tilt
+    if sc < -500 then
 
-  -- smooth movement toward target
-  local err = liftTarget - pos.lift
-  local moveRate = dt / liftTime
+      liftCmd =
+        ele * 1024
 
-  if math.abs(err) < 0.01 then
-    pos.lift = liftTarget
-  elseif err > 0 then
-    pos.lift = clamp(pos.lift + moveRate)
-  else
-    pos.lift = clamp(pos.lift - moveRate)
-  end
+      tiltCmd =
+        ail * 1024
 
-  -- =========================
-  -- ANGLE OUTPUT
-  -- =========================
-  local angleOut = 0
+      pos.lift =
+        manualPosition(
+          pos.lift,
+          ele,
+          LIFT_FULL_TIME,
+          LIFT_SIGN,
+          dt
+        )
 
-  if angleMoveStart ~= nil then
-    local elapsed = (now - angleMoveStart) / 100
-    if elapsed < gBladeAngleTime then
-      angleOut = angleDirection * 1024
-    else
-      angleMoveStart = nil
-    end
-  end
+      pos.tilt =
+        manualPosition(
+          pos.tilt,
+          ail,
+          TILT_FULL_TIME,
+          TILT_SIGN,
+          dt
+        )
 
-  -- =========================
-  -- TARGETS
-  -- =========================
-  local target
-  if sd == -1024 then
-    target = { lift=pos.lift, tilt=0, slew=0, lw=-1, rw=-1 }
-  else
-    target = { lift=pos.lift, tilt=0, slew=0, lw=-0.6, rw=-0.6 }
-  end
 
-  -- =========================
-  -- TRANSPORT OVERRIDE
-  -- =========================
-  if sd == -1024 then
-    if homeStart == nil then homeStart = now end
-    local elapsed = (now - homeStart) / 100
+    -- SC MIDDLE:
+    -- AIL = Slew
+    -- ELE = Angle
+    elseif math.abs(sc) <= 500 then
 
-    if elapsed < gHome then
-      prev.lift = pos.lift
-      return -1024, 0, angleOut, 0, -1024, -1024
-    end
-  else
-    homeStart = nil
-  end
+      slewCmd =
+        ail * 1024
 
-  -- =========================
-  -- POSITION CONTROL
-  -- =========================
-  for k,v in pairs(pos) do
-    if k ~= "lift" then
-      local err = target[k] - pos[k]
-      local speed = dt * gSpeed
+      angleCmd =
+        ele * 1024
 
-      if math.abs(err) < (gDB * 2) then
-        pos[k] = target[k]
-      elseif err > 0 then
-        pos[k] = pos[k] + speed
-      else
-        pos[k] = pos[k] - speed
-      end
+      pos.slew =
+        manualPosition(
+          pos.slew,
+          ail,
+          SLEW_FULL_TIME,
+          SLEW_SIGN,
+          dt
+        )
 
-      pos[k] = clamp(pos[k])
-    end
-  end
+      pos.angle =
+        manualPosition(
+          pos.angle,
+          ele,
+          ANGLE_FULL_TIME,
+          ANGLE_SIGN,
+          dt
+        )
 
-  -- =========================
-  -- COORDINATION
-  -- =========================
-  local offset = { lw=0, rw=0, slew=0, tilt=0 }
-
-  if sd ~= -1024 then
-
-    if coordMode == 1024 and (sd == 1024 or sd == 0) then
-      offset.lw   =  -rud * gWing * gCoord
-      offset.rw   = rud * gWing * gCoord
-      offset.slew =  rud * gSlew * gCoord
-      offset.tilt =  rud * gTilt * gCoord
     end
 
+
+    -- Wings remain manually available.
+    lwCmd =
+      ls * 1024
+
+    rwCmd =
+      rs * 1024
+
+    pos.lw =
+      manualPosition(
+        pos.lw,
+        ls,
+        WING_FULL_TIME,
+        LW_SIGN,
+        dt
+      )
+
+    pos.rw =
+      manualPosition(
+        pos.rw,
+        rs,
+        WING_FULL_TIME,
+        RW_SIGN,
+        dt
+      )
+
   end
 
-  local final = {
-    lift = pos.lift,
-    tilt = clamp(pos.tilt + offset.tilt),
-    slew = clamp(pos.slew + offset.slew),
-    lw   = clamp(pos.lw + offset.lw),
-    rw   = clamp(pos.rw + offset.rw)
-  }
 
-  local out = {}
+  -- ==========================================================
+  -- GROOM COORDINATION
+  --
+  -- All relative ratios are constants.
+  -- GV1 adjusts only overall coordination strength.
+  -- ==========================================================
 
-  for k,v in pairs(final) do
-    local d = delta(v, prev[k])
-    out[k] = zero(d * gOut, gDB)
-    prev[k] = v
+  local desiredTilt  = 0
+  local desiredAngle = 0
+  local desiredSlew  = 0
+  local desiredLW    = 0
+  local desiredRW    = 0
+
+  if coordEnabled and not modeTransition then
+
+    desiredLW =
+      rud * COORD_WING_RANGE * gCoord
+
+    desiredRW =
+      -rud * COORD_WING_RANGE * gCoord
+
+    desiredSlew =
+      rud * COORD_SLEW_RANGE * gCoord
+
+    desiredTilt =
+      rud * COORD_TILT_RANGE * gCoord
+
+    -- Preserve the historical behavior where blade-angle
+    -- coordination moves the same direction on either turn.
+    desiredAngle =
+      math.abs(rud) *
+      COORD_ANGLE_RANGE *
+      gCoord
   end
+
+
+  local coordCmd
+
+  coordPos.lw, coordCmd =
+    moveToward(
+      coordPos.lw,
+      desiredLW,
+      WING_FULL_TIME,
+      LW_SIGN,
+      dt
+    )
+
+  lwCmd =
+    lwCmd + coordCmd
+
+
+  coordPos.rw, coordCmd =
+    moveToward(
+      coordPos.rw,
+      desiredRW,
+      WING_FULL_TIME,
+      RW_SIGN,
+      dt
+    )
+
+  rwCmd =
+    rwCmd + coordCmd
+
+
+  coordPos.slew, coordCmd =
+    moveToward(
+      coordPos.slew,
+      desiredSlew,
+      SLEW_FULL_TIME,
+      SLEW_SIGN,
+      dt
+    )
+
+  slewCmd =
+    slewCmd + coordCmd
+
+
+  coordPos.tilt, coordCmd =
+    moveToward(
+      coordPos.tilt,
+      desiredTilt,
+      TILT_FULL_TIME,
+      TILT_SIGN,
+      dt
+    )
+
+  tiltCmd =
+    tiltCmd + coordCmd
+
+
+  coordPos.angle, coordCmd =
+    moveToward(
+      coordPos.angle,
+      desiredAngle,
+      ANGLE_FULL_TIME,
+      ANGLE_SIGN,
+      dt
+    )
+
+  angleCmd =
+    angleCmd + coordCmd
+
+
+  -- ==========================================================
+  -- FINAL OUTPUT
+  -- ==========================================================
 
   return
-    (-out.lift)*1024,
-    out.tilt*1024,
-    angleOut,
-    out.slew*1024,
-    out.lw*1024,
-    out.rw*1024
+    clamp1024(liftCmd),
+    clamp1024(tiltCmd),
+    clamp1024(angleCmd),
+    clamp1024(slewCmd),
+    clamp1024(lwCmd),
+    clamp1024(rwCmd)
 end
+
 
 return {
   run = run,
-  output = { "Lift","Tilt","Angle","Slew","LW","RW" }
+  output = {
+    "Lift",
+    "Tilt",
+    "Angle",
+    "Slew",
+    "LW",
+    "RW"
+  }
 }
