@@ -145,7 +145,7 @@ mixData:
    srcRaw: "lua(0,4)"
    carryTrim: 0
    mixWarn: 0
-   mltpx: ADD
+   mltpx: REPL
    delayPrec: 0
    speedPrec: 0
    flightModes: 000000000
@@ -179,7 +179,7 @@ mixData:
    srcRaw: "!lua(0,5)"
    carryTrim: 0
    mixWarn: 0
-   mltpx: ADD
+   mltpx: REPL
    delayPrec: 0
    speedPrec: 0
    flightModes: 000000000
