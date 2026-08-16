@@ -49,7 +49,30 @@
                 "panel": "dedicated",
                 "clear": true
             }
+        },
+
+        {
+            "label": "TX16S: Retrieve from RADIO",
+            "type": "shell",
+            "command": "powershell.exe",
+
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}\\deployment\\retrieve-radio.ps1"
+            ],
+
+            "problemMatcher": [],
+
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
         }
+
 
     ]
 }
