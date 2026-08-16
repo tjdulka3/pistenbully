@@ -32,7 +32,7 @@
 -- ============================================================
 
 local TILLER_LIFT_DOWN_FULL = 11.0
-local TILLER_LIFT_UP_FULL   = 14.0
+local TILLER_LIFT_UP_FULL   = 17.0
 local TILLER_ANGLE_FULL = 3.75
 local FIN_FULL_TIME     = 2.0
 

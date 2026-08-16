@@ -30,12 +30,12 @@
 -- ============================================================
 
 local BLADE_LIFT_DOWN_FULL = 11.0
-local BLADE_LIFT_UP_FULL   = 14.0
+local BLADE_LIFT_UP_FULL   = 17.0
 local BLADE_ANGLE_FULL  = 6.7
 local WING_FULL         = 3.75
 
 local TILLER_LIFT_DOWN_FULL = 11.0
-local TILLER_LIFT_UP_FULL   = 14.0
+local TILLER_LIFT_UP_FULL   = 17.0
 local TILLER_ANGLE_FULL = 3.75
 local FIN_FULL_TIME     = 2.0
 

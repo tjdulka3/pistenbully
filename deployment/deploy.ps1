@@ -102,6 +102,9 @@ $TargetModels = Join-Path `
     $TargetRoot `
     "MODELS"
 
+$TargetRadio = Join-Path `
+    $TargetRoot `
+    "RADIO"
 
 New-Item `
     -ItemType Directory `
@@ -118,6 +121,10 @@ New-Item `
     -Path $TargetModels `
     -Force | Out-Null
 
+New-Item `
+    -ItemType Directory `
+    -Path $TargetRadio `
+    -Force | Out-Null
 
 # ============================================================
 # Deploy mixer scripts
@@ -168,6 +175,22 @@ Copy-Item `
     -Recurse `
     -Force
 
+# ============================================================
+# Deploy radio
+# ============================================================
+
+$SourceRadio = Join-Path `
+    $RepoRoot `
+    "radio"
+
+Write-Host "Deploying radio..."
+
+Copy-Item `
+    "$SourceRadio\*" `
+    $TargetRadio `
+    -Recurse `
+    -Force
+    
 # ============================================================
 # Finished
 # ============================================================

@@ -32,7 +32,7 @@
 -- ============================================================
 
 local LIFT_DOWN_FULL_TIME = 11.0
-local LIFT_UP_FULL_TIME   = 14.0
+local LIFT_UP_FULL_TIME   = 17.0
 local TILT_FULL_TIME  = 5.0
 local ANGLE_FULL_TIME = 6.7
 local SLEW_FULL_TIME  = 6.7
@@ -52,7 +52,7 @@ local COORD_SLEW_RANGE  = 0.12
 local COORD_TILT_RANGE  = 0.08
 local COORD_ANGLE_RANGE = 0.10
 
-local COORD_RUD_DEADBAND = 0.08
+local COORD_RUD_DEADBAND = 0.12
 
 -- ============================================================
 -- OUTPUT DIRECTION CALIBRATION
