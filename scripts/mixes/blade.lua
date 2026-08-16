@@ -467,30 +467,12 @@ local function run()
         dt
       )
 
-    pos.tilt, tiltCmd =
-      moveToward(
-        pos.tilt,
-        modeTarget.tilt,
-        TILT_FULL_TIME,
-        TILT_SIGN,
-        dt
-      )
-
     pos.angle, angleCmd =
       moveToward(
         pos.angle,
         modeTarget.angle,
         ANGLE_FULL_TIME,
         ANGLE_SIGN,
-        dt
-      )
-
-    pos.slew, slewCmd =
-      moveToward(
-        pos.slew,
-        modeTarget.slew,
-        SLEW_FULL_TIME,
-        SLEW_SIGN,
         dt
       )
 
