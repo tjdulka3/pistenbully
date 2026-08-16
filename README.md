@@ -37,9 +37,22 @@ The `SD` three-position switch selects the primary operating mode.
 |---|---|---|
 | Up | Transport | Blade and tiller move to transport positions |
 | Middle | Plow | Blade moves to working position; tiller remains raised |
-| Down | Groom | Blade is available for grooming and tiller lowers to its working position |
+| Down | Groom | Blade remains at working position and tiller lowers to its Groom position |
 
 Each Lua script reads `SD` directly. No Lua output is consumed simply to communicate the current operating mode.
+
+## Automatic Blade Transition
+
+When entering or leaving Transport, the blade automatically moves only:
+
+- Blade Lift
+- Blade Angle
+- Left Wing
+- Right Wing
+
+Blade Tilt and Blade Slew do **not** participate in automatic mode transitions. Tilt and Slew remain under manual control and, when enabled, coordinated-turn control.
+
+Plow and Groom use the same normal blade working configuration, so changing between Plow and Groom does not reposition the blade solely because of the mode change.
 
 ---
 
@@ -88,9 +101,9 @@ The primary tuning constants are maintained in `system.lua`:
 local TURN_GAIN     = 0.25
 local SPEED_FACTOR  = 0.60
 
-local ACCEL_RATE    = 60
-local DECEL_RATE    = 180
-local REVERSE_BOOST = 140
+local ACCEL_RATE    = 205
+local DECEL_RATE    = 512
+local REVERSE_BOOST = 250
 ```
 
 These values are intentionally stored in code rather than Global Variables because they represent machine calibration rather than normal operator adjustments.
@@ -162,12 +175,24 @@ This replaces the earlier design in which reverse was completely prohibited in G
 
 # Tiller Motor Safety
 
-`system.lua` provides a dedicated `TillerMot` output.
+`system.lua` provides a dedicated `TMotor` safety-interlock output.
 
 ```text
-TillerMot = 100%  -> Rotor permitted
-TillerMot =   0%  -> Rotor locked out
+TMotor = +1024 / +100%  -> Rotor operation permitted
+TMotor = -1024 / -100%  -> Rotor forced OFF
 ```
+
+The tiller motor ESC uses the following command convention:
+
+```text
+-1024 / -100% =   0% motor power
+    0 /    0% =  50% motor power
++1024 / +100% = 100% motor power
+```
+
+Therefore `TMotor = 0` must **not** be interpreted as motor OFF.
+
+The normal rotor-speed command comes from `S1`. `TMotor` acts as a safety override that forces the physical tiller motor channel to `-1024` whenever rotor operation is prohibited.
 
 The tiller rotor is disabled during:
 
@@ -179,15 +204,23 @@ The tiller rotor is disabled during:
 
 The rotor is not permitted to restart until the tiller has completed its return to the normal Groom position.
 
-The physical tiller motor channel should use the operator's normal speed command multiplied by `TillerMot`.
-
 Conceptually:
 
 ```text
-Tiller Motor Command = S1 × TillerMot
+Normal operation:
+CH14 follows S1
+
+Safety lockout:
+CH14 forced to -1024
 ```
 
-This allows `S1` to control tiller rotor speed while Lua retains final safety authority.
+The receiver failsafe for the physical tiller motor channel must also be configured for:
+
+```text
+CH14 = -100% / -1024
+```
+
+Receiver `Hold` should **not** be used for the tiller motor channel.
 
 ---
 
@@ -248,6 +281,37 @@ Blade wings remain independently controlled by the left and right sliders.
 
 ---
 
+# Automatic Blade Positioning
+
+Automatic Transport / working-position transitions operate:
+
+```text
+Lift
+Angle
+Left Wing
+Right Wing
+```
+
+They do **not** automatically operate:
+
+```text
+Tilt
+Slew
+```
+
+| Axis | Transport -> Plow/Groom | Plow/Groom -> Transport |
+|---|---|---|
+| Lift | Move down to GV2 depth | Raise to home |
+| Angle | Move to working angle | Return to transport angle |
+| Left Wing | Move to working opening | Close |
+| Right Wing | Move to working opening | Close |
+| Tilt | No automatic output | No automatic output |
+| Slew | No automatic output | No automatic output |
+
+`TranB` remains active until Lift, Angle, and Wings have completed their automatic movement.
+
+---
+
 # Blade Coordination
 
 In Groom mode, rudder input can automatically coordinate blade movement with vehicle turns.
@@ -275,6 +339,19 @@ A single Global Variable controls overall coordination intensity.
 This replaces the older design that used individual GVs for each coordinated blade axis.
 
 The objective is to tune the relationship among the blade movements once in code and expose only overall coordination strength to the operator.
+
+## Coordination Rudder Deadband
+
+Implement coordination uses a larger rudder deadband than track steering so small incidental rudder movement while moving the combined throttle/rudder stick does not cause blade or tiller movement.
+
+Typical starting values:
+
+```text
+Track steering rudder deadband:   ~2%
+Implement coordination deadband:  ~8%
+```
+
+The coordination input is rescaled outside the deadband so full physical rudder still produces full configured coordination.
 
 ---
 
@@ -311,11 +388,11 @@ This keeps blade and tiller coordination synchronized through a single operator 
 
 Global Variables are reserved for settings that are useful to adjust live from the transmitter.
 
-| GV | Setting | Range | Default | Purpose |
+| GV | Setting | Range | Current | Purpose |
 |---|---|---|---|---|
 | GV1 | Coordination Intensity | 0-100 | 60 | Overall strength of automatic blade/tiller coordination |
-| GV2 | Blade Working Depth | 0-100 | 60 | Blade operating height/depth |
-| GV3 | Tiller Groom Depth | 0-100 | 70 | Normal tiller grooming height/depth |
+| GV2 | Blade Working Depth | 0-100 | 40 | Blade operating height/depth |
+| GV3 | Tiller Groom Depth | 0-100 | 35 | Normal tiller grooming height/depth |
 | GV4 | Reverse Lift Height | 0-100 | 10 | Amount the tiller raises before reverse is permitted 
 | GV5 | Tiller Working Angle | 0-100 | 50 | Normal tiller working angle |
 | GV6-GV9 | Reserved | | | Available for future operator-adjustable settings |
@@ -361,9 +438,9 @@ The project deliberately manages those outputs as follows.
 ```text
 1  TrackL
 2  TrackR
-3  TillerMot
-4  BladeTr
-5  TillerTr
+3  TMotor
+4  TranB
+5  TranT
 6  Reserved
 ```
 
@@ -378,21 +455,56 @@ This leaves three Lua output slots available across the system for future functi
 `system.lua` exposes two transition-state outputs:
 
 ```text
-BladeTr
-TillerTr
+TranB = Blade transition state
+TranT = Tiller transition state
 ```
 
-These indicate whether the respective implement is currently performing an automatic movement.
+The outputs use:
 
-They can be used by:
+```text
++1024 = Transition active
+-1024 = Transition inactive
+```
 
-- EdgeTX logical switches
-- Operator-screen indicators
-- Audio announcements
-- Future safety logic
-- Debugging
+These signals do **not** need to be assigned to physical receiver channels.
 
-The actual operating mode does not require a Lua output because all scripts can read `SD` directly.
+EdgeTX logical switches consume the Lua outputs directly:
+
+```text
+L11 = TranB active
+L12 = TranT active
+```
+
+The logical switches should test whether the corresponding Lua output is greater than zero.
+
+The operator widget can then use L11 and L12 for transition and status messaging without consuming physical receiver channels.
+
+## Reading Logical Switches from Lua
+
+`getLogicalSwitchValue()` uses a **zero-based** index and returns a Lua boolean.
+
+```lua
+local bladeTransition = getLogicalSwitchValue(10)   -- L11
+local tillerTransition = getLogicalSwitchValue(11)  -- L12
+```
+
+```text
+Index 0  = L01
+Index 1  = L02
+...
+Index 10 = L11
+Index 11 = L12
+```
+
+Use the boolean directly:
+
+```lua
+if getLogicalSwitchValue(10) then
+    -- Blade transition active
+end
+```
+
+Do not compare `getLogicalSwitchValue()` to `1024`.
 
 ---
 
@@ -419,6 +531,15 @@ Tiller Motor Locked
 ```
 
 Safety-critical behavior should not depend on a long chain of EdgeTX logical switches when Lua can directly read the underlying physical switch or control.
+
+Current transmitter-local transition assignments are:
+
+```text
+L11 = Blade Transition (`TranB`)
+L12 = Tiller Transition (`TranT`)
+```
+
+This avoids consuming physical receiver channels solely for status information.
 
 ---
 
@@ -497,23 +618,82 @@ This keeps source control independent of the removable radio storage.
 
 ---
 
-# Calibration
+# Actuator Calibration
 
-Mechanical characteristics that normally remain constant should be stored near the beginning of each Lua script.
+Mechanical characteristics that normally remain constant are stored near the beginning of each Lua script.
 
-Examples include:
+## Asymmetric Lift Timing
 
-```lua
-local LIFT_FULL_TIME  = 6.7
-local WING_FULL_TIME  = 3.75
+Lift actuator movement is asymmetric. The measured tiller full-stroke travel is:
 
-local TILLER_LIFT_FULL  = 12.5
-local TILLER_ANGLE_FULL = 3.75
+```text
+Full stroke DOWN = 11.0 seconds
+Full stroke UP   = 14.0 seconds
 ```
 
-If an actuator is replaced or its speed changes, recalibrate the appropriate full-travel value in the source.
+The tiller is currently being used as the calibration proxy for blade lift movement, so blade and tiller currently use matching directional lift rates.
+
+## Blade Timing
+
+Current blade working depth:
+
+```text
+GV2 = 40%
+
+Transport -> Working: 11.0 x 0.40 = 4.40 seconds DOWN
+Working -> Transport: 14.0 x 0.40 = 5.60 seconds UP
+```
+
+## Tiller Timing
+
+Current Groom depth:
+
+```text
+GV3 = 35%
+
+Raised -> Groom: 11.0 x 0.35 = 3.85 seconds DOWN
+Groom -> Raised: 14.0 x 0.35 = 4.90 seconds UP
+```
+
+## Reverse Lift Timing
+
+With `GV4 = 10%`:
+
+```text
+Reverse lift UP: 14.0 x 0.10 = 1.40 seconds
+Return DOWN:     11.0 x 0.10 = 1.10 seconds
+```
+
+## Position Model Synchronization
+
+`blade.lua`, `tiller.lua`, and `system.lua` must use matching lift calibration values. `system.lua` relies on these same values for transition timing, reverse-clearance timing, and tiller-motor lockout timing.
+
+Using one symmetric travel time for both directions causes the modeled actuator position to drift from the physical actuator after repeated transitions.
 
 Operator-facing GVs should not be used to compensate for incorrect mechanical calibration.
+
+## Transmitter Calibration
+
+Physical stick calibration should be verified before compensating for center errors in Lua. A miscalibrated rudder center can cause neutral rudder to be interpreted as a pivot request.
+
+After calibration, verify approximately:
+
+```text
+Centered throttle = 0
+Centered rudder   = 0
+```
+
+Software deadbands should handle normal small stick movement, not compensate for a badly calibrated transmitter.
+
+## Receiver Failsafe
+
+Safety-critical channels should use explicit safe failsafe positions rather than `Hold`. In particular:
+
+```text
+Tiller Motor CH14 failsafe = -100% / -1024
+```
+
+Track channels should likewise be configured to their stopped values.
 
 ---
 
@@ -569,7 +749,12 @@ The current architecture is intended to become the new baseline:
 - Tiller rotor safety interlock
 - E-stop across tracks, tiller rotor, blade, and tiller actuators
 - Explicit Transport / Plow / Groom transitions
-- Reduced dependence on EdgeTX logical switches
+- Logical switches used for transmitter-local status/UI functions rather than primary machine-control logic
+- L11/L12 provide Blade/Tiller transition status without consuming receiver channels
+- Direction-specific 11-second-down / 14-second-up lift timing
+- Blade automatic transitions limited to Lift, Angle, and Wings
+- Tilt and Slew excluded from automatic blade mode transitions
+- Receiver failsafe forces tiller rotor channel to -1024/off
 
 New functionality should be evaluated against this architecture before additional GVs, logical switches, or Lua outputs are allocated.
 
