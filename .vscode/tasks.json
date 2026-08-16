@@ -61,7 +61,7 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\deployment\\retrieve-radio.ps1"
+                "${workspaceFolder}\\deployment\\retreive_radio.ps1"
             ],
 
             "problemMatcher": [],

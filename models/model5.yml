@@ -507,6 +507,23 @@ mixData:
    speedDown: 0
    name: ""
  -
+   destCh: 15
+   srcRaw: "MAX"
+   carryTrim: 0
+   mixWarn: 0
+   mltpx: REPL
+   delayPrec: 0
+   speedPrec: 0
+   flightModes: 000000000
+   weight: -100
+   offset: 0
+   swtch: "L9"
+   delayUp: 0
+   delayDown: 0
+   speedUp: 0
+   speedDown: 0
+   name: ""
+ -
    destCh: 16
    srcRaw: "SW1"
    carryTrim: 0
@@ -781,7 +798,7 @@ limitData:
       ppmCenter: 0
       offset: 0
       symetrical: 0
-      revert: 0
+      revert: 1
       curve: 0
       name: "bangle"
    10:
@@ -1005,29 +1022,29 @@ points:
    16:
       val: -100
    17:
-      val: -94
+      val: -88
    18:
-      val: -85
+      val: -80
    19:
       val: -75
    21:
       val: 75
    22:
-      val: 85
+      val: 80
    23:
-      val: 94
+      val: 88
    24:
       val: 100
    25:
       val: -75
    26:
-      val: -40
+      val: -50
    27:
-      val: -15
+      val: -25
    29:
-      val: 15
+      val: 25
    30:
-      val: 40
+      val: 50
    31:
       val: 75
 logicalSw: 
@@ -1088,17 +1105,17 @@ logicalSw:
       delay: 0
       duration: 0
    7:
-      func: FUNC_AND
-      def: "L3,L4"
+      func: FUNC_VNEG
+      def: "I2,-5"
       andsw: "NONE"
       lsPersist: 0
       lsState: 0
       delay: 0
       duration: 0
    8:
-      func: FUNC_OR
-      def: "L7,L8"
-      andsw: "NONE"
+      func: FUNC_TIMER
+      def: "4,8"
+      andsw: "L8"
       lsPersist: 0
       lsState: 0
       delay: 0
@@ -1162,11 +1179,11 @@ flightModeData:
          0:
             val: 40
          1:
-            val: 40
+            val: 28
          2:
             val: 35
          3:
-            val: 20
+            val: 16
          4:
             val: 50
          5:
@@ -1254,7 +1271,7 @@ moduleData:
    1:
       type: TYPE_MULTIMODULE
       subType: 74,0
-      channelsStart: 0
+      channelsStart: 16
       channelsCount: 16
       failsafeMode: NOT_SET
       mod: 
