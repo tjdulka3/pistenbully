@@ -108,7 +108,7 @@ local function getMachineStatus()
 
 
 
-  if bladeTransition then
+  if bladeTransition and not tillerTransition then
 
     return
       "TRANSITION: BLADE",
@@ -117,7 +117,7 @@ local function getMachineStatus()
   end
 
 
-  if tillerTransition then
+  if tillerTransition and not bladeTransition then
 
     return
       "TRANSITION: TILLER",
@@ -126,8 +126,7 @@ local function getMachineStatus()
   end
 
 
-  if bladeTransition
-    and tillerTransition
+  if bladeTransition and tillerTransition
   then
 
     return
@@ -135,7 +134,7 @@ local function getMachineStatus()
       "warn",
       false
   end
-  
+
   --------------------------------------------------------
   -- 4. NORMAL MACHINE STATE
   --------------------------------------------------------
@@ -632,7 +631,7 @@ local function drawTillerPanel(x, y)
   --------------------------------------------------
 
   lcd.drawText(cx - 25, y - 25, "TILLER", SMLSIZE)
-  if (getValue("ch18") == 1024) then
+  if (getLogicalSwitchValue(12)) then
     lcd.drawText(cx - 35, y +5, "Transition", SMLSIZE+INVERS+COL_FWD)
   end
 end
