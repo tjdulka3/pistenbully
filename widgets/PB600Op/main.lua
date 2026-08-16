@@ -54,10 +54,10 @@ local function getMachineStatus()
     getValue("thr") or 0
 
   local tranB =
-    getLogicalSwitchValue(11)
+    getLogicalSwitchValue(10)
 
   local tranT =
-    getLogicalSwitchValue(12)
+    getLogicalSwitchValue(11)
 
 
 
@@ -524,7 +524,7 @@ lcd.drawText(cx + 85, cy - 10, "RW", rw_flags)
   --------------------------------------------------
 
   lcd.drawText(cx - 30, y - 25, "BLADE", SMLSIZE)
-  if (getLogicalSwitchValue(11)) then
+  if (getLogicalSwitchValue(10)) then
     lcd.drawText(cx - 35, y +5, "Transition", SMLSIZE+INVERS+COL_FWD)
   end
 
@@ -631,7 +631,7 @@ local function drawTillerPanel(x, y)
   --------------------------------------------------
 
   lcd.drawText(cx - 25, y - 25, "TILLER", SMLSIZE)
-  if (getLogicalSwitchValue(12)) then
+  if (getLogicalSwitchValue(11)) then
     lcd.drawText(cx - 35, y +5, "Transition", SMLSIZE+INVERS+COL_FWD)
   end
 end
@@ -667,7 +667,7 @@ local function drawHeader(x, y)
   --------------------------------------------------
   -- 🔥 TRANSITION DETECTION (SAFE)
   --------------------------------------------------
-  local inTransition = getLogicalSwitchValue(13)
+  local inTransition = getLogicalSwitchValue(12)
 
   --------------------------------------------------
   -- MODE LABEL (SAFE RENDER)
@@ -683,8 +683,8 @@ local function drawHeader(x, y)
 
   local flags = SMLSIZE
 
-  local blade_transition = getLogicalSwitchValue(11)
-  local tiller_transition = getLogicalSwitchValue(12)
+  local blade_transition = getLogicalSwitchValue(10)
+  local tiller_transition = getLogicalSwitchValue(11)
   if blade_transition  or tiller_transition  then
     flags = SMLSIZE + INVERS
   end
