@@ -106,15 +106,6 @@ local function getMachineStatus()
   -- 3. MODE TRANSITIONS
   --------------------------------------------------------
 
-  if bladeTransition
-    and tillerTransition
-  then
-
-    return
-      "TRANSITION: BLADE + TILLER",
-      "warn",
-      false
-  end
 
 
   if bladeTransition then
@@ -135,6 +126,16 @@ local function getMachineStatus()
   end
 
 
+  if bladeTransition
+    and tillerTransition
+  then
+
+    return
+      "TRANSITION: BLADE + TILLER",
+      "warn",
+      false
+  end
+  
   --------------------------------------------------------
   -- 4. NORMAL MACHINE STATE
   --------------------------------------------------------
