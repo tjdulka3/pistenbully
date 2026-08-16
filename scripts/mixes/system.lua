@@ -934,6 +934,54 @@ local function run()
   lastR =
     rightOut
 
+  -- ============================================================
+  -- ENGINE / SOUND CARD DRIVE SIGNAL
+  --
+  -- Models effective drivetrain load using actual hydrostatic
+  -- track outputs rather than raw throttle.
+  --
+  -- 75% = highest track demand
+  -- 25% = average track demand
+  --
+  -- This prevents engine RPM from dropping excessively when
+  -- one track is slowed for steering.
+  -- ============================================================
+
+  local absL = math.abs(leftOut)
+  local absR = math.abs(rightOut)
+
+  local maxTrack =
+    math.max(absL, absR)
+
+  local avgTrack =
+    (absL + absR) / 2
+
+  local engineMagnitude =
+    (maxTrack * 0.75) +
+    (avgTrack * 0.25)
+
+
+  -- Determine effective direction.
+  --
+  -- Normal reverse:
+  -- both tracks are negative.
+  --
+  -- During a pivot the tracks oppose each other, so retain a
+  -- positive engine/load signal rather than allowing cancellation.
+
+  local engineOut
+
+  if leftOut < 0 and rightOut < 0 then
+    engineOut = -engineMagnitude
+  else
+    engineOut = engineMagnitude
+  end
+
+
+  -- Keep tiny residual values at idle from affecting sound.
+  if math.abs(engineOut) < 10 then
+    engineOut = 0
+  end
 
   -- ==========================================================
   -- OUTPUTS
@@ -954,7 +1002,9 @@ local function run()
 
     tillerTransitionActive
       and 1024
-      or -1024
+      or -1024,
+    
+    engineOut
 end
 
 
@@ -966,6 +1016,7 @@ return {
     "TrackR",
     "TMotor",
     "TranB",
-    "TranT"
+    "TranT",
+    "EngOut"
   }
 }
