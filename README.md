@@ -27,7 +27,7 @@ EdgeTX.
     -   [Prop3 - Engine Autostart](#prop3-engine-autostart)
     -   [Sound-System Signal
         Architecture](#sound-system-signal-architecture)
--   [Automatic Reverse / Tiller Lift](#automatic-reverse-tiller-lift)
+-   [Automatic Reverse / Blade / Tiller Lift](#automatic-reverse-tiller-lift)
 -   [Tiller Motor Safety](#tiller-motor-safety)
 -   [Emergency Stop](#emergency-stop)
 -   [Blade Control](#blade-control)

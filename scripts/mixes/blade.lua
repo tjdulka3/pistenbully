@@ -764,105 +764,109 @@ local function run()
   -- ==========================================================
   -- GROOM COORDINATION
   --
-  -- All relative ratios are constants.
-  -- GV1 adjusts only overall coordination strength.
+  -- Coordination has authority ONLY during normal Groom
+  -- operation.  It is completely suppressed during:
+  --
+  --   * Mode transitions
+  --   * Reverse auto-lift
+  --   * Reverse hold
+  --   * Reverse return
+  --
+  -- This prevents coordination outputs from being added to
+  -- automatic positioning outputs.
   -- ==========================================================
 
-  local desiredTilt  = 0
-  local desiredAngle = 0
-  local desiredSlew  = 0
-  local desiredLW    = 0
-  local desiredRW    = 0
+  if coordEnabled
+    and not modeTransition
+    and reverseState == "idle"
+  then
 
-  if coordEnabled and not modeTransition and reverseState == "idle" then
-
-    desiredLW =
+    local desiredLW =
       rud * COORD_WING_RANGE * gCoord
 
-    desiredRW =
+    local desiredRW =
       -rud * COORD_WING_RANGE * gCoord
 
-    desiredSlew =
+    local desiredSlew =
       rud * COORD_SLEW_RANGE * gCoord
 
-    desiredTilt =
+    local desiredTilt =
       rud * COORD_TILT_RANGE * gCoord
 
-    -- Preserve the historical behavior where blade-angle
-    -- coordination moves the same direction on either turn.
-    desiredAngle =
+    local desiredAngle =
       math.abs(rud) *
       COORD_ANGLE_RANGE *
       gCoord
+
+
+    local coordCmd
+
+
+    coordPos.lw, coordCmd =
+      moveToward(
+        coordPos.lw,
+        desiredLW,
+        WING_FULL_TIME,
+        LW_SIGN,
+        dt
+      )
+
+    lwCmd =
+      lwCmd + coordCmd
+
+
+    coordPos.rw, coordCmd =
+      moveToward(
+        coordPos.rw,
+        desiredRW,
+        WING_FULL_TIME,
+        RW_SIGN,
+        dt
+      )
+
+    rwCmd =
+      rwCmd + coordCmd
+
+
+    coordPos.slew, coordCmd =
+      moveToward(
+        coordPos.slew,
+        desiredSlew,
+        SLEW_FULL_TIME,
+        SLEW_SIGN,
+        dt
+      )
+
+    slewCmd =
+      slewCmd + coordCmd
+
+
+    coordPos.tilt, coordCmd =
+      moveToward(
+        coordPos.tilt,
+        desiredTilt,
+        TILT_FULL_TIME,
+        TILT_SIGN,
+        dt
+      )
+
+    tiltCmd =
+      tiltCmd + coordCmd
+
+
+    coordPos.angle, coordCmd =
+      moveToward(
+        coordPos.angle,
+        desiredAngle,
+        ANGLE_FULL_TIME,
+        ANGLE_SIGN,
+        dt
+      )
+
+    angleCmd =
+      angleCmd + coordCmd
+
   end
-
-
-  local coordCmd
-
-  coordPos.lw, coordCmd =
-    moveToward(
-      coordPos.lw,
-      desiredLW,
-      WING_FULL_TIME,
-      LW_SIGN,
-      dt
-    )
-
-  lwCmd =
-    lwCmd + coordCmd
-
-
-  coordPos.rw, coordCmd =
-    moveToward(
-      coordPos.rw,
-      desiredRW,
-      WING_FULL_TIME,
-      RW_SIGN,
-      dt
-    )
-
-  rwCmd =
-    rwCmd + coordCmd
-
-
-  coordPos.slew, coordCmd =
-    moveToward(
-      coordPos.slew,
-      desiredSlew,
-      SLEW_FULL_TIME,
-      SLEW_SIGN,
-      dt
-    )
-
-  slewCmd =
-    slewCmd + coordCmd
-
-
-  coordPos.tilt, coordCmd =
-    moveToward(
-      coordPos.tilt,
-      desiredTilt,
-      TILT_FULL_TIME,
-      TILT_SIGN,
-      dt
-    )
-
-  tiltCmd =
-    tiltCmd + coordCmd
-
-
-  coordPos.angle, coordCmd =
-    moveToward(
-      coordPos.angle,
-      desiredAngle,
-      ANGLE_FULL_TIME,
-      ANGLE_SIGN,
-      dt
-    )
-
-  angleCmd =
-    angleCmd + coordCmd
-
 
   -- ==========================================================
   -- FINAL OUTPUT
