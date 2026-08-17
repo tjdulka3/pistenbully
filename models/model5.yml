@@ -471,7 +471,7 @@ mixData:
    name: ""
  -
    destCh: 14
-   srcRaw: "Thr"
+   srcRaw: "lua(2,5)"
    carryTrim: 0
    mixWarn: 0
    mltpx: ADD
@@ -488,7 +488,7 @@ mixData:
    delayDown: 0
    speedUp: 0
    speedDown: 0
-   name: ""
+   name: "engsnd"
  -
    destCh: 15
    srcRaw: "SA"
@@ -1181,11 +1181,11 @@ flightModeData:
          1:
             val: 28
          2:
-            val: 35
+            val: 45
          3:
-            val: 16
+            val: 12
          4:
-            val: 50
+            val: 60
          5:
             val: 0
          6:
@@ -1463,7 +1463,7 @@ customSwitches:
       type: 2POS
       group: 0
       start: START_PREVIOUS
-      state: 0
+      state: 1
       onColorLuaOverride: OFF
       offColorLuaOverride: OFF
       onColor: 
