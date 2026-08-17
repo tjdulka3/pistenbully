@@ -345,6 +345,35 @@ local function applyDeadband(v, db)
     ((math.abs(v) - db) / (1 - db))
 end
 
+local function manualWingPosition(
+  position,
+  command,
+  fullTime,
+  outputSign,
+  dt
+)
+
+  if command == 0 then
+    return position
+  end
+
+  local physicalDirection =
+    command / outputSign
+
+  position =
+    position +
+    (physicalDirection * dt / fullTime)
+
+  -- Wings are physically modeled from:
+  --
+  --   0 = fully closed
+  --   1 = fully open
+  --
+  -- Never allow the model to become negative.
+  return clamp(position, 0, 1)
+
+end
+
 -- ============================================================
 -- MAIN
 -- ============================================================
@@ -741,7 +770,7 @@ local function run()
         rs * 1024
 
       pos.lw =
-        manualPosition(
+        manualWingPosition(
           pos.lw,
           ls,
           WING_FULL_TIME,
@@ -750,7 +779,7 @@ local function run()
         )
 
       pos.rw =
-        manualPosition(
+        manualWingPosition(
           pos.rw,
           rs,
           WING_FULL_TIME,
