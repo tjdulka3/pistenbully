@@ -11,6 +11,7 @@
 --
 -- GV1 = Coordination intensity %
 -- GV2 = Blade working depth %
+-- GV4 = Reverse auto-lift %
 --
 -- SD:
 --   -1024 = Transport
@@ -33,6 +34,14 @@
 
 local LIFT_DOWN_FULL_TIME = 11.0
 local LIFT_UP_FULL_TIME   = 17.0
+
+-- Blade reverse lift relative to GV4.
+--
+-- 1.00 = same percentage as tiller
+-- 1.50 = 50% more blade lift than GV4
+-- 0.75 = 25% less blade lift than GV4
+local BLADE_REVERSE_LIFT_FACTOR = 1.00
+
 local TILT_FULL_TIME  = 5.0
 local ANGLE_FULL_TIME = 6.7
 local SLEW_FULL_TIME  = 6.7
@@ -52,7 +61,7 @@ local COORD_SLEW_RANGE  = 0.12
 local COORD_TILT_RANGE  = 0.08
 local COORD_ANGLE_RANGE = 0.10
 
-local COORD_RUD_DEADBAND = 0.09
+local COORD_RUD_DEADBAND = 0.12
 
 -- ============================================================
 -- OUTPUT DIRECTION CALIBRATION
@@ -110,6 +119,23 @@ local lastSd = nil
 local lastTime = getTime()
 
 local modeTransition = false
+
+-- ============================================================
+-- REVERSE AUTO-LIFT STATE
+--
+-- idle
+-- lifting
+-- ready
+-- returning
+-- ============================================================
+
+local reverseState = "idle"
+
+-- Exact blade height before reverse lift begins.
+local reverseReturnLift = 0
+
+-- Raised blade target for the current reverse cycle.
+local reverseLiftTarget = 0
 
 local modeTarget = {
   lift  = 0,
@@ -345,6 +371,11 @@ local function run()
   local ail = deadband(normStick(getValue("ail")))
   local ele = deadband(normStick(getValue("ele")))
 
+  local thr =
+  deadband(
+    normStick(getValue("thr"))
+  )
+
   local rud =
     applyDeadband(
       normStick(getValue("rud")),
@@ -374,6 +405,16 @@ local function run()
   local bladeDepth =
     clamp((getValue("gvar2") or 0) / 100, 0, 1)
 
+  local reverseLift =
+    clamp(
+      (getValue("gvar4") or 0) / 100,
+      0,
+      1
+    )
+
+  local bladeReverseLift =
+    reverseLift *
+    BLADE_REVERSE_LIFT_FACTOR
 
   -- ----------------------------------------------------------
   -- INITIALIZATION
@@ -438,6 +479,13 @@ local function run()
       coordPos.rw    = 0
     end
 
+    -- Any mode change out of Groom cancels the dedicated
+    -- reverse-clearance state. Normal mode positioning then
+    -- takes authority over blade lift.
+    if sd <= 500 then
+      reverseState = "idle"
+    end
+
     lastSd = sd
   end
 
@@ -496,111 +544,221 @@ local function run()
 
 
     local finished =
-      pos.lift  == modeTarget.lift  and
-      pos.tilt  == modeTarget.tilt  and
-      pos.angle == modeTarget.angle and
-      pos.slew  == modeTarget.slew  and
-      pos.lw    == modeTarget.lw    and
-      pos.rw    == modeTarget.rw
+      pos.lift  == modeTarget.lift
+      and pos.angle == modeTarget.angle
+      and pos.lw == modeTarget.lw
+      and pos.rw == modeTarget.rw
 
     if finished then
       modeTransition = false
     end
 
+  else
+    -- ==========================================================
+    -- REVERSE AUTO-LIFT
+    -- ==========================================================
+
+    local reverseRequested =
+      inGroom
+      and thr < -INPUT_DEADBAND
+
+
+    -- ----------------------------------------------------------
+    -- START REVERSE LIFT
+    -- ----------------------------------------------------------
+
+    if reverseState == "idle"
+      and reverseRequested
+    then
+
+      -- Remember EXACTLY where the blade was before reverse.
+      reverseReturnLift =
+        pos.lift
+
+      -- Raise by GV4 percentage, limited by physical upper home.
+      reverseLiftTarget =
+        math.min(
+          0,
+          reverseReturnLift + bladeReverseLift
+        )
+
+      reverseState =
+        "lifting"
+    end
+
+
+    -- ----------------------------------------------------------
+    -- LIFTING
+    -- ----------------------------------------------------------
+
+    if reverseState == "lifting" then
+
+      pos.lift, liftCmd =
+        moveLiftToward(
+          pos.lift,
+          reverseLiftTarget,
+          dt
+        )
+
+      -- moveLiftToward() does not return a done flag in your
+      -- blade script, so determine completion from position.
+      if math.abs(
+          pos.lift - reverseLiftTarget
+        ) < 0.001
+      then
+
+        if reverseRequested then
+
+          reverseState =
+            "ready"
+
+        else
+
+          -- Reverse was released before blade finished rising.
+          -- Finish the entire lift first, then return.
+          reverseState =
+            "returning"
+
+        end
+      end
+
+
+    -- ----------------------------------------------------------
+    -- HOLD WHILE BACKING
+    -- ----------------------------------------------------------
+
+    elseif reverseState == "ready" then
+
+      liftCmd = 0
+
+      if not reverseRequested then
+
+        reverseState =
+          "returning"
+
+      end
+
+
+    -- ----------------------------------------------------------
+    -- RETURN TO EXACT PRE-REVERSE HEIGHT
+    -- ----------------------------------------------------------
+
+    elseif reverseState == "returning" then
+
+      pos.lift, liftCmd =
+        moveLiftToward(
+          pos.lift,
+          reverseReturnLift,
+          dt
+        )
+
+      if math.abs(
+          pos.lift - reverseReturnLift
+        ) < 0.001
+      then
+
+        reverseState =
+          "idle"
+
+      end
+
+    end
 
   -- ==========================================================
   -- MANUAL BLADE CONTROL
   -- ==========================================================
+ 
+  -- ==========================================================
+    -- MANUAL BLADE CONTROL
+    --
+    -- Suppressed during reverse lift/hold/return so an operator
+    -- input cannot fight the automatic clearance movement.
+    -- ==========================================================
+    if reverseState == "idle" then
 
-  else
+      -- SC UP:
+      -- ELE = Lift
+      -- AIL = Tilt
+      if sc < -500 then
 
-    -- SC UP:
-    -- ELE = Lift
-    -- AIL = Tilt
-    if sc < -500 then
+        liftCmd =
+          ele * 1024
 
-      liftCmd =
-        ele * 1024
+        tiltCmd =
+          ail * 1024
 
-      tiltCmd =
-        ail * 1024
+        pos.lift =
+          manualLiftPosition(
+            pos.lift,
+            ele,
+            dt
+          )
 
-      pos.lift =
-        manualLiftPosition(
-          pos.lift,
-          ele,
+        pos.tilt =
+          manualPosition(
+            pos.tilt,
+            ail,
+            TILT_FULL_TIME,
+            TILT_SIGN,
+            dt
+          )
+
+
+      elseif math.abs(sc) <= 500 then
+
+        slewCmd =
+          ail * 1024
+
+        angleCmd =
+          ele * 1024
+
+        pos.slew =
+          manualPosition(
+            pos.slew,
+            ail,
+            SLEW_FULL_TIME,
+            SLEW_SIGN,
+            dt
+          )
+
+        pos.angle =
+          manualPosition(
+            pos.angle,
+            ele,
+            ANGLE_FULL_TIME,
+            ANGLE_SIGN,
+            dt
+          )
+
+      end
+
+
+      -- Wings remain manually available.
+      lwCmd =
+        ls * 1024
+
+      rwCmd =
+        rs * 1024
+
+      pos.lw =
+        manualPosition(
+          pos.lw,
+          ls,
+          WING_FULL_TIME,
+          LW_SIGN,
           dt
         )
 
-      pos.tilt =
+      pos.rw =
         manualPosition(
-          pos.tilt,
-          ail,
-          TILT_FULL_TIME,
-          TILT_SIGN,
-          dt
-        )
-
-
-    -- SC MIDDLE:
-    -- AIL = Slew
-    -- ELE = Angle
-    elseif math.abs(sc) <= 500 then
-
-      slewCmd =
-        ail * 1024
-
-      angleCmd =
-        ele * 1024
-
-      pos.slew =
-        manualPosition(
-          pos.slew,
-          ail,
-          SLEW_FULL_TIME,
-          SLEW_SIGN,
-          dt
-        )
-
-      pos.angle =
-        manualPosition(
-          pos.angle,
-          ele,
-          ANGLE_FULL_TIME,
-          ANGLE_SIGN,
+          pos.rw,
+          rs,
+          WING_FULL_TIME,
+          RW_SIGN,
           dt
         )
 
     end
-
-
-    -- Wings remain manually available.
-    lwCmd =
-      ls * 1024
-
-    rwCmd =
-      rs * 1024
-
-    pos.lw =
-      manualPosition(
-        pos.lw,
-        ls,
-        WING_FULL_TIME,
-        LW_SIGN,
-        dt
-      )
-
-    pos.rw =
-      manualPosition(
-        pos.rw,
-        rs,
-        WING_FULL_TIME,
-        RW_SIGN,
-        dt
-      )
-
-  end
-
 
   -- ==========================================================
   -- GROOM COORDINATION
@@ -615,7 +773,7 @@ local function run()
   local desiredLW    = 0
   local desiredRW    = 0
 
-  if coordEnabled and not modeTransition then
+  if coordEnabled and not modeTransition and reverseState == "idle" then
 
     desiredLW =
       rud * COORD_WING_RANGE * gCoord

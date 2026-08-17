@@ -396,14 +396,41 @@ local function run()
   -- REVERSE CLEARANCE
   -- ----------------------------------------------------------
 
-  local reverseLiftUpTime =
+  local BLADE_REVERSE_LIFT_FACTOR = 1.00
+
+  local bladeReverseLift =
+    reverseLift *
+    BLADE_REVERSE_LIFT_FACTOR
+
+
+  local bladeReverseLiftUpTime =
+    bladeReverseLift *
+    BLADE_LIFT_UP_FULL
+
+  local tillerReverseLiftUpTime =
     reverseLift *
     TILLER_LIFT_UP_FULL
 
+  local reverseLiftUpTime =
+    math.max(
+      bladeReverseLiftUpTime,
+      tillerReverseLiftUpTime
+    )
 
-  local reverseLiftDownTime =
+
+  local bladeReverseLiftDownTime =
+    bladeReverseLift *
+    BLADE_LIFT_DOWN_FULL
+
+  local tillerReverseLiftDownTime =
     reverseLift *
     TILLER_LIFT_DOWN_FULL
+
+  local reverseLiftDownTime =
+    math.max(
+      bladeReverseLiftDownTime,
+      tillerReverseLiftDownTime
+    )
 
 
   -- ==========================================================
@@ -449,7 +476,8 @@ local function run()
         or reverseState == "returning"
       )
         and 1024
-        or -1024
+        or -1024,
+      0 -- EngOut
   end
 
 
@@ -600,7 +628,8 @@ local function run()
   if reverseState == "idle"
     and reverseRequested
     and tillerTransitionRemaining <= 0
-  then
+    and bladeTransitionRemaining <= 0
+    then
 
     reverseState =
       "lifting"
@@ -690,15 +719,13 @@ local function run()
   -- ==========================================================
   -- TRANSITION STATUS
   -- ==========================================================
-
-  local bladeTransitionActive =
-    bladeTransitionRemaining > 0
-
-
   local reverseMovementActive =
     reverseState == "lifting"
     or reverseState == "returning"
 
+  local bladeTransitionActive =
+    bladeTransitionRemaining > 0
+    or reverseMovementActive
 
   local tillerTransitionActive =
     tillerTransitionRemaining > 0

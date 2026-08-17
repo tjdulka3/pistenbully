@@ -9,7 +9,7 @@
 --
 -- GV1 = Coordination intensity %
 -- GV3 = Tiller Groom depth %
--- GV4 = Reverse auto-lift %
+-- GV4 = Blade/Tiller reverse auto-lift %
 -- GV5 = Tiller working angle %
 --
 -- SD:
@@ -40,6 +40,7 @@ local INPUT_DEADBAND = 0.02
 
 -- Tiller angle coordination range at GV1=100.
 local ANGLE_COORD_RANGE = 0.10
+local COORD_RUD_DEADBAND = 0.12
 
 
 -- ============================================================
@@ -266,6 +267,18 @@ local function manualPosition(position, command, fullTime, outputSign, dt)
   return clamp(position, -1, 1)
 end
 
+local function applyDeadband(v, db)
+
+  if math.abs(v) <= db then
+    return 0
+  end
+
+  local sign =
+    (v >= 0) and 1 or -1
+
+  return sign *
+    ((math.abs(v) - db) / (1 - db))
+end
 
 -- ============================================================
 -- MAIN
@@ -294,7 +307,10 @@ local function run()
     deadband(normStick(getValue("thr")))
 
   local rud =
-    deadband(normStick(getValue("rud")))
+    applyDeadband(
+      normStick(getValue("rud")),
+      COORD_RUD_DEADBAND
+    )
 
   local ail =
     deadband(normStick(getValue("ail")))
