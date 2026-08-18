@@ -1,20 +1,21 @@
 -- ============================================================
 -- PB600 DEBUG DASHBOARD
--- Current-system quick diagnostics for 800x400 color LCD
+-- Clean diagnostic panel matching original PB600 panel styling
+-- 800x400 color LCD
 --
 -- Displays:
---   * Top bar: right-stick mode, machine mode, coordination, E-stop
---   * Current operator inputs / switches
---   * ALL Lua mixer outputs for System / Blade / Tiller
---   * Logical switches currently in use
---   * GV1-GV9
+--   * Top bar: right-stick mode, coordination, machine mode
+--   * Current inputs / switches
+--   * All Lua mixer outputs for System / Blade / Tiller
+--   * Logical switches actually in use: L08, L09, L11, L12
+--   * Global variables actually in use: GV1-GV5
 --
--- IMPORTANT:
--- EdgeTX exposes Lua mixer outputs as flattened sources lua1, lua2, ...
--- Set the three 0-based script slots below to match Model -> Custom Scripts.
+-- Lua mixer sources are flattened by EdgeTX as lua1, lua2, ...
+-- Set the three 0-based script slots below to match the
+-- Model -> Custom Scripts order.
 -- ============================================================
 
-local name = "PB600TST"
+local name = "PB600DBG"
 local options = {}
 
 local function create(zone, options)
@@ -46,30 +47,41 @@ local function luaValue(slot, outputNumber)
 end
 
 -- ============================================================
--- COLORS
+-- ORIGINAL PB600 COLOR PALETTE
 -- ============================================================
 
-local COL_BG      = lcd.RGB(15, 15, 18)
-local COL_PANEL   = lcd.RGB(25, 25, 30)
-local COL_HEADER  = lcd.RGB(35, 35, 42)
-local COL_GRID    = lcd.RGB(70, 70, 78)
-local COL_TEXT    = lcd.RGB(215, 215, 220)
-local COL_DIM     = lcd.RGB(135, 135, 145)
-local COL_ACTIVE  = lcd.RGB(0, 170, 120)
-local COL_VALUE   = lcd.RGB(120, 190, 235)
-local COL_ALERT   = lcd.RGB(210, 45, 45)
+local COL_BG     = lcd.RGB(44,143,176)
+
+local COL_PANEL  = lcd.RGB(25,25,30)
+local COL_GRID   = lcd.RGB(70,70,75)
+local COL_TEXT   = lcd.RGB(200,200,200)
+
+local COL_ACTIVE = lcd.RGB(0,160,120)
+local COL_WARN   = lcd.RGB(220,140,0)
+local COL_ALERT  = lcd.RGB(200,40,40)
+local COL_HYD    = lcd.RGB(0,110,180)
+local COL_MOTION = lcd.RGB(160,160,160)
+
+local COL_FWD    = lcd.RGB(16,179,57)
+local COL_REV    = lcd.RGB(242,206,13)
 
 -- ============================================================
 -- HELPERS
 -- ============================================================
 
 local function pct(v)
-  if type(v) ~= "number" then return "---" end
+  if type(v) ~= "number" then
+    return "---"
+  end
+
   return string.format("%4.0f%%", (v / 1024) * 100)
 end
 
 local function raw(v)
-  if type(v) ~= "number" then return "---" end
+  if type(v) ~= "number" then
+    return "---"
+  end
+
   return string.format("%5d", v)
 end
 
@@ -78,107 +90,279 @@ local function gv(n)
 end
 
 local function switchText(v)
-  if v < -500 then return "UP" end
-  if v > 500 then return "DN" end
-  return "MID"
+  if v < -500 then
+    return "UP"
+  elseif v > 500 then
+    return "DN"
+  else
+    return "MID"
+  end
 end
 
 local function boolText(v)
   return v and "ON" or "OFF"
 end
 
-local function drawPanel(x, y, w, h, title)
-  lcd.setColor(CUSTOM_COLOR, COL_PANEL)
-  lcd.drawFilledRectangle(x, y, w, h, CUSTOM_COLOR)
 
+local function drawPanel(x, y, w, h, title)
+
+  -- Match the older panel style:
+  -- no large dark card backgrounds, just thin separators.
   lcd.setColor(CUSTOM_COLOR, COL_GRID)
-  lcd.drawRectangle(x, y, w, h, CUSTOM_COLOR)
+  lcd.drawRectangle(x, y, w, h)
 
   lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(x + 7, y + 4, title, SMLSIZE + BOLD)
+  lcd.drawText(
+    x + 6,
+    y + 4,
+    title,
+    SMLSIZE
+  )
 
   lcd.setColor(CUSTOM_COLOR, COL_GRID)
-  lcd.drawLine(x + 5, y + 23, x + w - 5, y + 23, SOLID, FORCE)
+  lcd.drawLine(
+    x + 4,
+    y + 22,
+    x + w - 4,
+    y + 22,
+    SOLID,
+    FORCE
+  )
 end
+
 
 local function drawKV(x, y, label, value, active)
-  lcd.setColor(CUSTOM_COLOR, COL_DIM)
-  lcd.drawText(x, y, label, SMLSIZE)
 
-  lcd.setColor(CUSTOM_COLOR, active and COL_ACTIVE or COL_VALUE)
-  lcd.drawText(x + 62, y, value, SMLSIZE)
-end
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
 
-local function drawLuaKV(x, y, label, value)
-  lcd.setColor(CUSTOM_COLOR, COL_DIM)
-  lcd.drawText(x, y, label, SMLSIZE)
+  lcd.drawText(
+    x,
+    y,
+    label,
+    SMLSIZE
+  )
 
-  if math.abs(value) > 20 then
-    lcd.setColor(CUSTOM_COLOR, COL_ACTIVE)
+  if active then
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
   else
-    lcd.setColor(CUSTOM_COLOR, COL_VALUE)
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_TEXT
+    )
   end
 
-  lcd.drawText(x + 57, y, raw(value), SMLSIZE)
+  lcd.drawText(
+    x + 54,
+    y,
+    value,
+    SMLSIZE
+  )
+end
+
+
+local function drawLuaKV(x, y, label, value)
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    x,
+    y,
+    label,
+    SMLSIZE
+  )
+
+  if math.abs(value) < 20 then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_GRID
+    )
+
+  elseif math.abs(value) < 700 then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
+
+  else
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_WARN
+    )
+
+  end
+
+  lcd.drawText(
+    x + 50,
+    y,
+    raw(value),
+    SMLSIZE
+  )
 end
 
 -- ============================================================
 -- HEADER
 -- ============================================================
 
-local function drawHeader()
-  lcd.setColor(CUSTOM_COLOR, COL_HEADER)
-  lcd.drawFilledRectangle(0, 0, 800, 46, CUSTOM_COLOR)
+local function drawHeader(x, y)
 
-  lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(8, 7, "PB600 DEBUG", MIDSIZE)
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
 
-  -- Preserve the right-stick mode display you liked.
-  local sc = getValue("sc") or 0
-  local stickMode = "SLEW / ANGLE"
+  lcd.drawText(
+    x,
+    y,
+    "Pisten Bully 600 DEBUG",
+    MIDSIZE
+  )
+
+
+  -- Right-stick mode from SC.
+  local sc =
+    getValue("sc") or 0
+
+  local stickMode =
+    "BLADE SLEW/ANGLE"
 
   if sc < -500 then
-    stickMode = "LIFT / TILT"
+
+    stickMode =
+      "BLADE LIFT/TILT"
+
   elseif sc > 500 then
-    stickMode = "TILLER ANG / LIFT"
+
+    stickMode =
+      "TILLER LIFT/ANGLE"
+
   end
 
-  lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(176, 11, "RIGHT STICK:", SMLSIZE)
 
-  lcd.setColor(CUSTOM_COLOR, COL_VALUE)
-  lcd.drawText(276, 11, stickMode, SMLSIZE + BOLD)
+  lcd.drawText(
+    x + 260,
+    y + 10,
+    "STICK MODE: " .. stickMode,
+    SMLSIZE
+  )
 
-  -- Preserve Transport / Plow / Groom on the top bar.
-  local sd = getValue("sd") or 0
-  local machineMode = "PLOW"
+
+  -- Coordination from SB.
+  local sb =
+    getValue("sb") or 0
+
+  if sb > 500 then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
+
+    lcd.drawText(
+      x + 575,
+      y + 10,
+      "COORDINATED",
+      SMLSIZE
+    )
+
+  else
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_GRID
+    )
+
+    lcd.drawText(
+      x + 575,
+      y + 10,
+      "MANUAL",
+      SMLSIZE
+    )
+
+  end
+
+
+  -- Machine mode from SD.
+  local sd =
+    getValue("sd") or 0
+
+  local label =
+    "PLOW"
 
   if sd < -500 then
-    machineMode = "TRANSPORT"
+
+    label =
+      "TRANSPORT"
+
   elseif sd > 500 then
-    machineMode = "GROOM"
+
+    label =
+      "GROOM"
+
   end
 
-  lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(470, 11, "MODE:", SMLSIZE)
 
-  lcd.setColor(CUSTOM_COLOR, COL_ACTIVE)
-  lcd.drawText(520, 11, machineMode, SMLSIZE + BOLD)
+  local flags =
+    SMLSIZE
 
-  local sb = getValue("sb") or 0
-  local coord = sb > 500
+  local bladeTransition =
+    getLogicalSwitchValue(10)
 
-  lcd.setColor(CUSTOM_COLOR, coord and COL_ACTIVE or COL_DIM)
-  lcd.drawText(625, 11, coord and "COORD" or "MANUAL", SMLSIZE + BOLD)
+  local tillerTransition =
+    getLogicalSwitchValue(11)
 
-  local sf = getValue("sf") or 0
+  if bladeTransition
+    or tillerTransition
+  then
+
+    flags =
+      SMLSIZE + INVERS
+
+  end
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    x + 705,
+    y + 10,
+    label,
+    flags
+  )
+
+
+  -- E-stop indicator.
+  local sf =
+    getValue("sf") or 0
 
   if sf > 0 then
-    lcd.setColor(CUSTOM_COLOR, COL_ALERT)
-    lcd.drawText(730, 11, "E-STOP", SMLSIZE + INVERS + BLINK)
-  else
-    lcd.setColor(CUSTOM_COLOR, COL_DIM)
-    lcd.drawText(740, 11, "RUN", SMLSIZE)
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ALERT
+    )
+
+    lcd.drawText(
+      x + 705,
+      y + 28,
+      "E-STOP",
+      SMLSIZE + INVERS + BLINK
+    )
+
   end
 end
 
@@ -187,111 +371,452 @@ end
 -- ============================================================
 
 local function drawInputs(x, y, w, h)
-  drawPanel(x, y, w, h, "INPUTS / SWITCHES")
 
-  local lx = x + 8
-  local rx = x + 116
-  local y0 = y + 29
-  local dy = 18
+  drawPanel(
+    x,
+    y,
+    w,
+    h,
+    "INPUTS / SWITCHES"
+  )
 
-  drawKV(lx, y0 + 0*dy, "Thr", pct(getValue("thr") or 0))
-  drawKV(lx, y0 + 1*dy, "Rud", pct(getValue("rud") or 0))
-  drawKV(lx, y0 + 2*dy, "AIL", pct(getValue("ail") or 0))
-  drawKV(lx, y0 + 3*dy, "ELE", pct(getValue("ele") or 0))
-  drawKV(lx, y0 + 4*dy, "LS",  pct(getValue("ls")  or 0))
-  drawKV(lx, y0 + 5*dy, "RS",  pct(getValue("rs")  or 0))
-  drawKV(lx, y0 + 6*dy, "S1",  pct(getValue("s1")  or 0))
-  drawKV(lx, y0 + 7*dy, "S2",  pct(getValue("s2")  or 0))
+  local lx =
+    x + 7
 
-  drawKV(rx, y0 + 0*dy, "SA", switchText(getValue("sa") or 0))
-  drawKV(rx, y0 + 1*dy, "SB", switchText(getValue("sb") or 0), (getValue("sb") or 0) > 500)
-  drawKV(rx, y0 + 2*dy, "SC", switchText(getValue("sc") or 0))
-  drawKV(rx, y0 + 3*dy, "SD", switchText(getValue("sd") or 0))
-  drawKV(rx, y0 + 4*dy, "SE", switchText(getValue("se") or 0))
-  drawKV(rx, y0 + 5*dy, "SF", switchText(getValue("sf") or 0), (getValue("sf") or 0) > 0)
-  drawKV(rx, y0 + 6*dy, "SG", switchText(getValue("sg") or 0))
+  local rx =
+    x + 105
+
+  local y0 =
+    y + 28
+
+  local dy =
+    17
+
+
+  -- Analog / sticks.
+  drawKV(
+    lx,
+    y0 + 0*dy,
+    "Thr",
+    pct(getValue("thr") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 1*dy,
+    "Rud",
+    pct(getValue("rud") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 2*dy,
+    "AIL",
+    pct(getValue("ail") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 3*dy,
+    "ELE",
+    pct(getValue("ele") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 4*dy,
+    "LS",
+    pct(getValue("ls") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 5*dy,
+    "RS",
+    pct(getValue("rs") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 6*dy,
+    "S1",
+    pct(getValue("s1") or 0)
+  )
+
+  drawKV(
+    lx,
+    y0 + 7*dy,
+    "S2",
+    pct(getValue("s2") or 0)
+  )
+
+
+  -- Switches currently relevant.
+  local sa = getValue("sa") or 0
+  local sb = getValue("sb") or 0
+  local sc = getValue("sc") or 0
+  local sd = getValue("sd") or 0
+  local se = getValue("se") or 0
+  local sf = getValue("sf") or 0
+  local sg = getValue("sg") or 0
+
+
+  drawKV(
+    rx,
+    y0 + 0*dy,
+    "SA",
+    switchText(sa)
+  )
+
+  drawKV(
+    rx,
+    y0 + 1*dy,
+    "SB",
+    switchText(sb),
+    sb > 500
+  )
+
+  drawKV(
+    rx,
+    y0 + 2*dy,
+    "SC",
+    switchText(sc)
+  )
+
+  drawKV(
+    rx,
+    y0 + 3*dy,
+    "SD",
+    switchText(sd)
+  )
+
+  drawKV(
+    rx,
+    y0 + 4*dy,
+    "SE",
+    switchText(se)
+  )
+
+  drawKV(
+    rx,
+    y0 + 5*dy,
+    "SF",
+    switchText(sf),
+    sf > 0
+  )
+
+  drawKV(
+    rx,
+    y0 + 6*dy,
+    "SG",
+    switchText(sg)
+  )
 end
 
 -- ============================================================
--- LUA OUTPUTS
+-- LUA MIXER OUTPUTS
 -- ============================================================
 
 local function drawLuaOutputs(x, y, w, h)
-  drawPanel(x, y, w, h, "LUA MIXER OUTPUTS")
 
-  local y0 = y + 29
-  local dy = 18
+  drawPanel(
+    x,
+    y,
+    w,
+    h,
+    "LUA MIXER OUTPUTS"
+  )
 
-  local sx = x + 8
-  local bx = x + 151
-  local tx = x + 294
+  local y0 =
+    y + 28
 
-  lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(sx, y0, "SYSTEM", SMLSIZE + BOLD)
-  lcd.drawText(bx, y0, "BLADE",  SMLSIZE + BOLD)
-  lcd.drawText(tx, y0, "TILLER", SMLSIZE + BOLD)
+  local dy =
+    17
 
-  drawLuaKV(sx, y0 + 1*dy, "TrackL", luaValue(SYSTEM_SLOT, 1))
-  drawLuaKV(sx, y0 + 2*dy, "TrackR", luaValue(SYSTEM_SLOT, 2))
-  drawLuaKV(sx, y0 + 3*dy, "TMotor", luaValue(SYSTEM_SLOT, 3))
-  drawLuaKV(sx, y0 + 4*dy, "TranB",  luaValue(SYSTEM_SLOT, 4))
-  drawLuaKV(sx, y0 + 5*dy, "TranT",  luaValue(SYSTEM_SLOT, 5))
-  drawLuaKV(sx, y0 + 6*dy, "EngOut", luaValue(SYSTEM_SLOT, 6))
+  local sx =
+    x + 7
 
-  drawLuaKV(bx, y0 + 1*dy, "Lift",  luaValue(BLADE_SLOT, 1))
-  drawLuaKV(bx, y0 + 2*dy, "Tilt",  luaValue(BLADE_SLOT, 2))
-  drawLuaKV(bx, y0 + 3*dy, "Angle", luaValue(BLADE_SLOT, 3))
-  drawLuaKV(bx, y0 + 4*dy, "Slew",  luaValue(BLADE_SLOT, 4))
-  drawLuaKV(bx, y0 + 5*dy, "LW",    luaValue(BLADE_SLOT, 5))
-  drawLuaKV(bx, y0 + 6*dy, "RW",    luaValue(BLADE_SLOT, 6))
+  local bx =
+    x + 183
 
-  drawLuaKV(tx, y0 + 1*dy, "TAng",  luaValue(TILLER_SLOT, 1))
-  drawLuaKV(tx, y0 + 2*dy, "TLift", luaValue(TILLER_SLOT, 2))
-  drawLuaKV(tx, y0 + 3*dy, "FinL",  luaValue(TILLER_SLOT, 3))
-  drawLuaKV(tx, y0 + 4*dy, "FinR",  luaValue(TILLER_SLOT, 4))
-  drawLuaKV(tx, y0 + 5*dy, "Out5",  luaValue(TILLER_SLOT, 5))
-  drawLuaKV(tx, y0 + 6*dy, "Out6",  luaValue(TILLER_SLOT, 6))
+  local tx =
+    x + 359
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    sx,
+    y0,
+    "SYSTEM",
+    SMLSIZE
+  )
+
+  lcd.drawText(
+    bx,
+    y0,
+    "BLADE",
+    SMLSIZE
+  )
+
+  lcd.drawText(
+    tx,
+    y0,
+    "TILLER",
+    SMLSIZE
+  )
+
+
+  -- system.lua
+  drawLuaKV(
+    sx,
+    y0 + 1*dy,
+    "TrackL",
+    luaValue(SYSTEM_SLOT, 1)
+  )
+
+  drawLuaKV(
+    sx,
+    y0 + 2*dy,
+    "TrackR",
+    luaValue(SYSTEM_SLOT, 2)
+  )
+
+  drawLuaKV(
+    sx,
+    y0 + 3*dy,
+    "TMotor",
+    luaValue(SYSTEM_SLOT, 3)
+  )
+
+  drawLuaKV(
+    sx,
+    y0 + 4*dy,
+    "TranB",
+    luaValue(SYSTEM_SLOT, 4)
+  )
+
+  drawLuaKV(
+    sx,
+    y0 + 5*dy,
+    "TranT",
+    luaValue(SYSTEM_SLOT, 5)
+  )
+
+  drawLuaKV(
+    sx,
+    y0 + 6*dy,
+    "EngOut",
+    luaValue(SYSTEM_SLOT, 6)
+  )
+
+
+  -- blade.lua
+  drawLuaKV(
+    bx,
+    y0 + 1*dy,
+    "Lift",
+    luaValue(BLADE_SLOT, 1)
+  )
+
+  drawLuaKV(
+    bx,
+    y0 + 2*dy,
+    "Tilt",
+    luaValue(BLADE_SLOT, 2)
+  )
+
+  drawLuaKV(
+    bx,
+    y0 + 3*dy,
+    "Angle",
+    luaValue(BLADE_SLOT, 3)
+  )
+
+  drawLuaKV(
+    bx,
+    y0 + 4*dy,
+    "Slew",
+    luaValue(BLADE_SLOT, 4)
+  )
+
+  drawLuaKV(
+    bx,
+    y0 + 5*dy,
+    "LW",
+    luaValue(BLADE_SLOT, 5)
+  )
+
+  drawLuaKV(
+    bx,
+    y0 + 6*dy,
+    "RW",
+    luaValue(BLADE_SLOT, 6)
+  )
+
+
+  -- tiller.lua
+  drawLuaKV(
+    tx,
+    y0 + 1*dy,
+    "TAng",
+    luaValue(TILLER_SLOT, 1)
+  )
+
+  drawLuaKV(
+    tx,
+    y0 + 2*dy,
+    "TLift",
+    luaValue(TILLER_SLOT, 2)
+  )
+
+  drawLuaKV(
+    tx,
+    y0 + 3*dy,
+    "FinL",
+    luaValue(TILLER_SLOT, 3)
+  )
+
+  drawLuaKV(
+    tx,
+    y0 + 4*dy,
+    "FinR",
+    luaValue(TILLER_SLOT, 4)
+  )
 end
 
 -- ============================================================
--- LOGICAL SWITCHES / GLOBAL VARIABLES
+-- USED LOGICAL SWITCHES / USED GLOBAL VARIABLES
 -- ============================================================
 
-local function drawLogicAndGV(x, y, w, h)
-  drawPanel(x, y, w, h, "LOGIC / GLOBAL VARIABLES")
+local function drawLogicGV(x, y, w, h)
 
-  local y0 = y + 29
-  local dy = 18
+  drawPanel(
+    x,
+    y,
+    w,
+    h,
+    "LOGICAL SWITCHES / GLOBAL VARIABLES"
+  )
 
-  local lx  = x + 8
-  local gx1 = x + 148
-  local gx2 = x + 270
+  local y0 =
+    y + 28
 
-  lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-  lcd.drawText(lx,  y0, "LOGICAL", SMLSIZE + BOLD)
-  lcd.drawText(gx1, y0, "GV1-GV5", SMLSIZE + BOLD)
-  lcd.drawText(gx2, y0, "GV6-GV9", SMLSIZE + BOLD)
+  local dy =
+    17
 
-  local l08 = getLogicalSwitchValue(7)
-  local l09 = getLogicalSwitchValue(8)
-  local l11 = getLogicalSwitchValue(10)
-  local l12 = getLogicalSwitchValue(11)
+  local lx =
+    x + 7
 
-  drawKV(lx, y0 + 1*dy, "L08 Rev",  boolText(l08), l08)
-  drawKV(lx, y0 + 2*dy, "L09 Beep", boolText(l09), l09)
-  drawKV(lx, y0 + 3*dy, "L11 BTr",  boolText(l11), l11)
-  drawKV(lx, y0 + 4*dy, "L12 TTr",  boolText(l12), l12)
+  local gx =
+    x + 220
 
-  drawKV(gx1, y0 + 1*dy, "GV1", string.format("%3d", gv(1)))
-  drawKV(gx1, y0 + 2*dy, "GV2", string.format("%3d", gv(2)))
-  drawKV(gx1, y0 + 3*dy, "GV3", string.format("%3d", gv(3)))
-  drawKV(gx1, y0 + 4*dy, "GV4", string.format("%3d", gv(4)))
-  drawKV(gx1, y0 + 5*dy, "GV5", string.format("%3d", gv(5)))
 
-  drawKV(gx2, y0 + 1*dy, "GV6", string.format("%3d", gv(6)))
-  drawKV(gx2, y0 + 2*dy, "GV7", string.format("%3d", gv(7)))
-  drawKV(gx2, y0 + 3*dy, "GV8", string.format("%3d", gv(8)))
-  drawKV(gx2, y0 + 4*dy, "GV9", string.format("%3d", gv(9)))
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    lx,
+    y0,
+    "LOGICAL",
+    SMLSIZE
+  )
+
+  lcd.drawText(
+    gx,
+    y0,
+    "GLOBAL VARIABLES",
+    SMLSIZE
+  )
+
+
+  -- Only logical switches currently used.
+  local l08 =
+    getLogicalSwitchValue(7)
+
+  local l09 =
+    getLogicalSwitchValue(8)
+
+  local l11 =
+    getLogicalSwitchValue(10)
+
+  local l12 =
+    getLogicalSwitchValue(11)
+
+
+  drawKV(
+    lx,
+    y0 + 1*dy,
+    "L08 REV",
+    boolText(l08),
+    l08
+  )
+
+  drawKV(
+    lx,
+    y0 + 2*dy,
+    "L09 BEEP",
+    boolText(l09),
+    l09
+  )
+
+  drawKV(
+    lx,
+    y0 + 3*dy,
+    "L11 BTR",
+    boolText(l11),
+    l11
+  )
+
+  drawKV(
+    lx,
+    y0 + 4*dy,
+    "L12 TTR",
+    boolText(l12),
+    l12
+  )
+
+
+  -- Only GVs currently used.
+  drawKV(
+    gx,
+    y0 + 1*dy,
+    "GV1 Coord",
+    string.format("%3d", gv(1))
+  )
+
+  drawKV(
+    gx,
+    y0 + 2*dy,
+    "GV2 Blade",
+    string.format("%3d", gv(2))
+  )
+
+  drawKV(
+    gx,
+    y0 + 3*dy,
+    "GV3 Tiller",
+    string.format("%3d", gv(3))
+  )
+
+  drawKV(
+    gx,
+    y0 + 4*dy,
+    "GV4 Rev",
+    string.format("%3d", gv(4))
+  )
+
+  drawKV(
+    gx,
+    y0 + 5*dy,
+    "GV5 TAng",
+    string.format("%3d", gv(5))
+  )
 end
 
 -- ============================================================
@@ -299,25 +824,87 @@ end
 -- ============================================================
 
 local function refresh(wgt, event, touchState)
-  local z = wgt.zone
 
-  if z.w < 800 or z.h < 400 then
-    lcd.clear(COL_BG)
-    lcd.setColor(CUSTOM_COLOR, COL_TEXT)
-    lcd.drawText(z.x + 4, z.y + z.h - 18, "PB600DBG requires 800x400", SMLSIZE)
+  local z =
+    wgt.zone
+
+
+  if z.w < 800
+    or z.h < 400
+  then
+
+    lcd.clear(
+      COL_BG
+    )
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_TEXT
+    )
+
+    lcd.drawText(
+      z.x + 2,
+      z.y + z.h - 14,
+      "Need at least 800x400",
+      SMLSIZE
+    )
+
     return
+
   end
 
-  lcd.clear(lcd.RGB(44, 143, 176))
 
-  -- Background panels
-  lcd.setColor(CUSTOM_COLOR, COL_PANEL)
+  -- Match original panel background.
+  lcd.clear(
+    COL_BG
+  )
 
-  drawHeader()
-  drawInputs(5, 51, 230, 344)
-  drawLuaOutputs(240, 51, 555, 175)
-  drawLogicAndGV(240, 231, 555, 164)
+
+  drawHeader(
+    0,
+    5
+  )
+
+
+  -- Original-style separator below header.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_GRID
+  )
+
+  lcd.drawLine(
+    0,
+    50,
+    800,
+    50,
+    SOLID,
+    FORCE
+  )
+
+
+  -- Compact, information-dense layout.
+  drawInputs(
+    5,
+    57,
+    205,
+    338
+  )
+
+  drawLuaOutputs(
+    216,
+    57,
+    579,
+    165
+  )
+
+  drawLogicGV(
+    216,
+    228,
+    579,
+    167
+  )
 end
+
 
 return {
   name = name,
