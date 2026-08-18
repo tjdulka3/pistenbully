@@ -14,7 +14,7 @@
 -- Set the three 0-based script slots below to match Model -> Custom Scripts.
 -- ============================================================
 
-local name = "PB600DBG"
+local name = "PB600TST"
 local options = {}
 
 local function create(zone, options)
