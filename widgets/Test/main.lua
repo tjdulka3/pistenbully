@@ -308,7 +308,10 @@ local function refresh(wgt, event, touchState)
     return
   end
 
-  lcd.clear(COL_BG)
+  lcd.clear(lcd.RGB(44, 143, 176))
+
+  -- Background panels
+  lcd.setColor(CUSTOM_COLOR, COL_PANEL)
 
   drawHeader()
   drawInputs(5, 51, 230, 344)
