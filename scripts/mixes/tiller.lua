@@ -223,7 +223,10 @@ local function moveLiftToward(position, target, dt)
     position = position + (direction * step)
   end
 
-  local output = direction * LIFT_SIGN * 1024
+  local output =
+    direction *
+    LIFT_SIGN *
+    1024
 
   return position, output, done
 end
@@ -236,7 +239,9 @@ local function manualLiftPosition(position, command, dt)
     return position
   end
 
-  local physicalDirection = command / LIFT_SIGN
+  local physicalDirection =
+    command / LIFT_SIGN
+
   local fullTime
 
   if physicalDirection > 0 then
@@ -245,13 +250,21 @@ local function manualLiftPosition(position, command, dt)
     fullTime = TILLER_LIFT_DOWN_FULL
   end
 
-  position = position + (physicalDirection * dt / fullTime)
+  position =
+    position +
+    (physicalDirection * dt / fullTime)
 
   return clamp(position, -1, 0)
 end
 
 
-local function manualPosition(position, command, fullTime, outputSign, dt)
+local function manualPosition(
+  position,
+  command,
+  fullTime,
+  outputSign,
+  dt
+)
 
   if command == 0 then
     return position
@@ -267,6 +280,7 @@ local function manualPosition(position, command, fullTime, outputSign, dt)
   return clamp(position, -1, 1)
 end
 
+
 local function applyDeadband(v, db)
 
   if math.abs(v) <= db then
@@ -280,6 +294,7 @@ local function applyDeadband(v, db)
     ((math.abs(v) - db) / (1 - db))
 end
 
+
 -- ============================================================
 -- MAIN
 -- ============================================================
@@ -287,51 +302,98 @@ end
 local function run()
 
   local now = getTime()
-  local dt = (now - lastTime) / 100
+
+  local dt =
+    (now - lastTime) / 100
+
   lastTime = now
 
-  if dt < 0 then dt = 0 end
-  if dt > 0.25 then dt = 0.25 end
+  if dt < 0 then
+    dt = 0
+  end
+
+  if dt > 0.25 then
+    dt = 0.25
+  end
 
 
   -- ----------------------------------------------------------
   -- INPUTS
   -- ----------------------------------------------------------
 
-  local sd = getValue("sd") or 0
-  local sc = getValue("sc") or 0
-  local sb = getValue("sb") or 0
-  local sf = getValue("sf") or 0
+  local sd =
+    getValue("sd") or 0
+
+  local sc =
+    getValue("sc") or 0
+
+  local sb =
+    getValue("sb") or 0
+
+  local sf =
+    getValue("sf") or 0
+
 
   local thr =
-    deadband(normStick(getValue("thr")))
+    deadband(
+      normStick(
+        getValue("thr")
+      )
+    )
+
 
   local rud =
     applyDeadband(
-      normStick(getValue("rud")),
+      normStick(
+        getValue("rud")
+      ),
       COORD_RUD_DEADBAND
     )
 
+
   local ail =
-    deadband(normStick(getValue("ail")))
+    deadband(
+      normStick(
+        getValue("ail")
+      )
+    )
+
 
   local ele =
-    deadband(normStick(getValue("ele")))
+    deadband(
+      normStick(
+        getValue("ele")
+      )
+    )
+
 
   local se =
-    deadband(normStick(getValue("se")))
+    deadband(
+      normStick(
+        getValue("se")
+      )
+    )
+
 
   local sg =
-    deadband(normStick(getValue("sg")))
+    deadband(
+      normStick(
+        getValue("sg")
+      )
+    )
+
 
   local eStop =
     sf > 0
 
+
   local inGroom =
     sd > 500
 
+
   local coordEnabled =
-    inGroom and sb > 500
+    inGroom
+    and sb > 500
 
 
   -- ----------------------------------------------------------
@@ -339,16 +401,35 @@ local function run()
   -- ----------------------------------------------------------
 
   local gCoord =
-    clamp((getValue("gvar1") or 0) / 100, 0, 1)
+    clamp(
+      (getValue("gvar1") or 0) / 100,
+      0,
+      1
+    )
+
 
   local groomDepth =
-    clamp((getValue("gvar3") or 0) / 100, 0, 1)
+    clamp(
+      (getValue("gvar3") or 0) / 100,
+      0,
+      1
+    )
+
 
   local reverseLift =
-    clamp((getValue("gvar4") or 0) / 100, 0, 1)
+    clamp(
+      (getValue("gvar4") or 0) / 100,
+      0,
+      1
+    )
+
 
   local groomAngle =
-    clamp((getValue("gvar5") or 0) / 100, 0, 1)
+    clamp(
+      (getValue("gvar5") or 0) / 100,
+      0,
+      1
+    )
 
 
   -- ----------------------------------------------------------
@@ -358,15 +439,29 @@ local function run()
   if not initialized then
 
     if inGroom then
-      liftPos  = -groomDepth
-      anglePos = groomAngle
+
+      liftPos =
+        -groomDepth
+
+      anglePos =
+        groomAngle
+
     else
-      liftPos  = 0
-      anglePos = 0
+
+      liftPos =
+        0
+
+      anglePos =
+        0
+
     end
 
-    lastSd = sd
-    initialized = true
+    lastSd =
+      sd
+
+    initialized =
+      true
+
   end
 
 
@@ -381,6 +476,7 @@ local function run()
       0, -- Lift
       0, -- FinL
       0  -- FinR
+
   end
 
 
@@ -390,38 +486,65 @@ local function run()
   -- Tiller moves only when Groom is entered or exited.
   -- ----------------------------------------------------------
 
-  if lastSd ~= nil and sd ~= lastSd then
+  if lastSd ~= nil
+    and sd ~= lastSd
+  then
 
-    local from = lastSd
-    local to   = sd
+    local from =
+      lastSd
+
+    local to =
+      sd
+
 
     if to == 1024 then
 
       -- ENTER GROOM
-      modeLiftTarget  = -groomDepth
-      modeAngleTarget = groomAngle
 
-      modeTransition = true
+      modeLiftTarget =
+        -groomDepth
 
-      finMoveRemaining = FIN_FULL_TIME
-      finMoveDirection = -1
+      modeAngleTarget =
+        groomAngle
+
+      modeTransition =
+        true
+
+      finMoveRemaining =
+        FIN_FULL_TIME
+
+      finMoveDirection =
+        -1
 
 
     elseif from == 1024 then
 
       -- LEAVE GROOM
-      modeLiftTarget  = 0
-      modeAngleTarget = 0
 
-      modeTransition = true
+      modeLiftTarget =
+        0
 
-      finMoveRemaining = FIN_FULL_TIME
-      finMoveDirection = 1
+      modeAngleTarget =
+        0
 
-      reverseState = "idle"
+      modeTransition =
+        true
+
+      finMoveRemaining =
+        FIN_FULL_TIME
+
+      finMoveDirection =
+        1
+
+      reverseState =
+        "idle"
+
     end
 
-    lastSd = sd
+
+    lastSd =
+      sd
+
   end
 
 
@@ -429,14 +552,23 @@ local function run()
   -- OUTPUTS
   -- ----------------------------------------------------------
 
-  local angleCmd = 0
-  local liftCmd  = 0
-  local finLCmd  = 0
-  local finRCmd  = 0
+  local angleCmd =
+    0
+
+  local liftCmd =
+    0
+
+  local finLCmd =
+    0
+
+  local finRCmd =
+    0
 
 
   -- ==========================================================
   -- NORMAL MODE TRANSITION
+  --
+  -- Automatic movement has full authority.
   -- ==========================================================
 
   if modeTransition then
@@ -444,14 +576,20 @@ local function run()
     local liftDone
     local angleDone
 
-    liftPos, liftCmd, liftDone =
+
+    liftPos,
+    liftCmd,
+    liftDone =
       moveLiftToward(
         liftPos,
         modeLiftTarget,
         dt
       )
 
-    anglePos, angleCmd, angleDone =
+
+    anglePos,
+    angleCmd,
+    angleDone =
       moveToward(
         anglePos,
         modeAngleTarget,
@@ -459,6 +597,7 @@ local function run()
         ANGLE_SIGN,
         dt
       )
+
 
     if finMoveRemaining > 0 then
 
@@ -472,8 +611,12 @@ local function run()
         finMoveDirection * 1024
 
       if finMoveRemaining <= 0 then
-        finMoveRemaining = 0
+
+        finMoveRemaining =
+          0
+
       end
+
     end
 
 
@@ -482,94 +625,135 @@ local function run()
       and finMoveRemaining <= 0
     then
 
-      modeTransition = false
+      modeTransition =
+        false
+
     end
 
 
   -- ==========================================================
-  -- REVERSE AUTO-LIFT
+  -- NORMAL NON-TRANSITION OPERATION
   -- ==========================================================
 
-  elseif inGroom then
+  else
 
-    local reverseRequested =
-      thr < -INPUT_DEADBAND
+    -- ========================================================
+    -- GROOM-ONLY REVERSE AUTO-LIFT
+    -- ========================================================
 
+    if inGroom then
 
-    -- Start automatic lift.
-    if reverseState == "idle"
-      and reverseRequested
-    then
-
-      reverseReturnLift =
-        liftPos
-
-      -- Raise toward zero by GV4 percent of full travel.
-      reverseLiftTarget =
-        math.min(
-          0,
-          reverseReturnLift + reverseLift
-        )
-
-      reverseState = "lifting"
-    end
+      local reverseRequested =
+        thr < -INPUT_DEADBAND
 
 
-    -- --------------------------------------
-    -- LIFTING
-    -- --------------------------------------
+      -- ------------------------------------------------------
+      -- START AUTOMATIC REVERSE LIFT
+      -- ------------------------------------------------------
 
-    if reverseState == "lifting" then
+      if reverseState == "idle"
+        and reverseRequested
+      then
 
-      local done
+        reverseReturnLift =
+          liftPos
 
-      liftPos, liftCmd, done =
-        moveLiftToward(
-          liftPos,
-          reverseLiftTarget,
-          dt
-        )
 
-      if done then
+        -- Raise toward zero by GV4 percent of full travel.
 
-        if reverseRequested then
-          reverseState = "ready"
-        else
-          reverseState = "returning"
+        reverseLiftTarget =
+          math.min(
+            0,
+            reverseReturnLift + reverseLift
+          )
+
+
+        reverseState =
+          "lifting"
+
+      end
+
+
+      -- ------------------------------------------------------
+      -- LIFTING
+      -- ------------------------------------------------------
+
+      if reverseState == "lifting" then
+
+        local done
+
+
+        liftPos,
+        liftCmd,
+        done =
+          moveLiftToward(
+            liftPos,
+            reverseLiftTarget,
+            dt
+          )
+
+
+        if done then
+
+          if reverseRequested then
+
+            reverseState =
+              "ready"
+
+          else
+
+            reverseState =
+              "returning"
+
+          end
+
         end
-      end
 
 
-    -- --------------------------------------
-    -- READY / HOLDING WHILE BACKING
-    -- --------------------------------------
+      -- ------------------------------------------------------
+      -- READY / HOLDING WHILE BACKING
+      -- ------------------------------------------------------
 
-    elseif reverseState == "ready" then
+      elseif reverseState == "ready" then
 
-      liftCmd = 0
-
-      if not reverseRequested then
-        reverseState = "returning"
-      end
+        liftCmd =
+          0
 
 
-    -- --------------------------------------
-    -- RETURNING TO EXACT PRE-REVERSE HEIGHT
-    -- --------------------------------------
+        if not reverseRequested then
 
-    elseif reverseState == "returning" then
+          reverseState =
+            "returning"
 
-      local done
+        end
 
-      liftPos, liftCmd, done =
-        moveLiftToward(
-          liftPos,
-          reverseReturnLift,
-          dt
-        )
 
-      if done then
-        reverseState = "idle"
+      -- ------------------------------------------------------
+      -- RETURN TO EXACT PRE-REVERSE HEIGHT
+      -- ------------------------------------------------------
+
+      elseif reverseState == "returning" then
+
+        local done
+
+
+        liftPos,
+        liftCmd,
+        done =
+          moveLiftToward(
+            liftPos,
+            reverseReturnLift,
+            dt
+          )
+
+
+        if done then
+
+          reverseState =
+            "idle"
+
+        end
+
       end
 
     end
@@ -578,7 +762,17 @@ local function run()
     -- ========================================================
     -- MANUAL TILLER CONTROL
     --
-    -- Only when no automatic reverse movement is active.
+    -- SC Down selects manual tiller Angle/Lift in ANY mode:
+    --
+    --   Transport
+    --   Plow
+    --   Groom
+    --
+    -- Automatic mode transitions and reverse movement retain
+    -- priority because this block runs only when:
+    --
+    --   modeTransition == false
+    --   reverseState    == "idle"
     -- ========================================================
 
     if reverseState == "idle"
@@ -592,8 +786,10 @@ local function run()
       liftCmd =
         ele * 1024
 
+
       angleCmd =
         ail * 1024
+
 
       liftPos =
         manualLiftPosition(
@@ -601,6 +797,7 @@ local function run()
           ele,
           dt
         )
+
 
       anglePos =
         manualPosition(
@@ -610,10 +807,14 @@ local function run()
           ANGLE_SIGN,
           dt
         )
+
     end
 
 
-    -- Manual finishers when no mode transition is running.
+    -- ========================================================
+    -- MANUAL FINISHERS
+    -- ========================================================
+
     finLCmd =
       se * 1024
 
@@ -622,46 +823,46 @@ local function run()
 
 
     -- ========================================================
-    -- TILLER ANGLE COORDINATION
+    -- GROOM-ONLY TILLER ANGLE COORDINATION
     -- ========================================================
 
-    local desiredCoordAngle = 0
+    if inGroom then
 
-    if coordEnabled
-      and reverseState == "idle"
-      and math.abs(ail) < INPUT_DEADBAND
-    then
+      local desiredCoordAngle =
+        0
 
-      desiredCoordAngle =
-        rud *
-        ANGLE_COORD_RANGE *
-        gCoord
+
+      if coordEnabled
+        and reverseState == "idle"
+        and math.abs(ail) < INPUT_DEADBAND
+      then
+
+        desiredCoordAngle =
+          rud *
+          ANGLE_COORD_RANGE *
+          gCoord
+
+      end
+
+
+      local coordCmd
+
+
+      coordAnglePos,
+      coordCmd =
+        moveToward(
+          coordAnglePos,
+          desiredCoordAngle,
+          TILLER_ANGLE_FULL,
+          ANGLE_SIGN,
+          dt
+        )
+
+
+      angleCmd =
+        angleCmd + coordCmd
+
     end
-
-    local coordCmd
-
-    coordAnglePos, coordCmd =
-      moveToward(
-        coordAnglePos,
-        desiredCoordAngle,
-        TILLER_ANGLE_FULL,
-        ANGLE_SIGN,
-        dt
-      )
-
-    angleCmd =
-      angleCmd + coordCmd
-
-
-  else
-
-    -- Not Groom:
-    -- Manual finishers still available if desired.
-    finLCmd =
-      se * 1024
-
-    finRCmd =
-      sg * 1024
 
   end
 
@@ -675,11 +876,13 @@ local function run()
     clamp1024(liftCmd),
     clamp1024(finLCmd),
     clamp1024(finRCmd)
+
 end
 
 
 return {
   run = run,
+
   output = {
     "TAng",
     "TLift",
