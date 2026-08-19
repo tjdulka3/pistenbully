@@ -173,7 +173,7 @@ local function draw(zone)
 
   lcd.drawLine(145, r + ROW*3 -5,600, r + ROW*3 -5, SOLID)
 
-  r = r + ROW*2
+  r = r + ROW*3
   lcd.drawText(X2, r, "LOGIC", SMLSIZE); r=r+ROW
 
   for _,i in ipairs({8,9,11,12}) do
@@ -220,7 +220,7 @@ local function draw(zone)
   -- =========================
   -- TILLER
   -- =========================
-   r = r + ROW*5
+   r = r + ROW*6
   lcd.drawText(X4, r, "TILLER", SMLSIZE); r=r+ROW
 
   lcd.drawText(X4, r, "Lift", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(TILLER_SLOT,2)), SMLSIZE); r=r+ROW
@@ -270,7 +270,7 @@ local function draw(zone)
     local value = (unit == "%") and (val.."%" ) or string.format("%0.1fs", val/10)
 
     lcd.drawText(gx, gy_row, label, SMLSIZE)
-    lcd.drawText(gx+80, gy_row, value, SMLSIZE)
+    lcd.drawText(gx+80, gy_row+20, value, SMLSIZE)
 
     gx = gx + colW
     if (i % 5) == 0 then
