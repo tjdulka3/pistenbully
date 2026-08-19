@@ -808,7 +808,7 @@ local function drawHeader(x, y)
     )
 
     lcd.drawText(
-      x + 600,
+      x + 640,
       390,
       "HOME",
       SMLSIZE + INVERS + COL_WARN
