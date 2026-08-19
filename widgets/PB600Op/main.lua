@@ -15,9 +15,11 @@ local lastBeep = 0
 --
 -- Cleared when Blade or Tiller outputs command movement.
 local homeActive = false
+local homeArmed = false
 local lastSh = false
 
 local HOME_MOVE_THRESHOLD = 20
+local HOME_SLIDER_DEADBAND = 30
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
@@ -139,13 +141,40 @@ local function getMachineStatus()
     or tillerTransition
 
 
-  -- SH is accepted as HOME only while neither Blade nor
-  -- Tiller is in an automatic transition/reverse movement.
-  --
-  -- This matches the Blade/Tiller SH re-home behavior.
+  local ls =
+    getValue("ls") or 0
+
+  local rs =
+    getValue("rs") or 0
+
+
+  local wingsCentered =
+    math.abs(ls) <= HOME_SLIDER_DEADBAND
+    and math.abs(rs) <= HOME_SLIDER_DEADBAND
+
+
+  -- SH establishes the new physical home in Blade/Tiller Lua,
+  -- but don't display HOME until both wing controls are centered.
   if homePressed
     and not anyTransition
   then
+
+    homeArmed =
+      true
+
+    homeActive =
+      false
+
+  end
+
+
+  -- Once both wing sliders settle at zero, latch HOME visible.
+  if homeArmed
+    and wingsCentered
+  then
+
+    homeArmed =
+      false
 
     homeActive =
       true
@@ -153,12 +182,9 @@ local function getMachineStatus()
   end
 
 
-  -- Any later Blade/Tiller actuator command invalidates
-  -- the HOME indication.
-  --
-  -- Do not immediately clear it on the SH press cycle.
+  -- After HOME is established, any actual Blade/Tiller movement
+  -- invalidates the HOME indication.
   if homeActive
-    and not homePressed
     and implementIsMoving()
   then
 
@@ -166,7 +192,6 @@ local function getMachineStatus()
       false
 
   end
-
   --------------------------------------------------------
   -- 1. E-STOP
   --------------------------------------------------------
