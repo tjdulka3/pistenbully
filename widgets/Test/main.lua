@@ -54,9 +54,9 @@ local function fmtSB(v)
   else return "FUL" end
 end
 
-local SYSTEM_SLOT = 0
-local BLADE_SLOT  = 1
-local TILLER_SLOT = 2
+local SYSTEM_SLOT = 2
+local BLADE_SLOT  = 0
+local TILLER_SLOT = 1
 local OUTPUTS_PER_SCRIPT = 6
 
 local function luaSource(slot, outputNumber)
