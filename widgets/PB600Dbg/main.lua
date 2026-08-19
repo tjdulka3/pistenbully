@@ -48,6 +48,12 @@ local function fmtSC(v)
   else return "TIL" end
 end
 
+local function fmtSA(v)
+  if v == -1024 then return "HORN"
+  elseif v == 0 then return "OFF"
+  else return "BEEP" end
+end
+
 local function fmtSB(v)
   if v == -1024 then return "MAN"
   elseif v == 0 then return "SWG"

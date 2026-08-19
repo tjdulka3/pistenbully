@@ -171,7 +171,7 @@ local function draw(zone)
   -- LOGIC
   -- =========================
 
-  lcd.drawLine(145, r + ROW*2 -5,600, r + ROW*2 -5, SOLID)
+  lcd.drawLine(145, r + ROW*3 -5,600, r + ROW*3 -5, SOLID)
 
   r = r + ROW*2
   lcd.drawText(X2, r, "LOGIC", SMLSIZE); r=r+ROW
