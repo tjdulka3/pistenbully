@@ -48,22 +48,23 @@ local function fmtSC(v)
   else return "TIL" end
 end
 
-local function fmtSA(v)
-  if v == -1024 then return "HORN"
-  elseif v == 0 then return "OFF"
-  else return "BEEP" end
-end
-
 local function fmtSB(v)
   if v == -1024 then return "MAN"
   elseif v == 0 then return "SWG"
   else return "FUL" end
 end
 
-local function fmtSH(v)
-  if v == 1024 then return "LFT"
-  else return "-"
-  end
+local SYSTEM_SLOT = 2
+local BLADE_SLOT  = 0
+local TILLER_SLOT = 1
+local OUTPUTS_PER_SCRIPT = 6
+
+local function luaSource(slot, outputNumber)
+  return "lua" .. tostring(slot * OUTPUTS_PER_SCRIPT + outputNumber)
+end
+
+local function luaValue(slot, outputNumber)
+  return getValue(luaSource(slot, outputNumber)) or 0
 end
 
 local function fmtSF(v)
@@ -95,19 +96,23 @@ local function draw(zone)
   lcd.drawText(x+200,y,"SC "..fmtSC(getValue("sc")),SMLSIZE)
   lcd.drawText(x+280,y,"SB "..fmtSB(getValue("sb")),SMLSIZE)
 
-  if getValue("ch19") == 1024 then
-    lcd.drawText(x+420,y,"LOCK",SMLSIZE+BLINK+INVERS+COL_ALERT)
-  end
+  local revRequest = (getValue("sd") or 0) > 500 and (getValue("thr") or 0) < -50
+  local bladeTran = luaValue(SYSTEM_SLOT, 4) > 0
+  local tillerTran = luaValue(SYSTEM_SLOT, 5) > 0
+  local trackL = luaValue(SYSTEM_SLOT, 1)
+  local trackR = luaValue(SYSTEM_SLOT, 2)
 
-    if getValue("ch19") == 0 then
-    lcd.drawText(x+420,y,"TRAN",SMLSIZE+BLINK+INVERS+COL_WARN)
-  end
-
-  if getValue("ch17") > 0 then
+  if revRequest then
+    if bladeTran or tillerTran then
+      lcd.drawText(x+420,y,"REV LIFT",SMLSIZE+BLINK+INVERS+COL_WARN)
+    elseif math.abs(trackL) < 25 and math.abs(trackR) < 25 then
+      lcd.drawText(x+420,y,"REV HOLD",SMLSIZE+BLINK+INVERS+COL_WARN)
+    else
+      lcd.drawText(x+420,y,"REVERSE",SMLSIZE+INVERS+COL_REV)
+    end
+  elseif bladeTran then
     lcd.drawText(x+520,y,"BLADE",SMLSIZE+BLINK+INVERS+COL_MOTION)
-  end
-
-  if getValue("ch18") > 0 then
+  elseif tillerTran then
     lcd.drawText(x+620,y,"TILLER",SMLSIZE+BLINK+INVERS+COL_MOTION)
   end
 
@@ -156,10 +161,11 @@ local function draw(zone)
   r = y + 30
   lcd.drawText(X2, r, "SWITCHES", SMLSIZE); r=r+ROW
 
-  lcd.drawText(X2, r, "SD", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSD(getValue("sd")), SMLSIZE); r=r+ROW
-  lcd.drawText(X2, r, "SC", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSC(getValue("sc")), SMLSIZE); r=r+ROW
+  lcd.drawText(X2, r, "SA", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmt(getValue("sa")), SMLSIZE); r=r+ROW
   lcd.drawText(X2, r, "SB", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSB(getValue("sb")), SMLSIZE); r=r+ROW
-  lcd.drawText(X2, r, "SH", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSH(getValue("sh")), SMLSIZE)
+  lcd.drawText(X2, r, "SC", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSC(getValue("sc")), SMLSIZE); r=r+ROW
+  lcd.drawText(X2, r, "SD", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSD(getValue("sd")), SMLSIZE); r=r+ROW
+  lcd.drawText(X2, r, "SF", SMLSIZE); lcd.drawText(X2+VALUE_OFFSET, r, fmtSF(getValue("sf")), SMLSIZE)
 
   -- =========================
   -- LOGIC
@@ -170,12 +176,10 @@ local function draw(zone)
   r = r + ROW*3
   lcd.drawText(X2, r, "LOGIC", SMLSIZE); r=r+ROW
 
-  for i=1,9 do
-    if i ~= 2 then
-      lcd.drawText(X2, r, "L0"..i, SMLSIZE)
-      lcd.drawText(X2+VALUE_OFFSET, r, onoff(getValue("ls"..i)), SMLSIZE)
-      r = r + ROW
-    end
+  for _,i in ipairs({8,9,11,12}) do
+    lcd.drawText(X2, r, "L"..string.format("%02d", i), SMLSIZE)
+    lcd.drawText(X2+VALUE_OFFSET, r, onoff(getValue("ls"..i)), SMLSIZE)
+    r = r + ROW
   end
 
   -- =========================
@@ -184,21 +188,25 @@ local function draw(zone)
   r = y + 30
   lcd.drawText(X3, r, "SYSTEM", SMLSIZE); r=r+ROW
 
-  lcd.drawText(X3, r, "BLD", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, onoff(getValue("ch17")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "TIL", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, onoff(getValue("ch18")), SMLSIZE)
+  local sysNames = {"TrackL","TrackR","TMotor","TranB","TranT","Engine"}
+  for i=1,6 do
+    lcd.drawText(X3, r, sysNames[i], SMLSIZE)
+    lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(SYSTEM_SLOT,i)), SMLSIZE)
+    r=r+ROW
+  end
 
   -- =========================
   -- BLADE
   -- =========================
-  r = r + ROW*5
+  r = r + ROW
   lcd.drawText(X3, r, "BLADE", SMLSIZE); r=r+ROW
 
-  lcd.drawText(X3, r, "Lift", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch23")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "Tilt", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch24")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "Angle", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch25")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "Slew", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch26")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "LW", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch27")), SMLSIZE); r=r+ROW
-  lcd.drawText(X3, r, "RW", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(getValue("ch28")), SMLSIZE)
+  lcd.drawText(X3, r, "Lift", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,1)), SMLSIZE); r=r+ROW
+  lcd.drawText(X3, r, "Tilt", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,2)), SMLSIZE); r=r+ROW
+  lcd.drawText(X3, r, "Angle", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,3)), SMLSIZE); r=r+ROW
+  lcd.drawText(X3, r, "Slew", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,4)), SMLSIZE); r=r+ROW
+  lcd.drawText(X3, r, "LW", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,5)), SMLSIZE); r=r+ROW
+  lcd.drawText(X3, r, "RW", SMLSIZE); lcd.drawText(X3+VALUE_OFFSET, r, fmt(luaValue(BLADE_SLOT,6)), SMLSIZE)
 
   -- =========================
   -- TRACKS
@@ -206,19 +214,19 @@ local function draw(zone)
   r = y + 30
   lcd.drawText(X4, r, "TRACKS", SMLSIZE); r=r+ROW
 
-  lcd.drawText(X4, r, "L", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch1")/1024*(-100.0)).."%", SMLSIZE); r=r+ROW
-  lcd.drawText(X4, r, "R", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch3")/1024*100.0).."%", SMLSIZE)
+  lcd.drawText(X4, r, "L", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(SYSTEM_SLOT,1)/1024*(-100.0)).."%", SMLSIZE); r=r+ROW
+  lcd.drawText(X4, r, "R", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(SYSTEM_SLOT,2)/1024*100.0).."%", SMLSIZE)
 
   -- =========================
   -- TILLER
   -- =========================
-   r = r + ROW*5
+   r = r + ROW*6
   lcd.drawText(X4, r, "TILLER", SMLSIZE); r=r+ROW
 
-  lcd.drawText(X4, r, "Lift", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch29")), SMLSIZE); r=r+ROW
-  lcd.drawText(X4, r, "Angle", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch30")), SMLSIZE); r=r+ROW
-  lcd.drawText(X4, r, "FinL", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch31")), SMLSIZE); r=r+ROW
-  lcd.drawText(X4, r, "FinR", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch32")), SMLSIZE); r=r+ROW*2
+  lcd.drawText(X4, r, "Lift", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(TILLER_SLOT,2)), SMLSIZE); r=r+ROW
+  lcd.drawText(X4, r, "Angle", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(TILLER_SLOT,1)), SMLSIZE); r=r+ROW
+  lcd.drawText(X4, r, "FinL", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(TILLER_SLOT,3)), SMLSIZE); r=r+ROW
+  lcd.drawText(X4, r, "FinR", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(luaValue(TILLER_SLOT,4)), SMLSIZE); r=r+ROW*2
   lcd.drawText(X4, r, "Swing", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch9")), SMLSIZE); r=r+ROW
   lcd.drawText(X4, r, "Rotor", SMLSIZE); lcd.drawText(X4+VALUE_OFFSET, r, fmt(getValue("ch14")), SMLSIZE)
 
@@ -244,9 +252,11 @@ local function draw(zone)
   local colW = 155
 
   local gvs = {
-    {0,"wg","%"},{1,"ag","%"},{2,"sg","%"},{3,"tg","%"},{4,"cst","%"},
-    {5,"osc","%"},{6,"mvs","%"},{7,"dbd","%"},{8,"trt","s"},{9,"ban","%"},
-    {10,"ldt","s"},{11,"lut","s"},{12,"tan","s"},{13,"bld","s"},{14,"fdt","s"}
+    {0,"Coord Gain","%"},
+    {1,"Blade Depth","%"},
+    {2,"Tiller Depth","%"},
+    {3,"Reverse Lift","%"},
+    {4,"Tiller Angle","%"}
   }
 
   local gx = 10
@@ -260,7 +270,7 @@ local function draw(zone)
     local value = (unit == "%") and (val.."%" ) or string.format("%0.1fs", val/10)
 
     lcd.drawText(gx, gy_row, label, SMLSIZE)
-    lcd.drawText(gx+80, gy_row, value, SMLSIZE)
+    lcd.drawText(gx+80, gy_row+20, value, SMLSIZE)
 
     gx = gx + colW
     if (i % 5) == 0 then
