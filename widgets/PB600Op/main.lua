@@ -37,6 +37,39 @@ local COL_MOTION = lcd.RGB(160,160,160)
 local COL_FWD = lcd.RGB(16, 179, 57)
 local COL_REV = lcd.RGB(242, 206, 13)
 
+----------------------------------------------------------
+-- HOME STATE
+----------------------------------------------------------
+
+local function implementIsMoving()
+
+  -- Blade Lua-owned physical channels.
+  local bladeLift  = getValue("ch2")  or 0
+  local bladeTilt  = getValue("ch4")  or 0
+  local bladeLW    = getValue("ch5")  or 0
+  local bladeRW    = getValue("ch6")  or 0
+  local bladeAngle = getValue("ch10") or 0
+  local bladeSlew  = getValue("ch11") or 0
+
+  -- Tiller Lua-owned physical channels.
+  local finL        = getValue("ch7")  or 0
+  local finR        = getValue("ch8")  or 0
+  local tillerLift  = getValue("ch12") or 0
+  local tillerAngle = getValue("ch13") or 0
+
+  return
+    math.abs(bladeLift)  > HOME_MOVE_THRESHOLD
+    or math.abs(bladeTilt)  > HOME_MOVE_THRESHOLD
+    or math.abs(bladeLW)    > HOME_MOVE_THRESHOLD
+    or math.abs(bladeRW)    > HOME_MOVE_THRESHOLD
+    or math.abs(bladeAngle) > HOME_MOVE_THRESHOLD
+    or math.abs(bladeSlew)  > HOME_MOVE_THRESHOLD
+    or math.abs(finL)       > HOME_MOVE_THRESHOLD
+    or math.abs(finR)       > HOME_MOVE_THRESHOLD
+    or math.abs(tillerLift) > HOME_MOVE_THRESHOLD
+    or math.abs(tillerAngle)> HOME_MOVE_THRESHOLD
+end
+
 --------------------------------------------------
 -- SMOOTHING
 --------------------------------------------------
@@ -220,38 +253,6 @@ local function getMachineStatus()
 end
 
 
-----------------------------------------------------------
--- HOME STATE
-----------------------------------------------------------
-
-local function implementIsMoving()
-
-  -- Blade Lua-owned physical channels.
-  local bladeLift  = getValue("ch2")  or 0
-  local bladeTilt  = getValue("ch4")  or 0
-  local bladeLW    = getValue("ch5")  or 0
-  local bladeRW    = getValue("ch6")  or 0
-  local bladeAngle = getValue("ch10") or 0
-  local bladeSlew  = getValue("ch11") or 0
-
-  -- Tiller Lua-owned physical channels.
-  local finL        = getValue("ch7")  or 0
-  local finR        = getValue("ch8")  or 0
-  local tillerLift  = getValue("ch12") or 0
-  local tillerAngle = getValue("ch13") or 0
-
-  return
-    math.abs(bladeLift)  > HOME_MOVE_THRESHOLD
-    or math.abs(bladeTilt)  > HOME_MOVE_THRESHOLD
-    or math.abs(bladeLW)    > HOME_MOVE_THRESHOLD
-    or math.abs(bladeRW)    > HOME_MOVE_THRESHOLD
-    or math.abs(bladeAngle) > HOME_MOVE_THRESHOLD
-    or math.abs(bladeSlew)  > HOME_MOVE_THRESHOLD
-    or math.abs(finL)       > HOME_MOVE_THRESHOLD
-    or math.abs(finR)       > HOME_MOVE_THRESHOLD
-    or math.abs(tillerLift) > HOME_MOVE_THRESHOLD
-    or math.abs(tillerAngle)> HOME_MOVE_THRESHOLD
-end
 
 --------------------------------------------------
 -- COLOR HELPERS
