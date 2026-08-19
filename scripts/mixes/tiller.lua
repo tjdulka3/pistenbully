@@ -6,6 +6,7 @@
 --   2 Tiller Lift
 --   3 Left Finisher
 --   4 Right Finisher
+--   5 Tiller Swing Coordination
 --
 -- GV1 = Coordination intensity %
 -- GV3 = Tiller Groom depth %
@@ -21,8 +22,13 @@
 --   AIL = Tiller Angle
 --   ELE = Tiller Lift
 --
+-- SB:
+--   -1024 = Up      = Manual Swing via S2 radio mix
+--       0 = Neutral = Coordinated Swing only
+--    1024 = Down    = Coordinated Swing +
+--                      Blade/Tiller coordination
+--
 -- SE / SG = manual finishers
--- SB Up   = coordination enabled
 -- SF Up   = E-stop
 -- ============================================================
 
@@ -33,58 +39,105 @@
 
 local TILLER_LIFT_DOWN_FULL = 11.0
 local TILLER_LIFT_UP_FULL   = 17.0
-local TILLER_ANGLE_FULL = 3.75
-local FIN_FULL_TIME     = 2.0
 
-local INPUT_DEADBAND = 0.02
+local TILLER_ANGLE_FULL =
+  3.75
 
--- Tiller angle coordination range at GV1=100.
-local ANGLE_COORD_RANGE = 0.10
-local COORD_RUD_DEADBAND = 0.12
+local FIN_FULL_TIME =
+  2.0
+
+
+local INPUT_DEADBAND =
+  0.02
+
+
+-- Tiller angle coordination range at GV1=100%.
+local ANGLE_COORD_RANGE =
+  0.10
+
+
+-- Larger deadband for implement coordination so small incidental
+-- rudder movement does not move the tiller angle.
+local COORD_RUD_DEADBAND =
+  0.12
+
+
+-- Swing uses a smaller deadband so it responds naturally to turns.
+local SWING_RUD_DEADBAND =
+  0.05
+
+
+-- Maximum coordinated swing servo travel at full rudder.
+-- 0.70 = 70% of normal Lua output range.
+local SWING_COORD_GAIN =
+  0.70
 
 
 -- ============================================================
 -- OUTPUT DIRECTION
 -- ============================================================
 
--- Entering Groom in the known-good script used:
---   internal lift direction -1
---   final output -liftOut
---
--- Therefore lowering the tiller produces + channel output.
-local LIFT_SIGN  = -1
+local LIFT_SIGN =
+  -1
 
--- Entering Groom used positive tiller angle output.
-local ANGLE_SIGN = 1
+local ANGLE_SIGN =
+  1
+
+
+-- If coordinated swing moves opposite the desired direction,
+-- change this between 1 and -1.
+local SWING_SIGN =
+  1
 
 
 -- ============================================================
 -- STATE
 -- ============================================================
 
--- Lift position:
+-- Lift:
 --   0  = fully raised
 --  -1  = fully lowered
-local liftPos = 0
+local liftPos =
+  0
+
 
 -- Angle:
---   0 = raised/Transport-Plow reference
-local anglePos = 0
+--   0 = Transport / Plow reference
+local anglePos =
+  0
 
--- Coordination offset is kept separately.
-local coordAnglePos = 0
 
-local initialized = false
-local lastSd = nil
-local lastTime = getTime()
+-- Coordination offset is modeled separately.
+local coordAnglePos =
+  0
 
-local modeTransition = false
 
-local modeLiftTarget  = 0
-local modeAngleTarget = 0
+local initialized =
+  false
 
-local finMoveRemaining = 0
-local finMoveDirection = 0
+local lastSd =
+  nil
+
+local lastTime =
+  getTime()
+
+
+local modeTransition =
+  false
+
+
+local modeLiftTarget =
+  0
+
+local modeAngleTarget =
+  0
+
+
+local finMoveRemaining =
+  0
+
+local finMoveDirection =
+  0
 
 
 -- Reverse state:
@@ -93,13 +146,18 @@ local finMoveDirection = 0
 -- lifting
 -- ready
 -- returning
-local reverseState = "idle"
+local reverseState =
+  "idle"
 
--- Exact position before auto-lift.
-local reverseReturnLift = 0
 
--- Target raised position for this reverse cycle.
-local reverseLiftTarget = 0
+-- Exact lift position before reverse auto-lift.
+local reverseReturnLift =
+  0
+
+
+-- Raised target for current reverse cycle.
+local reverseLiftTarget =
+  0
 
 
 -- ============================================================
@@ -108,16 +166,27 @@ local reverseLiftTarget = 0
 
 local function clamp(v, lo, hi)
 
-  if v < lo then return lo end
-  if v > hi then return hi end
+  if v < lo then
+    return lo
+  end
+
+  if v > hi then
+    return hi
+  end
 
   return v
+
 end
 
 
 local function clamp1024(v)
 
-  return clamp(v, -1024, 1024)
+  return clamp(
+    v,
+    -1024,
+    1024
+  )
+
 end
 
 
@@ -127,37 +196,96 @@ local function normStick(v)
     return 0
   end
 
+
   if math.abs(v) > 100 then
-    return v / 1024
+
+    return
+      v / 1024
+
   end
 
-  return v / 100
+
+  return
+    v / 100
+
 end
 
 
 local function deadband(v)
 
-  if math.abs(v) < INPUT_DEADBAND then
+  if math.abs(v) <
+    INPUT_DEADBAND
+  then
+
     return 0
+
   end
 
+
   return v
+
 end
 
 
-local function moveToward(position, target, fullTime, outputSign, dt)
+local function applyDeadband(v, db)
 
-  local err = target - position
+  if math.abs(v) <= db then
+    return 0
+  end
+
+
+  local sign =
+    (v >= 0)
+    and 1
+    or -1
+
+
+  return
+    sign *
+    (
+      (math.abs(v) - db)
+      /
+      (1 - db)
+    )
+
+end
+
+
+local function moveToward(
+  position,
+  target,
+  fullTime,
+  outputSign,
+  dt
+)
+
+  local err =
+    target - position
+
 
   if math.abs(err) < 0.001 then
-    return target, 0, true
+
+    return
+      target,
+      0,
+      true
+
   end
 
-  local step = dt / fullTime
+
+  local step =
+    dt / fullTime
+
 
   if step <= 0 then
-    return position, 0, false
+
+    return
+      position,
+      0,
+      false
+
   end
+
 
   local direction
 
@@ -167,94 +295,190 @@ local function moveToward(position, target, fullTime, outputSign, dt)
     direction = -1
   end
 
-  local done = false
+
+  local done =
+    false
+
 
   if math.abs(err) <= step then
-    position = target
-    done = true
+
+    position =
+      target
+
+    done =
+      true
+
   else
+
     position =
       position +
-      (direction * step)
+      direction * step
+
   end
+
 
   local output =
     direction *
     outputSign *
     1024
 
-  return position, output, done
+
+  return
+    position,
+    output,
+    done
+
 end
 
 
--- Tiller lift uses measured asymmetric travel times.
-local function moveLiftToward(position, target, dt)
+-- ============================================================
+-- ASYMMETRIC TILLER LIFT
+-- ============================================================
 
-  local err = target - position
+local function moveLiftToward(
+  position,
+  target,
+  dt
+)
+
+  local err =
+    target - position
+
 
   if math.abs(err) < 0.001 then
-    return target, 0, true
+
+    return
+      target,
+      0,
+      true
+
   end
+
 
   local direction
   local fullTime
 
+
   if err > 0 then
-    -- Toward zero = raising
-    direction = 1
-    fullTime = TILLER_LIFT_UP_FULL
+
+    -- Toward zero = raising.
+    direction =
+      1
+
+    fullTime =
+      TILLER_LIFT_UP_FULL
+
   else
-    -- More negative = lowering
-    direction = -1
-    fullTime = TILLER_LIFT_DOWN_FULL
+
+    -- More negative = lowering.
+    direction =
+      -1
+
+    fullTime =
+      TILLER_LIFT_DOWN_FULL
+
   end
 
-  local step = dt / fullTime
-  local done = false
+
+  local step =
+    dt / fullTime
+
 
   if step <= 0 then
-    return position, 0, false
+
+    return
+      position,
+      0,
+      false
+
   end
 
+
+  local done =
+    false
+
+
   if math.abs(err) <= step then
-    position = target
-    done = true
+
+    position =
+      target
+
+    done =
+      true
+
   else
-    position = position + (direction * step)
+
+    position =
+      position +
+      direction * step
+
   end
+
 
   local output =
     direction *
     LIFT_SIGN *
     1024
 
-  return position, output, done
+
+  return
+    position,
+    output,
+    done
+
 end
 
 
--- Keep modeled tiller lift synchronized during manual movement.
-local function manualLiftPosition(position, command, dt)
+-- ============================================================
+-- MANUAL POSITION TRACKING
+-- ============================================================
+
+local function manualLiftPosition(
+  position,
+  command,
+  dt
+)
 
   if command == 0 then
     return position
   end
 
+
   local physicalDirection =
     command / LIFT_SIGN
+
 
   local fullTime
 
   if physicalDirection > 0 then
-    fullTime = TILLER_LIFT_UP_FULL
+
+    fullTime =
+      TILLER_LIFT_UP_FULL
+
   else
-    fullTime = TILLER_LIFT_DOWN_FULL
+
+    fullTime =
+      TILLER_LIFT_DOWN_FULL
+
   end
+
 
   position =
     position +
-    (physicalDirection * dt / fullTime)
+    (
+      physicalDirection *
+      dt /
+      fullTime
+    )
 
-  return clamp(position, -1, 0)
+
+  return
+    clamp(
+      position,
+      -1,
+      0
+    )
+
 end
 
 
@@ -270,28 +494,28 @@ local function manualPosition(
     return position
   end
 
+
   local physicalDirection =
-    command / outputSign
+    command /
+    outputSign
+
 
   position =
     position +
-    (physicalDirection * dt / fullTime)
+    (
+      physicalDirection *
+      dt /
+      fullTime
+    )
 
-  return clamp(position, -1, 1)
-end
 
+  return
+    clamp(
+      position,
+      -1,
+      1
+    )
 
-local function applyDeadband(v, db)
-
-  if math.abs(v) <= db then
-    return 0
-  end
-
-  local sign =
-    (v >= 0) and 1 or -1
-
-  return sign *
-    ((math.abs(v) - db) / (1 - db))
 end
 
 
@@ -301,16 +525,22 @@ end
 
 local function run()
 
-  local now = getTime()
+  local now =
+    getTime()
+
 
   local dt =
     (now - lastTime) / 100
 
-  lastTime = now
+
+  lastTime =
+    now
+
 
   if dt < 0 then
     dt = 0
   end
+
 
   if dt > 0.25 then
     dt = 0.25
@@ -324,11 +554,14 @@ local function run()
   local sd =
     getValue("sd") or 0
 
+
   local sc =
     getValue("sc") or 0
 
+
   local sb =
     getValue("sb") or 0
+
 
   local sf =
     getValue("sf") or 0
@@ -342,12 +575,30 @@ local function run()
     )
 
 
-  local rud =
+  -- Separate rudder values for:
+  --
+  -- 1. Implement coordination
+  -- 2. Swing coordination
+  --
+  -- Swing deliberately has the smaller deadband.
+
+  local rawRud =
+    normStick(
+      getValue("rud")
+    )
+
+
+  local coordRud =
     applyDeadband(
-      normStick(
-        getValue("rud")
-      ),
+      rawRud,
       COORD_RUD_DEADBAND
+    )
+
+
+  local swingRud =
+    applyDeadband(
+      rawRud,
+      SWING_RUD_DEADBAND
     )
 
 
@@ -391,9 +642,22 @@ local function run()
     sd > 500
 
 
+  -- Full implement coordination:
+  --
+  -- SB Down only.
   local coordEnabled =
     inGroom
     and sb > 500
+
+
+  -- Swing coordination:
+  --
+  -- SB Neutral or SB Down.
+  --
+  -- SB Up (-1024) remains manual S2 control through the
+  -- CH9 radio mix.
+  local swingCoordEnabled =
+    sb > -500
 
 
   -- ----------------------------------------------------------
@@ -402,7 +666,9 @@ local function run()
 
   local gCoord =
     clamp(
-      (getValue("gvar1") or 0) / 100,
+      (getValue("gvar1") or 0)
+      /
+      100,
       0,
       1
     )
@@ -410,7 +676,9 @@ local function run()
 
   local groomDepth =
     clamp(
-      (getValue("gvar3") or 0) / 100,
+      (getValue("gvar3") or 0)
+      /
+      100,
       0,
       1
     )
@@ -418,7 +686,9 @@ local function run()
 
   local reverseLift =
     clamp(
-      (getValue("gvar4") or 0) / 100,
+      (getValue("gvar4") or 0)
+      /
+      100,
       0,
       1
     )
@@ -426,7 +696,9 @@ local function run()
 
   local groomAngle =
     clamp(
-      (getValue("gvar5") or 0) / 100,
+      (getValue("gvar5") or 0)
+      /
+      100,
       0,
       1
     )
@@ -443,6 +715,7 @@ local function run()
       liftPos =
         -groomDepth
 
+
       anglePos =
         groomAngle
 
@@ -451,13 +724,16 @@ local function run()
       liftPos =
         0
 
+
       anglePos =
         0
 
     end
 
+
     lastSd =
       sd
+
 
     initialized =
       true
@@ -467,6 +743,10 @@ local function run()
 
   -- ----------------------------------------------------------
   -- E-STOP
+  --
+  -- Swing Lua output also goes neutral under E-stop.
+  -- With SB Up, CH9 manual S2 behavior remains dependent on
+  -- the radio mix unless you separately gate CH9 with SF.
   -- ----------------------------------------------------------
 
   if eStop then
@@ -475,7 +755,8 @@ local function run()
       0, -- Angle
       0, -- Lift
       0, -- FinL
-      0  -- FinR
+      0, -- FinR
+      0  -- Swing
 
   end
 
@@ -483,7 +764,8 @@ local function run()
   -- ----------------------------------------------------------
   -- MODE TRANSITIONS
   --
-  -- Tiller moves only when Groom is entered or exited.
+  -- Tiller moves automatically only when Groom is entered
+  -- or exited.
   -- ----------------------------------------------------------
 
   if lastSd ~= nil
@@ -492,6 +774,7 @@ local function run()
 
     local from =
       lastSd
+
 
     local to =
       sd
@@ -504,14 +787,18 @@ local function run()
       modeLiftTarget =
         -groomDepth
 
+
       modeAngleTarget =
         groomAngle
+
 
       modeTransition =
         true
 
+
       finMoveRemaining =
         FIN_FULL_TIME
+
 
       finMoveDirection =
         -1
@@ -524,17 +811,22 @@ local function run()
       modeLiftTarget =
         0
 
+
       modeAngleTarget =
         0
+
 
       modeTransition =
         true
 
+
       finMoveRemaining =
         FIN_FULL_TIME
 
+
       finMoveDirection =
         1
+
 
       reverseState =
         "idle"
@@ -549,26 +841,64 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- OUTPUTS
+  -- OUTPUT COMMANDS
   -- ----------------------------------------------------------
 
   local angleCmd =
     0
 
+
   local liftCmd =
     0
 
+
   local finLCmd =
     0
+
 
   local finRCmd =
     0
 
 
+  local swingCmd =
+    0
+
+
+  -- ==========================================================
+  -- SWING COORDINATION
+  --
+  -- Independent of SD.
+  --
+  -- SB Neutral:
+  --   coordinated swing only
+  --
+  -- SB Down:
+  --   coordinated swing +
+  --   Groom implement coordination when in Groom
+  --
+  -- SB Up:
+  --   Swing Lua output = 0;
+  --   S2 radio mix owns CH9.
+  -- ==========================================================
+
+  if swingCoordEnabled then
+
+    swingCmd =
+      swingRud *
+      SWING_COORD_GAIN *
+      SWING_SIGN *
+      1024
+
+  end
+
+
   -- ==========================================================
   -- NORMAL MODE TRANSITION
   --
-  -- Automatic movement has full authority.
+  -- Automatic tiller Lift/Angle/Finishers have authority.
+  --
+  -- Swing is independent and may continue following Rudder
+  -- in SB Neutral/Down.
   -- ==========================================================
 
   if modeTransition then
@@ -604,11 +934,16 @@ local function run()
       finMoveRemaining =
         finMoveRemaining - dt
 
+
       finLCmd =
-        finMoveDirection * 1024
+        finMoveDirection *
+        1024
+
 
       finRCmd =
-        finMoveDirection * 1024
+        finMoveDirection *
+        1024
+
 
       if finMoveRemaining <= 0 then
 
@@ -648,7 +983,7 @@ local function run()
 
 
       -- ------------------------------------------------------
-      -- START AUTOMATIC REVERSE LIFT
+      -- START REVERSE LIFT
       -- ------------------------------------------------------
 
       if reverseState == "idle"
@@ -659,12 +994,11 @@ local function run()
           liftPos
 
 
-        -- Raise toward zero by GV4 percent of full travel.
-
         reverseLiftTarget =
           math.min(
             0,
-            reverseReturnLift + reverseLift
+            reverseReturnLift +
+            reverseLift
           )
 
 
@@ -678,7 +1012,9 @@ local function run()
       -- LIFTING
       -- ------------------------------------------------------
 
-      if reverseState == "lifting" then
+      if reverseState ==
+        "lifting"
+      then
 
         local done
 
@@ -711,10 +1047,12 @@ local function run()
 
 
       -- ------------------------------------------------------
-      -- READY / HOLDING WHILE BACKING
+      -- READY / HOLD WHILE BACKING
       -- ------------------------------------------------------
 
-      elseif reverseState == "ready" then
+      elseif reverseState ==
+        "ready"
+      then
 
         liftCmd =
           0
@@ -732,7 +1070,9 @@ local function run()
       -- RETURN TO EXACT PRE-REVERSE HEIGHT
       -- ------------------------------------------------------
 
-      elseif reverseState == "returning" then
+      elseif reverseState ==
+        "returning"
+      then
 
         local done
 
@@ -762,33 +1102,31 @@ local function run()
     -- ========================================================
     -- MANUAL TILLER CONTROL
     --
-    -- SC Down selects manual tiller Angle/Lift in ANY mode:
+    -- SC Down works in:
     --
     --   Transport
     --   Plow
     --   Groom
     --
-    -- Automatic mode transitions and reverse movement retain
-    -- priority because this block runs only when:
-    --
-    --   modeTransition == false
-    --   reverseState    == "idle"
+    -- Automatic transition/reverse movement retain priority.
     -- ========================================================
 
-    if reverseState == "idle"
+    if reverseState ==
+        "idle"
       and sc > 500
     then
 
-      -- SC DOWN:
       -- ELE = Lift
       -- AIL = Angle
 
       liftCmd =
-        ele * 1024
+        ele *
+        1024
 
 
       angleCmd =
-        ail * 1024
+        ail *
+        1024
 
 
       liftPos =
@@ -816,14 +1154,19 @@ local function run()
     -- ========================================================
 
     finLCmd =
-      se * 1024
+      se *
+      1024
+
 
     finRCmd =
-      sg * 1024
+      sg *
+      1024
 
 
     -- ========================================================
     -- GROOM-ONLY TILLER ANGLE COORDINATION
+    --
+    -- SB Down only.
     -- ========================================================
 
     if inGroom then
@@ -834,11 +1177,12 @@ local function run()
 
       if coordEnabled
         and reverseState == "idle"
-        and math.abs(ail) < INPUT_DEADBAND
+        and math.abs(ail) <
+            INPUT_DEADBAND
       then
 
         desiredCoordAngle =
-          rud *
+          coordRud *
           ANGLE_COORD_RANGE *
           gCoord
 
@@ -860,7 +1204,8 @@ local function run()
 
 
       angleCmd =
-        angleCmd + coordCmd
+        angleCmd +
+        coordCmd
 
     end
 
@@ -875,18 +1220,26 @@ local function run()
     clamp1024(angleCmd),
     clamp1024(liftCmd),
     clamp1024(finLCmd),
-    clamp1024(finRCmd)
+    clamp1024(finRCmd),
+    clamp1024(swingCmd)
 
 end
 
 
 return {
-  run = run,
+
+  run =
+    run,
+
 
   output = {
+
     "TAng",
     "TLift",
     "FinL",
-    "FinR"
+    "FinR",
+    "Swing"
+
   }
+
 }
