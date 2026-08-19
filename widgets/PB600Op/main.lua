@@ -19,7 +19,7 @@ local homeArmed = false
 local lastSh = false
 
 local HOME_MOVE_THRESHOLD = 20
-local HOME_SLIDER_DEADBAND = 30
+local HOME_SLIDER_DEADBAND = 100
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
