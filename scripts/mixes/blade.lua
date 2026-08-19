@@ -146,6 +146,10 @@ local modeTarget = {
   rw    = 0
 }
 
+-- ============================================================
+-- one shot rehome
+-- ============================================================
+local lastSh = false
 
 -- ============================================================
 -- HELPERS
@@ -423,6 +427,18 @@ local function run()
   local coordEnabled =
     inGroom and sb > 500
 
+  -- ----------------------------------------------------------
+  -- one shot rehome initialization
+  -- ----------------------------------------------------------
+  local sh =
+    (getValue("sh") or 0) > 500
+
+  local homeReset =
+  sh and not lastSh
+
+lastSh =
+  sh
+
 
   -- ----------------------------------------------------------
   -- GLOBAL VARIABLES
@@ -444,6 +460,58 @@ local function run()
   local bladeReverseLift =
     reverseLift *
     BLADE_REVERSE_LIFT_FACTOR
+
+  -- ==========================================================
+  -- SH HOME RESET
+  --
+  -- Treat current physical actuator positions as the new
+  -- modeled zero/home position.
+  --
+  -- No actuator movement is commanded.
+  -- ==========================================================
+
+  if homeReset
+    and not modeTransition
+    and reverseState == "idle"
+  then
+
+    -- Base blade position model.
+    pos.lift  = 0
+    pos.tilt  = 0
+    pos.angle = 0
+    pos.slew  = 0
+    pos.lw    = 0
+    pos.rw    = 0
+
+    -- Clear coordination offsets.
+    coordPos.tilt  = 0
+    coordPos.angle = 0
+    coordPos.slew  = 0
+    coordPos.lw    = 0
+    coordPos.rw    = 0
+
+    -- Clear any automatic-state remnants.
+    modeTransition =
+      false
+
+    reverseState =
+      "idle"
+
+    reverseReturnLift =
+      0
+
+    reverseLiftTarget =
+      0
+
+    -- Prevent any movement on the reset cycle.
+    return
+      0, -- Lift
+      0, -- Tilt
+      0, -- Angle
+      0, -- Slew
+      0, -- LW
+      0  -- RW
+  end
 
   -- ----------------------------------------------------------
   -- INITIALIZATION

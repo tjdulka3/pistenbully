@@ -159,6 +159,8 @@ local reverseReturnLift =
 local reverseLiftTarget =
   0
 
+--- one short rehome
+local lastSh = false
 
 -- ============================================================
 -- HELPERS
@@ -641,6 +643,15 @@ local function run()
   local inGroom =
     sd > 500
 
+  --- one shot rehome
+  local sh =
+    (getValue("sh") or 0) > 500
+
+  local homeReset =
+  sh and not lastSh
+
+  lastSh =
+    sh
 
   -- Full implement coordination:
   --
@@ -704,6 +715,59 @@ local function run()
     )
 
 
+  -- ==========================================================
+  -- SH HOME RESET
+  --
+  -- Treat current physical tiller position as the new
+  -- modeled zero/home position.
+  --
+  -- No actuator movement is commanded.
+  -- ==========================================================
+
+  if homeReset
+    and not modeTransition
+    and reverseState == "idle"
+  then
+
+    -- Current physical tiller position becomes zero/home.
+    liftPos =
+      0
+
+    anglePos =
+      0
+
+    -- Clear coordination offset.
+    coordAnglePos =
+      0
+
+    -- Clear automatic state.
+    modeTransition =
+      false
+
+    reverseState =
+      "idle"
+
+    reverseReturnLift =
+      0
+
+    reverseLiftTarget =
+      0
+
+    finMoveRemaining =
+      0
+
+    finMoveDirection =
+      0
+
+    -- Prevent motion on the reset cycle.
+    return
+      0, -- TAng
+      0, -- TLift
+      0, -- FinL
+      0, -- FinR
+      0  -- Swing
+  end
+  
   -- ----------------------------------------------------------
   -- INITIALIZE WITHOUT MOVEMENT
   -- ----------------------------------------------------------

@@ -176,20 +176,20 @@ mixData:
    name: ""
  -
    destCh: 8
-   srcRaw: "Rud"
+   srcRaw: "lua(1,4)"
    carryTrim: 0
    mixWarn: 0
-   mltpx: ADD
+   mltpx: REPL
    delayPrec: 0
    speedPrec: 0
    flightModes: 000000000
-   weight: 0
+   weight: 100
    offset: 0
    swtch: "!SB0"
    delayUp: 0
    delayDown: 0
-   speedUp: 5
-   speedDown: 5
+   speedUp: 0
+   speedDown: 0
    name: ""
  -
    destCh: 9
