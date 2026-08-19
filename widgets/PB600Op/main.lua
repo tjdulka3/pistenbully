@@ -8,6 +8,17 @@ end
 
 local lastBeep = 0
 
+-- HOME indicator state.
+--
+-- Set when SH is pressed while no automatic implement
+-- transition is active.
+--
+-- Cleared when Blade or Tiller outputs command movement.
+local homeActive = false
+local lastSh = false
+
+local HOME_MOVE_THRESHOLD = 20
+
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
 --------------------------------------------------
@@ -76,6 +87,52 @@ local function getMachineStatus()
   local reverseRequested =
     thr < -50
 
+  --------------------------------------------------------
+  -- HOME LATCH
+  --------------------------------------------------------
+
+  local sh =
+    (getValue("sh") or 0) > 500
+
+  local homePressed =
+    sh and not lastSh
+
+  lastSh =
+    sh
+
+
+  local anyTransition =
+    bladeTransition
+    or tillerTransition
+
+
+  -- SH is accepted as HOME only while neither Blade nor
+  -- Tiller is in an automatic transition/reverse movement.
+  --
+  -- This matches the Blade/Tiller SH re-home behavior.
+  if homePressed
+    and not anyTransition
+  then
+
+    homeActive =
+      true
+
+  end
+
+
+  -- Any later Blade/Tiller actuator command invalidates
+  -- the HOME indication.
+  --
+  -- Do not immediately clear it on the SH press cycle.
+  if homeActive
+    and not homePressed
+    and implementIsMoving()
+  then
+
+    homeActive =
+      false
+
+  end
 
   --------------------------------------------------------
   -- 1. E-STOP
@@ -160,6 +217,40 @@ local function getMachineStatus()
       "run",
       false
   end
+end
+
+
+----------------------------------------------------------
+-- HOME STATE
+----------------------------------------------------------
+
+local function implementIsMoving()
+
+  -- Blade Lua-owned physical channels.
+  local bladeLift  = getValue("ch2")  or 0
+  local bladeTilt  = getValue("ch4")  or 0
+  local bladeLW    = getValue("ch5")  or 0
+  local bladeRW    = getValue("ch6")  or 0
+  local bladeAngle = getValue("ch10") or 0
+  local bladeSlew  = getValue("ch11") or 0
+
+  -- Tiller Lua-owned physical channels.
+  local finL        = getValue("ch7")  or 0
+  local finR        = getValue("ch8")  or 0
+  local tillerLift  = getValue("ch12") or 0
+  local tillerAngle = getValue("ch13") or 0
+
+  return
+    math.abs(bladeLift)  > HOME_MOVE_THRESHOLD
+    or math.abs(bladeTilt)  > HOME_MOVE_THRESHOLD
+    or math.abs(bladeLW)    > HOME_MOVE_THRESHOLD
+    or math.abs(bladeRW)    > HOME_MOVE_THRESHOLD
+    or math.abs(bladeAngle) > HOME_MOVE_THRESHOLD
+    or math.abs(bladeSlew)  > HOME_MOVE_THRESHOLD
+    or math.abs(finL)       > HOME_MOVE_THRESHOLD
+    or math.abs(finR)       > HOME_MOVE_THRESHOLD
+    or math.abs(tillerLift) > HOME_MOVE_THRESHOLD
+    or math.abs(tillerAngle)> HOME_MOVE_THRESHOLD
 end
 
 --------------------------------------------------
@@ -690,6 +781,39 @@ local function drawHeader(x, y)
   end
 
   lcd.drawText(x+695, y+10, label, flags)
+
+  local sh =
+  (getValue("sh") or 0) > 500
+
+  local homePressed =
+    sh and not lastSh
+
+  lastSh =
+    sh
+
+  if homePressed then
+    homeActive = true
+  end
+
+    --------------------------------------------------
+  -- HOME INDICATOR
+  --------------------------------------------------
+
+  if homeActive then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
+
+    lcd.drawText(
+      x + 650,
+      y + 28,
+      "HOME",
+      SMLSIZE + INVERS
+    )
+
+  end
 end
 
 
