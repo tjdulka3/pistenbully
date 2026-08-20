@@ -49,8 +49,8 @@ local WORK_ANGLE     = 0.50
 -- ============================================================
 
 -- Steering behavior
-local TURN_GAIN    = 0.25
-local SPEED_FACTOR = 0.15
+local TURN_GAIN    = 0.4
+local SPEED_FACTOR = 0.3
 
 -- Time-based output rates in channel units per second.
 --
