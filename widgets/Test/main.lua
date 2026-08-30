@@ -184,19 +184,23 @@ local COL_YELLOW =
   )
 
 
+-- Track body now matches the gray deck.
+
 local COL_TRACK =
   lcd.RGB(
-    28,
-    28,
-    32
+    125,
+    130,
+    135
   )
 
 
+-- Darker tread/outline so track animation remains visible.
+
 local COL_TRACK_BAR =
   lcd.RGB(
-    95,
-    95,
-    105
+    70,
+    70,
+    75
   )
 
 
@@ -280,16 +284,16 @@ local MAX_TILLER_SWING_DEG =
 --
 -- Raised positions are unchanged.
 --
--- These larger travel values move the lowered blade/tiller
--- approximately level with the track/ground plane.
+-- These values are deliberately much larger so the blade and
+-- tiller visually travel much farther down toward track level.
 -- ------------------------------------------------------------
 
 local BLADE_LIFT_PIXELS =
-  92
+  180
 
 
 local TILLER_LIFT_PIXELS =
-  82
+  160
 
 
 local MAX_BLADE_ANGLE_DEG =
@@ -1208,8 +1212,6 @@ end
 
 -- ============================================================
 -- TOP VIEW BLADE
---
--- Shows lateral SLEW only.
 -- ============================================================
 
 local function drawTopBlade(
@@ -1314,7 +1316,6 @@ local function drawTopTiller(
     )
 
 
-  -- Hitch.
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1328,7 +1329,6 @@ local function drawTopTiller(
   )
 
 
-  -- Tiller body.
   for i = -17, 17 do
 
     drawRotatedLine(
@@ -1346,7 +1346,6 @@ local function drawTopTiller(
   end
 
 
-  -- Roller.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -1357,7 +1356,7 @@ local function drawTopTiller(
       hitchX,
       hitchY,
       swingAngle,
-      COL_TRACK,
+      COL_TRACK_BAR,
       1
     )
 
@@ -1610,17 +1609,6 @@ end
 
 -- ============================================================
 -- SIDE VIEW BLADE
---
--- Shows:
---   Lift
---   Angle
---
--- Raised location is unchanged.
---
--- Full modeled lift travel now lowers the blade approximately
--- to track/ground level.
---
--- Visual angle sign is intentionally inverted.
 -- ============================================================
 
 local function drawSideBlade(
@@ -1640,7 +1628,6 @@ local function drawSideBlade(
     cx - 131
 
 
-  -- Keep existing raised position.
   local bladeRaisedY =
     cy - 56
 
@@ -1651,7 +1638,7 @@ local function drawSideBlade(
     BLADE_LIFT_PIXELS
 
 
-  -- VISUAL DIRECTION CORRECTION.
+  -- Visual angle sign intentionally reversed.
   local angle =
     -bladeAnglePos *
     math.rad(
@@ -1659,7 +1646,6 @@ local function drawSideBlade(
     )
 
 
-  -- Lift / push frame.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1686,7 +1672,6 @@ local function drawSideBlade(
   )
 
 
-  -- Blade face.
   for i = -6, 6 do
 
     drawRotatedLine(
@@ -1704,7 +1689,6 @@ local function drawSideBlade(
   end
 
 
-  -- Cutting edge.
   drawRotatedLine(
     bladeX - 8,
     bladeY - 34,
@@ -1722,21 +1706,6 @@ end
 
 -- ============================================================
 -- SIDE VIEW TILLER
---
--- Shows:
---   Lift
---   Angle
---
--- Raised location remains unchanged.
---
--- Full modeled lift travel now lowers tiller approximately
--- to track/ground level.
---
--- Tiller housing shortened.
---
--- Rear comb added.
---
--- Visual angle sign intentionally inverted.
 -- ============================================================
 
 local function drawSideTiller(
@@ -1756,7 +1725,6 @@ local function drawSideTiller(
     cx + 139
 
 
-  -- Keep current raised position.
   local tillerRaisedY =
     cy - 44
 
@@ -1767,7 +1735,7 @@ local function drawSideTiller(
     TILLER_LIFT_PIXELS
 
 
-  -- VISUAL DIRECTION CORRECTION.
+  -- Visual angle sign intentionally reversed.
   local angle =
     -tillerAnglePos *
     math.rad(
@@ -1775,10 +1743,7 @@ local function drawSideTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LIFT LINKAGE
-  -- ----------------------------------------------------------
-
+  -- Lift linkage.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1805,10 +1770,7 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- SHORTER TILLER HOUSING
-  -- ----------------------------------------------------------
-
+  -- Shorter tiller housing.
   for i = -9, 9 do
 
     drawRotatedLine(
@@ -1826,10 +1788,7 @@ local function drawSideTiller(
   end
 
 
-  -- ----------------------------------------------------------
-  -- SHORTER ROLLER
-  -- ----------------------------------------------------------
-
+  -- Roller.
   for i = -4, 4 do
 
     drawRotatedLine(
@@ -1840,17 +1799,13 @@ local function drawSideTiller(
       tillerX,
       tillerY,
       angle,
-      COL_TRACK,
+      COL_TRACK_BAR,
       1
     )
 
   end
 
 
-  -- ----------------------------------------------------------
-  -- TILLER OUTLINE
-  -- ----------------------------------------------------------
-
   drawRotatedLine(
     tillerX - 32,
     tillerY - 10,
@@ -1877,13 +1832,7 @@ local function drawSideTiller(
   )
 
 
-  -- ==========================================================
-  -- REAR COMB
-  --
-  -- Simple comb extension trailing behind tiller housing.
-  -- Rotates with tiller angle.
-  -- ==========================================================
-
+  -- Rear comb.
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -1981,10 +1930,6 @@ local function drawSideView(
     cy
   )
 
-
-  -- ----------------------------------------------------------
-  -- SIDE VIEW VALUES
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -2111,11 +2056,6 @@ local function refresh(
   -- INPUT / OUTPUT SOURCES
   -- ==========================================================
 
-  -- CH1 = Right Track
-  -- CH3 = Left Track
-  --
-  -- system.lua physically reverses right-track output.
-
   local leftTrack =
     norm(
       getValue("ch3") or 0
@@ -2161,8 +2101,6 @@ local function refresh(
       getValue("ch13") or 0
     )
 
-
-  -- CH9 is positional.
 
   tillerSwingPos =
     norm(
@@ -2254,8 +2192,6 @@ local function refresh(
   )
 
 
-  -- Any modeled blade/tiller movement after HOME clears HOME.
-
   if homeActive then
 
     local anyMovement =
@@ -2286,7 +2222,7 @@ local function refresh(
 
 
   -- ==========================================================
-  -- DRAW BACKGROUND
+  -- DRAW
   -- ==========================================================
 
   lcd.clear(
@@ -2294,19 +2230,11 @@ local function refresh(
   )
 
 
-  -- ==========================================================
-  -- HEADER
-  -- ==========================================================
-
   drawHeader(
     0,
     5
   )
 
-
-  -- ==========================================================
-  -- OPERATOR-PANEL STYLE SEPARATORS
-  -- ==========================================================
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -2344,10 +2272,6 @@ local function refresh(
   )
 
 
-  -- ==========================================================
-  -- DUAL MACHINE VIEWS
-  -- ==========================================================
-
   drawTopView(
     0,
     63
@@ -2363,12 +2287,6 @@ local function refresh(
   -- ==========================================================
   -- BOTTOM TRANSITION STATUS
   -- ==========================================================
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_TEXT
-  )
-
 
   if bladeTransition
     and tillerTransition
