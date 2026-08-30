@@ -1,13 +1,18 @@
 -- ============================================================
 -- PB600 OPERATOR DISPLAY
 --
--- Phase 2:
---   Animated snowcat
---   Animated tracks
---   Persistent blade lift + angle model
---   Persistent tiller lift + swing model
---   Blade/tiller pitch during transitions
---   Implements return visually LEVEL when transition completes
+-- Dual-view schematic:
+--
+--   LEFT  = TOP VIEW
+--           * Left/right track animation
+--           * Blade slew
+--           * Tiller swing
+--
+--   RIGHT = SIDE VIEW
+--           * Blade lift
+--           * Blade angle
+--           * Tiller lift
+--           * Tiller angle
 --
 -- Designed for RadioMaster TX16S MK3
 -- Full-screen 800 x 400 EdgeTX widget
@@ -33,8 +38,7 @@ end
 
 local function update(widget, options)
 
-  widget.options =
-    options
+  widget.options = options
 
 end
 
@@ -49,52 +53,55 @@ end
 -- ============================================================
 
 local COL_BG =
-  lcd.RGB(28, 42, 52)
+  lcd.RGB(15, 15, 18)
 
-local COL_HEADER =
-  lcd.RGB(18, 22, 26)
+local COL_PANEL =
+  lcd.RGB(25, 25, 30)
 
 local COL_GRID =
-  lcd.RGB(65, 82, 92)
+  lcd.RGB(70, 70, 75)
 
 local COL_TEXT =
-  lcd.RGB(225, 225, 225)
+  lcd.RGB(200, 200, 200)
 
 local COL_DIM =
-  lcd.RGB(130, 145, 150)
-
-local COL_RED =
-  lcd.RGB(190, 38, 32)
-
-local COL_RED_DARK =
-  lcd.RGB(100, 25, 22)
-
-local COL_YELLOW =
-  lcd.RGB(235, 190, 25)
-
-local COL_TRACK =
-  lcd.RGB(25, 25, 27)
-
-local COL_TRACK_BAR =
-  lcd.RGB(75, 75, 78)
-
-local COL_METAL =
-  lcd.RGB(110, 115, 120)
+  lcd.RGB(125, 125, 135)
 
 local COL_ACTIVE =
-  lcd.RGB(0, 170, 115)
+  lcd.RGB(0, 160, 120)
 
 local COL_WARN =
-  lcd.RGB(225, 145, 0)
+  lcd.RGB(220, 140, 0)
 
 local COL_ALERT =
-  lcd.RGB(210, 45, 45)
+  lcd.RGB(200, 40, 40)
+
+local COL_RED =
+  lcd.RGB(180, 35, 30)
+
+local COL_RED_DARK =
+  lcd.RGB(95, 25, 22)
+
+local COL_YELLOW =
+  lcd.RGB(225, 185, 25)
+
+local COL_TRACK =
+  lcd.RGB(30, 30, 34)
+
+local COL_TRACK_BAR =
+  lcd.RGB(95, 95, 105)
+
+local COL_METAL =
+  lcd.RGB(130, 135, 140)
+
+local COL_GLASS =
+  lcd.RGB(35, 70, 90)
 
 
 -- ============================================================
 -- PHYSICAL TIMING
 --
--- Match blade.lua / tiller.lua
+-- Match current Blade / Tiller mixer scripts.
 -- ============================================================
 
 local BLADE_LIFT_DOWN_FULL =
@@ -106,108 +113,127 @@ local BLADE_LIFT_UP_FULL =
 local BLADE_ANGLE_FULL =
   6.7
 
+local BLADE_SLEW_FULL =
+  6.7
+
+
 local TILLER_LIFT_DOWN_FULL =
   11.0
 
 local TILLER_LIFT_UP_FULL =
   17.0
 
-
--- Servo swing is positional, so we don't need a time
--- integrator for CH9.
---
--- CH9 itself represents tiller swing position.
--- ============================================================
+local TILLER_ANGLE_FULL =
+  3.75
 
 
 -- ============================================================
--- VISUAL SETTINGS
+-- DISPLAY CALIBRATION
 -- ============================================================
 
--- Maximum vertical screen movement for the blade/tiller.
-local BLADE_LIFT_PIXELS =
-  36
-
-local TILLER_LIFT_PIXELS =
-  34
-
-
--- Maximum left/right visual blade angle.
-local BLADE_ANGLE_DEG =
-  28
-
-
--- Maximum tiller swing angle.
-local TILLER_SWING_DEG =
-  34
-
-
--- Temporary visual pitch while an implement is moving
--- automatically.
-local TRANSITION_PITCH_DEG =
-  10
-
-
--- Smoothing for visual pitch.
-local PITCH_SMOOTHING =
-  0.18
-
-
--- Small actuator output threshold to ignore noise.
 local OUTPUT_DEADBAND =
   0.025
 
 
+-- Top view.
+local MAX_BLADE_SLEW_PIXELS =
+  42
+
+local MAX_TILLER_SWING_DEG =
+  34
+
+
+-- Side view.
+local BLADE_LIFT_PIXELS =
+  54
+
+local TILLER_LIFT_PIXELS =
+  48
+
+local MAX_BLADE_ANGLE_DEG =
+  28
+
+local MAX_TILLER_ANGLE_DEG =
+  24
+
+
+-- Track visual animation speed.
+local TRACK_ANIM_SPEED =
+  55
+
+
 -- ============================================================
--- VISUAL STATE
+-- PERSISTENT VISUAL STATE
 -- ============================================================
 
--- Blade lift position:
---
---   0 = raised / home
---   1 = fully lowered
-local bladeLiftPos =
+-- ------------------------------------------------------------
+-- TOP VIEW
+-- ------------------------------------------------------------
+
+-- Blade slew:
+-- -1 = full left
+--  0 = center
+-- +1 = full right
+local bladeSlewPos =
   0
 
 
--- Blade angle:
---
---  -1 = fully one direction
---   0 = straight
---  +1 = fully opposite direction
-local bladeAnglePos =
-  0
-
-
--- Tiller lift:
---
---   0 = raised
---   1 = fully lowered
-local tillerLiftPos =
-  0
-
-
--- Tiller swing comes from CH9 directly because it is a
--- positional servo.
+-- CH9 is a position servo, so swing can be read directly.
 local tillerSwingPos =
   0
 
 
--- Temporary visual transition pitch.
-local bladeVisualPitch =
-  0
-
-local tillerVisualPitch =
-  0
-
-
--- Track tread animation.
 local trackPhaseL =
   0
 
 local trackPhaseR =
   0
 
+
+-- ------------------------------------------------------------
+-- SIDE VIEW
+-- ------------------------------------------------------------
+
+-- Lift:
+-- 0 = raised/home
+-- 1 = fully lowered
+local bladeLiftPos =
+  0
+
+local tillerLiftPos =
+  0
+
+
+-- Angle:
+-- -1 .. +1
+local bladeAnglePos =
+  0
+
+local tillerAnglePos =
+  0
+
+
+-- ------------------------------------------------------------
+-- HOME DISPLAY STATE
+-- ------------------------------------------------------------
+
+local homeActive =
+  false
+
+local homeArmed =
+  false
+
+local lastSh =
+  false
+
+
+local HOME_SLIDER_DEADBAND =
+  30
+
+
+-- ------------------------------------------------------------
+-- FRAME TIME
+-- ------------------------------------------------------------
 
 local lastTime =
   getTime()
@@ -238,7 +264,6 @@ local function norm(v)
     return 0
   end
 
-
   return
     clamp(
       v / 1024,
@@ -249,9 +274,9 @@ local function norm(v)
 end
 
 
-local function applyDeadband(v, db)
+local function dead(v)
 
-  if math.abs(v) <= db then
+  if math.abs(v) <= OUTPUT_DEADBAND then
     return 0
   end
 
@@ -259,27 +284,6 @@ local function applyDeadband(v, db)
 
 end
 
-
-local function approach(
-  current,
-  target,
-  amount
-)
-
-  return
-    current +
-    (
-      target -
-      current
-    ) *
-    amount
-
-end
-
-
--- ============================================================
--- ROTATION HELPERS
--- ============================================================
 
 local function rotatePoint(
   px,
@@ -295,23 +299,15 @@ local function rotatePoint(
   local c =
     math.cos(angle)
 
-
   local x =
     px - cx
 
   local y =
     py - cy
 
-
   return
-
-    cx +
-    x * c -
-    y * s,
-
-    cy +
-    x * s +
-    y * c
+    cx + x * c - y * s,
+    cy + x * s + y * c
 
 end
 
@@ -337,7 +333,6 @@ local function drawRotatedLine(
       angle
     )
 
-
   local rx2, ry2 =
     rotatePoint(
       x2,
@@ -347,16 +342,13 @@ local function drawRotatedLine(
       angle
     )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     color
   )
 
-
   width =
     width or 1
-
 
   for i = 0, width - 1 do
 
@@ -387,57 +379,38 @@ local function integrateLift(
 )
 
   command =
-    applyDeadband(
-      command,
-      OUTPUT_DEADBAND
-    )
-
+    dead(command)
 
   if command == 0 then
-
-    return
-      position
-
+    return position
   end
 
-
-  -- IMPORTANT:
-  --
-  -- These signs assume:
-  --
-  --   positive CH output = LOWER
-  --   negative CH output = RAISE
-  --
-  -- If the display moves opposite your physical actuator,
-  -- flip the sign here rather than changing the drawing code.
 
   local rate
 
 
+  -- Current model convention:
+  --
+  -- positive physical channel command = lower
+  -- negative physical channel command = raise
   if command > 0 then
 
-    -- Lowering
     rate =
-      1 /
-      downFullTime
+      1 / downFullTime
 
   else
 
-    -- Raising
     rate =
-      1 /
-      upFullTime
+      1 / upFullTime
 
   end
 
 
   position =
     position +
-    (
-      command *
-      rate *
-      dt
-    )
+    command *
+    rate *
+    dt
 
 
   return
@@ -450,7 +423,7 @@ local function integrateLift(
 end
 
 
-local function integrateBidirectional(
+local function integrateAxis(
   position,
   command,
   fullTime,
@@ -458,27 +431,18 @@ local function integrateBidirectional(
 )
 
   command =
-    applyDeadband(
-      command,
-      OUTPUT_DEADBAND
-    )
-
+    dead(command)
 
   if command == 0 then
-
-    return
-      position
-
+    return position
   end
 
 
   position =
     position +
-    (
-      command *
-      dt /
-      fullTime
-    )
+    command *
+    dt /
+    fullTime
 
 
   return
@@ -501,29 +465,25 @@ local function updateTrackAnimation(
   dt
 )
 
-  local visualSpeed =
-    55
-
-
   trackPhaseL =
     trackPhaseL +
     left *
-    visualSpeed *
+    TRACK_ANIM_SPEED *
     dt
 
 
   trackPhaseR =
     trackPhaseR +
     right *
-    visualSpeed *
+    TRACK_ANIM_SPEED *
     dt
 
 
-  while trackPhaseL > 16 do
+  while trackPhaseL >= 14 do
 
     trackPhaseL =
       trackPhaseL -
-      16
+      14
 
   end
 
@@ -532,16 +492,16 @@ local function updateTrackAnimation(
 
     trackPhaseL =
       trackPhaseL +
-      16
+      14
 
   end
 
 
-  while trackPhaseR > 16 do
+  while trackPhaseR >= 14 do
 
     trackPhaseR =
       trackPhaseR -
-      16
+      14
 
   end
 
@@ -550,64 +510,7 @@ local function updateTrackAnimation(
 
     trackPhaseR =
       trackPhaseR +
-      16
-
-  end
-
-end
-
-
--- ============================================================
--- BACKGROUND
--- ============================================================
-
-local function drawSceneBackground()
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_BG
-  )
-
-
-  lcd.drawFilledRectangle(
-    0,
-    46,
-    800,
-    294,
-    CUSTOM_COLOR
-  )
-
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_GRID
-  )
-
-
-  for y = 90, 330, 30 do
-
-    lcd.drawLine(
-      0,
-      y,
-      800,
-      y,
-      SOLID,
-      FORCE
-    )
-
-  end
-
-
-  for x = 20, 800, 40 do
-
-    lcd.drawLine(
-      x,
-      46,
-      x,
-      340,
-      SOLID,
-      FORCE
-    )
+      14
 
   end
 
@@ -622,15 +525,14 @@ local function drawHeader()
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_HEADER
+    COL_PANEL
   )
-
 
   lcd.drawFilledRectangle(
     0,
     0,
     800,
-    46,
+    48,
     CUSTOM_COLOR
   )
 
@@ -640,9 +542,8 @@ local function drawHeader()
     COL_TEXT
   )
 
-
   lcd.drawText(
-    12,
+    10,
     9,
     "PistenBully 600",
     MIDSIZE
@@ -650,32 +551,32 @@ local function drawHeader()
 
 
   -- ----------------------------------------------------------
-  -- OPERATING MODE
+  -- MACHINE MODE
   -- ----------------------------------------------------------
 
   local sd =
     getValue("sd") or 0
 
 
-  local mode =
+  local machineMode =
     "PLOW"
 
 
   if sd < -500 then
 
-    mode =
+    machineMode =
       "TRANSPORT"
 
   elseif sd > 500 then
 
-    mode =
+    machineMode =
       "GROOM"
 
   end
 
 
   lcd.drawText(
-    320,
+    285,
     12,
     "MODE:",
     SMLSIZE
@@ -687,35 +588,34 @@ local function drawHeader()
     COL_ACTIVE
   )
 
-
   lcd.drawText(
-    368,
+    335,
     12,
-    mode,
+    machineMode,
     SMLSIZE + BOLD
   )
 
 
   -- ----------------------------------------------------------
-  -- SB CONTROL MODE
+  -- SB STATE
   -- ----------------------------------------------------------
 
   local sb =
     getValue("sb") or 0
 
 
-  local coordText =
+  local controlMode =
     "MANUAL"
 
 
   if sb > 500 then
 
-    coordText =
+    controlMode =
       "FULL COORD"
 
   elseif sb > -500 then
 
-    coordText =
+    controlMode =
       "SWING COORD"
 
   end
@@ -726,13 +626,33 @@ local function drawHeader()
     COL_TEXT
   )
 
-
   lcd.drawText(
-    500,
+    465,
     12,
-    coordText,
+    controlMode,
     SMLSIZE
   )
+
+
+  -- ----------------------------------------------------------
+  -- HOME
+  -- ----------------------------------------------------------
+
+  if homeActive then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
+
+    lcd.drawText(
+      610,
+      12,
+      "HOME",
+      SMLSIZE + INVERS
+    )
+
+  end
 
 
   -- ----------------------------------------------------------
@@ -750,9 +670,8 @@ local function drawHeader()
       COL_ALERT
     )
 
-
     lcd.drawText(
-      700,
+      705,
       12,
       "E-STOP",
       SMLSIZE + INVERS + BLINK
@@ -764,10 +683,80 @@ end
 
 
 -- ============================================================
+-- PANEL FRAME
+-- ============================================================
+
+local function drawPanel(
+  x,
+  y,
+  w,
+  h,
+  title
+)
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_PANEL
+  )
+
+  lcd.drawFilledRectangle(
+    x,
+    y,
+    w,
+    h,
+    CUSTOM_COLOR
+  )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_GRID
+  )
+
+  lcd.drawRectangle(
+    x,
+    y,
+    w,
+    h,
+    CUSTOM_COLOR
+  )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    x + 8,
+    y + 5,
+    title,
+    SMLSIZE + BOLD
+  )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_GRID
+  )
+
+  lcd.drawLine(
+    x + 5,
+    y + 24,
+    x + w - 5,
+    y + 24,
+    SOLID,
+    FORCE
+  )
+
+end
+
+
+-- ============================================================
 -- TRACK DRAWING
 -- ============================================================
 
-local function drawTrack(
+local function drawTrackTop(
   x,
   y,
   w,
@@ -779,7 +768,6 @@ local function drawTrack(
     CUSTOM_COLOR,
     COL_TRACK
   )
-
 
   lcd.drawFilledRectangle(
     x,
@@ -795,7 +783,6 @@ local function drawTrack(
     COL_TRACK_BAR
   )
 
-
   lcd.drawRectangle(
     x,
     y,
@@ -805,36 +792,24 @@ local function drawTrack(
   )
 
 
-  local offset =
-    math.floor(
-      phase
-    )
-
-
-  local spacing =
-    16
-
-
   local p =
-    -spacing +
-    offset
+    -14 +
+    math.floor(phase)
 
 
   while p < w do
 
     lcd.drawLine(
       x + p,
-      y + 3,
+      y + 2,
       x + p + 8,
-      y + h - 3,
+      y + h - 2,
       SOLID,
       FORCE
     )
 
-
     p =
-      p +
-      spacing
+      p + 14
 
   end
 
@@ -842,13 +817,31 @@ end
 
 
 -- ============================================================
--- SNOWCAT BODY
+-- TOP VIEW BODY
 -- ============================================================
 
-local function drawBody(
+local function drawTopBody(
   cx,
   cy
 )
+
+  -- Tracks.
+  drawTrackTop(
+    cx - 75,
+    cy - 42,
+    150,
+    24,
+    trackPhaseL
+  )
+
+  drawTrackTop(
+    cx - 75,
+    cy + 18,
+    150,
+    24,
+    trackPhaseR
+  )
+
 
   -- Chassis.
   lcd.setColor(
@@ -856,28 +849,26 @@ local function drawBody(
     COL_RED_DARK
   )
 
-
   lcd.drawFilledRectangle(
-    cx - 75,
-    cy - 32,
-    150,
-    65,
+    cx - 62,
+    cy - 18,
+    124,
+    36,
     CUSTOM_COLOR
   )
 
 
-  -- Rear deck.
+  -- Deck.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
 
-
   lcd.drawFilledRectangle(
-    cx - 42,
-    cy - 40,
-    110,
-    42,
+    cx - 20,
+    cy - 15,
+    68,
+    30,
     CUSTOM_COLOR
   )
 
@@ -888,21 +879,11 @@ local function drawBody(
     COL_RED
   )
 
-
   lcd.drawFilledRectangle(
-    cx - 58,
-    cy - 82,
-    65,
-    52,
-    CUSTOM_COLOR
-  )
-
-
-  lcd.drawFilledRectangle(
-    cx - 63,
-    cy - 88,
-    75,
-    8,
+    cx - 52,
+    cy - 15,
+    35,
+    30,
     CUSTOM_COLOR
   )
 
@@ -910,15 +891,14 @@ local function drawBody(
   -- Windshield.
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_BG
+    COL_GLASS
   )
 
-
   lcd.drawFilledRectangle(
-    cx - 49,
-    cy - 75,
-    46,
-    25,
+    cx - 46,
+    cy - 10,
+    22,
+    20,
     CUSTOM_COLOR
   )
 
@@ -926,204 +906,140 @@ end
 
 
 -- ============================================================
--- BLADE
+-- TOP VIEW BLADE
 --
--- liftPos:
---   0 = raised
---   1 = lowered
---
--- anglePos:
---  -1..1
---
--- visualPitch:
---   temporary pitch only while transitioning
+-- Slew = entire blade slides left/right.
 -- ============================================================
 
-local function drawBlade(
+local function drawTopBlade(
   cx,
-  cy,
-  liftPos,
-  anglePos,
-  visualPitch
+  cy
 )
 
-  local bladeX =
-    cx - 145
+  local bladeCenterX =
+    cx -
+    118 +
+    bladeSlewPos *
+    MAX_BLADE_SLEW_PIXELS
 
 
   local bladeY =
-    cy -
-    25 +
-    (
-      liftPos *
-      BLADE_LIFT_PIXELS
-    )
+    cy
 
 
-  local angleRad =
-    anglePos *
-    math.rad(
-      BLADE_ANGLE_DEG
-    )
-
-
-  -- Pitch is shown as a visual rise/fall across the blade.
-  local pitchOffset =
-    math.sin(
-      visualPitch
-    ) *
-    24
-
-
-  -- Hitch arms.
+  -- Push frame.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
 
-
   lcd.drawLine(
-    cx - 68,
+    cx - 60,
     cy - 8,
-    bladeX + 40,
-    bladeY - pitchOffset,
+    bladeCenterX + 38,
+    bladeY - 8,
     SOLID,
     FORCE
   )
-
 
   lcd.drawLine(
-    cx - 68,
-    cy + 12,
-    bladeX + 40,
-    bladeY + pitchOffset,
+    cx - 60,
+    cy + 8,
+    bladeCenterX + 38,
+    bladeY + 8,
     SOLID,
     FORCE
   )
 
 
-  -- Blade face.
-  for i = -8, 8 do
+  -- Blade.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_YELLOW
+  )
 
-    drawRotatedLine(
-      bladeX - 50,
-      bladeY + i - pitchOffset,
-      bladeX + 50,
-      bladeY + i + pitchOffset,
-      bladeX,
-      bladeY,
-      angleRad,
-      COL_YELLOW,
-      1
-    )
-
-  end
-
-
-  -- Top edge.
-  drawRotatedLine(
-    bladeX - 52,
-    bladeY - 9 - pitchOffset,
-    bladeX + 52,
-    bladeY - 9 + pitchOffset,
-    bladeX,
-    bladeY,
-    angleRad,
-    COL_TEXT,
-    2
+  lcd.drawFilledRectangle(
+    bladeCenterX - 10,
+    bladeY - 55,
+    20,
+    110,
+    CUSTOM_COLOR
   )
 
 
-  -- Cutting edge.
-  drawRotatedLine(
-    bladeX - 52,
-    bladeY + 10 - pitchOffset,
-    bladeX + 52,
-    bladeY + 10 + pitchOffset,
-    bladeX,
-    bladeY,
-    angleRad,
-    COL_METAL,
-    2
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawRectangle(
+    bladeCenterX - 10,
+    bladeY - 55,
+    20,
+    110,
+    CUSTOM_COLOR
   )
 
 end
 
 
 -- ============================================================
--- TILLER
+-- TOP VIEW TILLER
 --
--- liftPos:
---   0 = raised
---   1 = lowered
---
--- swingPos:
---  -1..1
---
--- visualPitch:
---   temporary pitch while raising/lowering
+-- Swing pivots around hitch point.
 -- ============================================================
 
-local function drawTiller(
+local function drawTopTiller(
   cx,
-  cy,
-  liftPos,
-  swingPos,
-  visualPitch
+  cy
 )
 
-  local tillerX =
-    cx + 165
+  local hitchX =
+    cx + 65
+
+  local hitchY =
+    cy
 
 
-  local tillerY =
-    cy -
-    18 +
-    (
-      liftPos *
-      TILLER_LIFT_PIXELS
-    )
+  local centerX =
+    cx + 145
+
+  local centerY =
+    cy
 
 
-  local swingRad =
-    swingPos *
+  local swingAngle =
+    tillerSwingPos *
     math.rad(
-      TILLER_SWING_DEG
+      MAX_TILLER_SWING_DEG
     )
-
-
-  local pitchOffset =
-    math.sin(
-      visualPitch
-    ) *
-    22
 
 
   -- Hitch.
   drawRotatedLine(
-    cx + 65,
-    cy,
-    tillerX - 54,
-    tillerY - pitchOffset,
-    tillerX - 54,
-    tillerY,
-    swingRad,
+    hitchX,
+    hitchY,
+    centerX - 55,
+    centerY,
+    hitchX,
+    hitchY,
+    swingAngle,
     COL_METAL,
     3
   )
 
 
-  -- Main tiller body.
-  for i = -13, 13 do
+  -- Tiller frame.
+  for i = -16, 16 do
 
     drawRotatedLine(
-      tillerX - 57,
-      tillerY + i - pitchOffset,
-      tillerX + 57,
-      tillerY + i + pitchOffset,
-      tillerX,
-      tillerY,
-      swingRad,
+      centerX - 55,
+      centerY + i,
+      centerX + 55,
+      centerY + i,
+      hitchX,
+      hitchY,
+      swingAngle,
       COL_RED,
       1
     )
@@ -1135,71 +1051,286 @@ local function drawTiller(
   for i = -8, 8 do
 
     drawRotatedLine(
-      tillerX - 43,
-      tillerY + i - pitchOffset,
-      tillerX + 43,
-      tillerY + i + pitchOffset,
-      tillerX,
-      tillerY,
-      swingRad,
+      centerX - 43,
+      centerY + i,
+      centerX + 43,
+      centerY + i,
+      hitchX,
+      hitchY,
+      swingAngle,
       COL_TRACK,
       1
     )
 
   end
 
+end
 
-  -- Frame.
-  drawRotatedLine(
-    tillerX - 58,
-    tillerY - 14 - pitchOffset,
-    tillerX + 58,
-    tillerY - 14 + pitchOffset,
-    tillerX,
-    tillerY,
-    swingRad,
-    COL_TEXT,
-    2
+
+-- ============================================================
+-- TOP VIEW
+-- ============================================================
+
+local function drawTopView(
+  x,
+  y,
+  w,
+  h
+)
+
+  drawPanel(
+    x,
+    y,
+    w,
+    h,
+    "TOP VIEW - TRACKS / BLADE SLEW / TILLER SWING"
   )
 
 
-  drawRotatedLine(
-    tillerX - 58,
-    tillerY + 14 - pitchOffset,
-    tillerX + 58,
-    tillerY + 14 + pitchOffset,
-    tillerX,
-    tillerY,
-    swingRad,
-    COL_TEXT,
-    2
+  local cx =
+    x + 190
+
+  local cy =
+    y + 155
+
+
+  drawTopBlade(
+    cx,
+    cy
+  )
+
+
+  drawTopBody(
+    cx,
+    cy
+  )
+
+
+  drawTopTiller(
+    cx,
+    cy
+  )
+
+
+  -- Labels.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_DIM
+  )
+
+
+  lcd.drawText(
+    x + 8,
+    y + h - 34,
+    string.format(
+      "SLEW %4.0f%%",
+      bladeSlewPos * 100
+    ),
+    SMLSIZE
+  )
+
+
+  lcd.drawText(
+    x + 130,
+    y + h - 34,
+    string.format(
+      "SWING %4.0f%%",
+      tillerSwingPos * 100
+    ),
+    SMLSIZE
   )
 
 end
 
 
 -- ============================================================
--- STATUS STRIP
+-- SIDE VIEW BODY
 -- ============================================================
 
-local function drawStatusStrip(
-  leftTrack,
-  rightTrack
+local function drawSideBody(
+  cx,
+  cy
 )
+
+  -- Track.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TRACK
+  )
+
+  lcd.drawFilledRectangle(
+    cx - 72,
+    cy + 12,
+    145,
+    27,
+    CUSTOM_COLOR
+  )
+
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_HEADER
+    COL_TRACK_BAR
   )
 
-
-  lcd.drawFilledRectangle(
-    0,
-    340,
-    800,
-    60,
+  lcd.drawRectangle(
+    cx - 72,
+    cy + 12,
+    145,
+    27,
     CUSTOM_COLOR
   )
+
+
+  -- Chassis.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_RED_DARK
+  )
+
+  lcd.drawFilledRectangle(
+    cx - 68,
+    cy - 18,
+    132,
+    34,
+    CUSTOM_COLOR
+  )
+
+
+  -- Deck.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_METAL
+  )
+
+  lcd.drawFilledRectangle(
+    cx - 12,
+    cy - 32,
+    70,
+    18,
+    CUSTOM_COLOR
+  )
+
+
+  -- Cab.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_RED
+  )
+
+  lcd.drawFilledRectangle(
+    cx - 54,
+    cy - 65,
+    46,
+    48,
+    CUSTOM_COLOR
+  )
+
+
+  -- Roof.
+  lcd.drawFilledRectangle(
+    cx - 58,
+    cy - 70,
+    54,
+    7,
+    CUSTOM_COLOR
+  )
+
+
+  -- Window.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_GLASS
+  )
+
+  lcd.drawFilledRectangle(
+    cx - 48,
+    cy - 57,
+    30,
+    24,
+    CUSTOM_COLOR
+  )
+
+end
+
+
+-- ============================================================
+-- SIDE VIEW BLADE
+-- ============================================================
+
+local function drawSideBlade(
+  cx,
+  cy
+)
+
+  local hitchX =
+    cx - 64
+
+  local hitchY =
+    cy - 3
+
+
+  local bladeX =
+    cx - 130
+
+
+  local raisedY =
+    cy - 55
+
+
+  local bladeY =
+    raisedY +
+    bladeLiftPos *
+    BLADE_LIFT_PIXELS
+
+
+  local angle =
+    bladeAnglePos *
+    math.rad(
+      MAX_BLADE_ANGLE_DEG
+    )
+
+
+  -- Lift arms.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_METAL
+  )
+
+  lcd.drawLine(
+    hitchX,
+    hitchY - 8,
+    bladeX + 30,
+    bladeY - 6,
+    SOLID,
+    FORCE
+  )
+
+  lcd.drawLine(
+    hitchX,
+    hitchY + 7,
+    bladeX + 30,
+    bladeY + 6,
+    SOLID,
+    FORCE
+  )
+
+
+  -- Blade face.
+  for i = -7, 7 do
+
+    drawRotatedLine(
+      bladeX - 8,
+      bladeY - 32 + i,
+      bladeX + 8,
+      bladeY + 32 + i,
+      bladeX,
+      bladeY,
+      angle,
+      COL_YELLOW,
+      1
+    )
+
+  end
 
 
   lcd.setColor(
@@ -1207,34 +1338,11 @@ local function drawStatusStrip(
     COL_TEXT
   )
 
-
   lcd.drawText(
-    15,
-    352,
+    bladeX - 34,
+    cy + 73,
     string.format(
-      "L TRACK %4.0f%%",
-      leftTrack * 100
-    ),
-    SMLSIZE
-  )
-
-
-  lcd.drawText(
-    135,
-    352,
-    string.format(
-      "R TRACK %4.0f%%",
-      rightTrack * 100
-    ),
-    SMLSIZE
-  )
-
-
-  lcd.drawText(
-    270,
-    352,
-    string.format(
-      "B LIFT %3.0f%%",
+      "L %3.0f%%",
       bladeLiftPos * 100
     ),
     SMLSIZE
@@ -1242,21 +1350,117 @@ local function drawStatusStrip(
 
 
   lcd.drawText(
-    385,
-    352,
+    bladeX - 34,
+    cy + 89,
     string.format(
-      "B ANG %4.0f%%",
+      "A %4.0f%%",
       bladeAnglePos * 100
     ),
     SMLSIZE
   )
 
+end
+
+
+-- ============================================================
+-- SIDE VIEW TILLER
+-- ============================================================
+
+local function drawSideTiller(
+  cx,
+  cy
+)
+
+  local hitchX =
+    cx + 64
+
+  local hitchY =
+    cy
+
+
+  local tillerX =
+    cx + 137
+
+
+  local raisedY =
+    cy - 44
+
+
+  local tillerY =
+    raisedY +
+    tillerLiftPos *
+    TILLER_LIFT_PIXELS
+
+
+  local angle =
+    tillerAnglePos *
+    math.rad(
+      MAX_TILLER_ANGLE_DEG
+    )
+
+
+  -- Lift linkage.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_METAL
+  )
+
+  lcd.drawLine(
+    hitchX,
+    hitchY - 5,
+    tillerX - 35,
+    tillerY - 7,
+    SOLID,
+    FORCE
+  )
+
+
+  -- Main tiller frame.
+  for i = -10, 10 do
+
+    drawRotatedLine(
+      tillerX - 38,
+      tillerY + i,
+      tillerX + 38,
+      tillerY + i,
+      tillerX,
+      tillerY,
+      angle,
+      COL_RED,
+      1
+    )
+
+  end
+
+
+  -- Roller.
+  for i = -5, 5 do
+
+    drawRotatedLine(
+      tillerX - 29,
+      tillerY + i,
+      tillerX + 29,
+      tillerY + i,
+      tillerX,
+      tillerY,
+      angle,
+      COL_TRACK,
+      1
+    )
+
+  end
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
 
   lcd.drawText(
-    510,
-    352,
+    tillerX - 32,
+    cy + 73,
     string.format(
-      "T LIFT %3.0f%%",
+      "L %3.0f%%",
       tillerLiftPos * 100
     ),
     SMLSIZE
@@ -1264,14 +1468,149 @@ local function drawStatusStrip(
 
 
   lcd.drawText(
-    635,
-    352,
+    tillerX - 32,
+    cy + 89,
     string.format(
-      "SWING %4.0f%%",
-      tillerSwingPos * 100
+      "A %4.0f%%",
+      tillerAnglePos * 100
     ),
     SMLSIZE
   )
+
+end
+
+
+-- ============================================================
+-- SIDE VIEW
+-- ============================================================
+
+local function drawSideView(
+  x,
+  y,
+  w,
+  h
+)
+
+  drawPanel(
+    x,
+    y,
+    w,
+    h,
+    "SIDE VIEW - BLADE / TILLER LIFT & ANGLE"
+  )
+
+
+  local cx =
+    x + 193
+
+  local cy =
+    y + 156
+
+
+  drawSideBlade(
+    cx,
+    cy
+  )
+
+
+  drawSideBody(
+    cx,
+    cy
+  )
+
+
+  drawSideTiller(
+    cx,
+    cy
+  )
+
+end
+
+
+-- ============================================================
+-- HOME STATE
+-- ============================================================
+
+local function updateHomeState(
+  bladeTransition,
+  tillerTransition
+)
+
+  local sh =
+    (getValue("sh") or 0) > 500
+
+
+  local pressed =
+    sh and not lastSh
+
+
+  lastSh =
+    sh
+
+
+  local ls =
+    getValue("ls") or 0
+
+
+  local rs =
+    getValue("rs") or 0
+
+
+  local wingControlsCentered =
+    math.abs(ls) <= HOME_SLIDER_DEADBAND
+    and
+    math.abs(rs) <= HOME_SLIDER_DEADBAND
+
+
+  local anyTransition =
+    bladeTransition
+    or
+    tillerTransition
+
+
+  if pressed
+    and not anyTransition
+  then
+
+    -- Match the SH re-home performed in blade.lua / tiller.lua.
+    bladeLiftPos =
+      0
+
+    bladeAnglePos =
+      0
+
+    bladeSlewPos =
+      0
+
+    tillerLiftPos =
+      0
+
+    tillerAnglePos =
+      0
+
+
+    homeArmed =
+      true
+
+
+    homeActive =
+      false
+
+  end
+
+
+  if homeArmed
+    and wingControlsCentered
+  then
+
+    homeArmed =
+      false
+
+
+    homeActive =
+      true
+
+  end
 
 end
 
@@ -1306,8 +1645,8 @@ local function refresh(
 
 
     lcd.drawText(
-      z.x + 10,
-      z.y + 10,
+      z.x + 5,
+      z.y + 5,
       "PB600OP requires full-screen 800x400",
       SMLSIZE
     )
@@ -1349,14 +1688,10 @@ local function refresh(
   -- CURRENT CHANNEL VALUES
   -- ==========================================================
 
-  -- Track assignments:
+  -- Tracks.
   --
-  -- CH1 = Right Track
-  -- CH3 = Left Track
-  --
-  -- Right physical channel is reversed by system.lua,
-  -- so invert it again for logical forward-positive display.
-
+  -- CH1 = Right Track, physical polarity inverted in system.lua.
+  -- CH3 = Left Track.
   local rightTrack =
     -norm(
       getValue("ch1") or 0
@@ -1369,6 +1704,7 @@ local function refresh(
     )
 
 
+  -- Blade.
   local bladeLiftCmd =
     norm(
       getValue("ch2") or 0
@@ -1381,13 +1717,25 @@ local function refresh(
     )
 
 
+  local bladeSlewCmd =
+    norm(
+      getValue("ch11") or 0
+    )
+
+
+  -- Tiller.
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
     )
 
 
-  -- CH9 is a position servo.
+  local tillerAngleCmd =
+    norm(
+      getValue("ch13") or 0
+    )
+
+
   tillerSwingPos =
     norm(
       getValue("ch9") or 0
@@ -1407,7 +1755,7 @@ local function refresh(
 
 
   -- ==========================================================
-  -- PERSISTENT POSITION INTEGRATORS
+  -- UPDATE PERSISTENT POSITIONS
   -- ==========================================================
 
   bladeLiftPos =
@@ -1421,10 +1769,19 @@ local function refresh(
 
 
   bladeAnglePos =
-    integrateBidirectional(
+    integrateAxis(
       bladeAnglePos,
       bladeAngleCmd,
       BLADE_ANGLE_FULL,
+      dt
+    )
+
+
+  bladeSlewPos =
+    integrateAxis(
+      bladeSlewPos,
+      bladeSlewCmd,
+      BLADE_SLEW_FULL,
       dt
     )
 
@@ -1439,83 +1796,12 @@ local function refresh(
     )
 
 
-  -- ==========================================================
-  -- TRANSITION PITCH TARGETS
-  --
-  -- Pitch exists only while L11/L12 indicate movement.
-  --
-  -- Once the transition ends, target pitch returns to zero,
-  -- so the implement visually settles LEVEL in either the
-  -- raised or lowered position.
-  -- ==========================================================
-
-  local bladePitchTarget =
-    0
-
-
-  if bladeTransition then
-
-    if bladeLiftCmd > OUTPUT_DEADBAND then
-
-      -- Lowering
-      bladePitchTarget =
-        math.rad(
-          TRANSITION_PITCH_DEG
-        )
-
-    elseif bladeLiftCmd < -OUTPUT_DEADBAND then
-
-      -- Raising
-      bladePitchTarget =
-        -math.rad(
-          TRANSITION_PITCH_DEG
-        )
-
-    end
-
-  end
-
-
-  bladeVisualPitch =
-    approach(
-      bladeVisualPitch,
-      bladePitchTarget,
-      PITCH_SMOOTHING
-    )
-
-
-  local tillerPitchTarget =
-    0
-
-
-  if tillerTransition then
-
-    if tillerLiftCmd > OUTPUT_DEADBAND then
-
-      -- Lowering
-      tillerPitchTarget =
-        math.rad(
-          TRANSITION_PITCH_DEG
-        )
-
-    elseif tillerLiftCmd < -OUTPUT_DEADBAND then
-
-      -- Raising
-      tillerPitchTarget =
-        -math.rad(
-          TRANSITION_PITCH_DEG
-        )
-
-    end
-
-  end
-
-
-  tillerVisualPitch =
-    approach(
-      tillerVisualPitch,
-      tillerPitchTarget,
-      PITCH_SMOOTHING
+  tillerAnglePos =
+    integrateAxis(
+      tillerAnglePos,
+      tillerAngleCmd,
+      TILLER_ANGLE_FULL,
+      dt
     )
 
 
@@ -1531,6 +1817,35 @@ local function refresh(
 
 
   -- ==========================================================
+  -- HOME
+  -- ==========================================================
+
+  updateHomeState(
+    bladeTransition,
+    tillerTransition
+  )
+
+
+  -- Any actual implement movement after HOME invalidates it.
+  local anyImplementCommand =
+    math.abs(bladeLiftCmd) > OUTPUT_DEADBAND
+    or math.abs(bladeAngleCmd) > OUTPUT_DEADBAND
+    or math.abs(bladeSlewCmd) > OUTPUT_DEADBAND
+    or math.abs(tillerLiftCmd) > OUTPUT_DEADBAND
+    or math.abs(tillerAngleCmd) > OUTPUT_DEADBAND
+
+
+  if homeActive
+    and anyImplementCommand
+  then
+
+    homeActive =
+      false
+
+  end
+
+
+  -- ==========================================================
   -- DRAW
   -- ==========================================================
 
@@ -1539,66 +1854,22 @@ local function refresh(
   )
 
 
-  drawSceneBackground()
-
-
   drawHeader()
 
 
-  local cx =
-    395
-
-
-  local cy =
-    210
-
-
-  -- Tracks behind body.
-  drawTrack(
-    cx - 72,
-    cy + 28,
-    145,
-    26,
-    trackPhaseL
+  drawTopView(
+    5,
+    54,
+    390,
+    340
   )
 
 
-  drawTrack(
-    cx - 72,
-    cy - 4,
-    145,
-    26,
-    trackPhaseR
-  )
-
-
-  drawBody(
-    cx,
-    cy
-  )
-
-
-  drawBlade(
-    cx,
-    cy,
-    bladeLiftPos,
-    bladeAnglePos,
-    bladeVisualPitch
-  )
-
-
-  drawTiller(
-    cx,
-    cy,
-    tillerLiftPos,
-    tillerSwingPos,
-    tillerVisualPitch
-  )
-
-
-  drawStatusStrip(
-    leftTrack,
-    rightTrack
+  drawSideView(
+    405,
+    54,
+    390,
+    340
   )
 
 end
