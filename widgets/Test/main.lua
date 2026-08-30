@@ -7,14 +7,14 @@
 --   * Animated tracks
 --   * Blade slew
 --   * Tiller swing
+--   * Left / Right finishers
+--   * Tiller motor active/lockout indicator
 --
 -- SIDE VIEW
 --   * Blade lift
 --   * Blade angle
 --   * Tiller lift
 --   * Tiller angle
---   * Left / Right finisher animation
---   * Tiller motor status indicator
 --   * Yellow rear comb
 --
 -- VISUAL LIFT MODEL:
@@ -32,13 +32,14 @@
 --   * Groom working position = horizontal
 --   * may visibly pitch while transitioning
 --
--- FINISHERS:
---   * vertical yellow box when up
---   * dynamically flattens as deployed
+-- TOP TILLER:
+--   * long top-to-bottom
+--   * narrow side-to-side
+--   * finishers animate with CH7 / CH8
+--   * motor circle:
 --
--- TILLER MOTOR:
---   * red circle = locked out / not allowed
---   * green circle = allowed to run
+--       RED   = stopped or locked out
+--       GREEN = S1 requests rotation AND CH14 permits motor
 --
 -- SH:
 --   Resets visual actuator positions to zero/home.
@@ -151,18 +152,19 @@ local OUTPUT_DEADBAND = 0.025
 local MAX_BLADE_SLEW_PIXELS = 34
 local MAX_TILLER_SWING_DEG  = 32
 
+local TILLER_TOP_W = 18
+local TILLER_TOP_H = 108
+
+local FINISHER_UP_W   = 10
+local FINISHER_DOWN_W = 24
+local FINISHER_H      = 12
+local FINISHER_OFFSET = 24
+
+local TILLER_MOTOR_R = 7
+
 -- Side view.
 local MAX_BLADE_ANGLE_DEG  = 30
 local MAX_TILLER_ANGLE_DEG = 26
-
--- Finishers.
-local FINISHER_UP_H    = 22
-local FINISHER_DOWN_H  = 5
-local FINISHER_W       = 14
-local FINISHER_SPACING = 22
-
--- Motor indicator.
-local TILLER_MOTOR_R = 7
 
 local TRACK_ANIM_SPEED = 55
 
@@ -189,6 +191,12 @@ local tillerSwingPos = 0
 local trackPhaseL = 0
 local trackPhaseR = 0
 
+-- Finishers.
+-- 0 = up
+-- 1 = down
+local finLPos = 0
+local finRPos = 0
+
 
 -- Side view.
 local bladeLiftPos   = 0
@@ -196,12 +204,6 @@ local bladeAnglePos  = 0
 
 local tillerLiftPos  = 0
 local tillerAnglePos = 0
-
--- Finishers.
--- 0 = up
--- 1 = down
-local finLPos = 0
-local finRPos = 0
 
 
 local lastTime =
@@ -311,6 +313,7 @@ local function drawRotatedLine(
       cy,
       angle
     )
+
 
   local rx2, ry2 =
     rotatePoint(
@@ -934,7 +937,6 @@ local function drawTopBody(
   )
 
 
-  -- Chassis.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED_DARK
@@ -949,7 +951,6 @@ local function drawTopBody(
   )
 
 
-  -- Deck.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -964,7 +965,6 @@ local function drawTopBody(
   )
 
 
-  -- Cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -979,7 +979,6 @@ local function drawTopBody(
   )
 
 
-  -- Windshield.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
@@ -1070,6 +1069,12 @@ end
 
 -- ============================================================
 -- TOP-VIEW TILLER
+--
+-- Long vertically on the screen, narrow horizontally.
+--
+-- Finishers live here.
+--
+-- Motor status circle lives here.
 -- ============================================================
 
 local function drawTopTiller(
@@ -1098,10 +1103,14 @@ local function drawTopTiller(
     )
 
 
+  -- ----------------------------------------------------------
+  -- HITCH
+  -- ----------------------------------------------------------
+
   drawRotatedLine(
     hitchX,
     hitchY,
-    tillerX - 53,
+    tillerX - TILLER_TOP_W / 2,
     tillerY,
     hitchX,
     hitchY,
@@ -1111,13 +1120,23 @@ local function drawTopTiller(
   )
 
 
-  for i = -17, 17 do
+  -- ----------------------------------------------------------
+  -- VERTICAL TILLER BODY
+  --
+  -- Same screen orientation as blade:
+  --
+  -- narrow X
+  -- tall Y
+  -- ----------------------------------------------------------
+
+  for xx = -TILLER_TOP_W / 2,
+           TILLER_TOP_W / 2 do
 
     drawRotatedLine(
-      tillerX - 53,
-      tillerY + i,
-      tillerX + 53,
-      tillerY + i,
+      tillerX + xx,
+      tillerY - TILLER_TOP_H / 2,
+      tillerX + xx,
+      tillerY + TILLER_TOP_H / 2,
       hitchX,
       hitchY,
       swingAngle,
@@ -1128,21 +1147,267 @@ local function drawTopTiller(
   end
 
 
-  for i = -7, 7 do
+  -- Outline.
+  drawRotatedLine(
+    tillerX - TILLER_TOP_W / 2,
+    tillerY - TILLER_TOP_H / 2,
+    tillerX - TILLER_TOP_W / 2,
+    tillerY + TILLER_TOP_H / 2,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_TEXT,
+    1
+  )
 
+
+  drawRotatedLine(
+    tillerX + TILLER_TOP_W / 2,
+    tillerY - TILLER_TOP_H / 2,
+    tillerX + TILLER_TOP_W / 2,
+    tillerY + TILLER_TOP_H / 2,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_TEXT,
+    1
+  )
+
+
+  -- ----------------------------------------------------------
+  -- FINISHERS
+  --
+  -- Top-view interpretation:
+  --
+  -- Up:
+  --   narrow compact box next to tiller.
+  --
+  -- Down:
+  --   box widens away from tiller.
+  --
+  -- Width interpolates continuously with finisher state.
+  -- ----------------------------------------------------------
+
+  local function drawTopFinisher(
+    side,
+    pos
+  )
+
+    local w =
+      FINISHER_UP_W +
+      (
+        FINISHER_DOWN_W -
+        FINISHER_UP_W
+      ) *
+      pos
+
+
+    local offset =
+      side *
+      (
+        FINISHER_OFFSET +
+        w / 2
+      )
+
+
+    local centerX =
+      tillerX +
+      offset
+
+
+    local centerY =
+      tillerY
+
+
+    local left =
+      centerX -
+      w / 2
+
+
+    local right =
+      centerX +
+      w / 2
+
+
+    local top =
+      centerY -
+      FINISHER_H / 2
+
+
+    local bottom =
+      centerY +
+      FINISHER_H / 2
+
+
+    -- Filled yellow box.
+    for yy = top, bottom do
+
+      drawRotatedLine(
+        left,
+        yy,
+        right,
+        yy,
+        hitchX,
+        hitchY,
+        swingAngle,
+        COL_YELLOW,
+        1
+      )
+
+    end
+
+
+    -- Outline.
     drawRotatedLine(
-      tillerX - 42,
-      tillerY + i,
-      tillerX + 42,
-      tillerY + i,
+      left,
+      top,
+      right,
+      top,
       hitchX,
       hitchY,
       swingAngle,
-      COL_TRACK_BAR,
+      COL_TEXT,
+      1
+    )
+
+
+    drawRotatedLine(
+      left,
+      bottom,
+      right,
+      bottom,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_TEXT,
+      1
+    )
+
+
+    drawRotatedLine(
+      left,
+      top,
+      left,
+      bottom,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_TEXT,
+      1
+    )
+
+
+    drawRotatedLine(
+      right,
+      top,
+      right,
+      bottom,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_TEXT,
       1
     )
 
   end
+
+
+  drawTopFinisher(
+    -1,
+    finLPos
+  )
+
+
+  drawTopFinisher(
+    1,
+    finRPos
+  )
+
+
+  -- ----------------------------------------------------------
+  -- TILLER MOTOR STATUS
+  --
+  -- GREEN only when:
+  --
+  --   S1 requests rotation
+  --   AND
+  --   CH14 says motor is permitted
+  --
+  -- CH14:
+  --   -1024 = locked out
+  --   +1024 = allowed
+  --
+  -- S1:
+  --   -1024 = off
+  --   greater than about -1000 = some requested motor power
+  -- ----------------------------------------------------------
+
+  local s1 =
+    getValue("s1") or -1024
+
+
+  local tillerMotorPermit =
+    getValue("ch14") or -1024
+
+
+  local motorRequested =
+    s1 > -1000
+
+
+  local motorLockout =
+    tillerMotorPermit <= 500
+
+
+  local motorActive =
+    motorRequested
+    and not motorLockout
+
+
+  local motorColor =
+    COL_ALERT
+
+
+  if motorActive then
+
+    motorColor =
+      COL_FWD
+
+  end
+
+
+  -- Draw circle at front portion of tiller.
+  local motorX =
+    tillerX -
+    2
+
+
+  local motorY =
+    tillerY -
+    28
+
+
+  local rmX, rmY =
+    rotatePoint(
+      motorX,
+      motorY,
+      hitchX,
+      hitchY,
+      swingAngle
+    )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    motorColor
+  )
+
+
+  lcd.drawFilledCircle(
+    rmX,
+    rmY,
+    TILLER_MOTOR_R,
+    CUSTOM_COLOR
+  )
 
 end
 
@@ -1174,6 +1439,7 @@ local function drawTopView(
     CUSTOM_COLOR,
     COL_GRID
   )
+
 
   lcd.drawLine(
     x + 18,
@@ -1242,7 +1508,6 @@ local function drawSideBody(
   cy
 )
 
-  -- Track.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
@@ -1271,7 +1536,6 @@ local function drawSideBody(
   )
 
 
-  -- Wheels.
   for wx = -55, 50, 35 do
 
     lcd.drawCircle(
@@ -1283,7 +1547,6 @@ local function drawSideBody(
   end
 
 
-  -- Chassis.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED_DARK
@@ -1298,7 +1561,6 @@ local function drawSideBody(
   )
 
 
-  -- Deck.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1313,7 +1575,6 @@ local function drawSideBody(
   )
 
 
-  -- Cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -1328,7 +1589,6 @@ local function drawSideBody(
   )
 
 
-  -- Roof.
   lcd.drawFilledRectangle(
     cx - 58,
     cy - 75,
@@ -1338,7 +1598,6 @@ local function drawSideBody(
   )
 
 
-  -- Glass.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
@@ -1419,7 +1678,6 @@ local function drawSideBlade(
     )
 
 
-  -- Linkage.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1446,7 +1704,6 @@ local function drawSideBlade(
   )
 
 
-  -- Blade face.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -1464,7 +1721,6 @@ local function drawSideBlade(
   end
 
 
-  -- Outline.
   drawRotatedLine(
     bladeX - 8,
     bladeY - bladeHalfHeight,
@@ -1521,6 +1777,10 @@ end
 
 -- ============================================================
 -- SIDE-VIEW TILLER
+--
+-- Finishers intentionally removed from this view.
+--
+-- Rear comb remains yellow.
 -- ============================================================
 
 local function drawSideTiller(
@@ -1602,10 +1862,7 @@ local function drawSideTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGE
-  -- ----------------------------------------------------------
-
+  -- Linkage.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1632,10 +1889,7 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- TILLER HOUSING
-  -- ----------------------------------------------------------
-
+  -- Housing.
   for i = -9, 9 do
 
     drawRotatedLine(
@@ -1671,170 +1925,34 @@ local function drawSideTiller(
   end
 
 
-  -- ----------------------------------------------------------
-  -- FINISHERS
-  -- ----------------------------------------------------------
-
-  local function drawFinisher(
-    offsetX,
-    pos
-  )
-
-    local h =
-      FINISHER_UP_H +
-      (
-        FINISHER_DOWN_H -
-        FINISHER_UP_H
-      ) *
-      pos
-
-
-    local centerX =
-      tillerX +
-      offsetX
-
-
-    local deployDrop =
-      pos * 14
-
-
-    local centerY =
-      tillerY -
-      15 -
-      (h / 2) +
-      deployDrop
-
-
-    for yy = 0, h do
-
-      drawRotatedLine(
-        centerX - FINISHER_W / 2,
-        centerY - h / 2 + yy,
-        centerX + FINISHER_W / 2,
-        centerY - h / 2 + yy,
-        tillerX,
-        tillerY,
-        tillerAngle,
-        COL_YELLOW,
-        1
-      )
-
-    end
-
-
-    -- top
-    drawRotatedLine(
-      centerX - FINISHER_W / 2,
-      centerY - h / 2,
-      centerX + FINISHER_W / 2,
-      centerY - h / 2,
-      tillerX,
-      tillerY,
-      tillerAngle,
-      COL_TEXT,
-      1
-    )
-
-
-    -- bottom
-    drawRotatedLine(
-      centerX - FINISHER_W / 2,
-      centerY + h / 2,
-      centerX + FINISHER_W / 2,
-      centerY + h / 2,
-      tillerX,
-      tillerY,
-      tillerAngle,
-      COL_TEXT,
-      1
-    )
-
-
-    -- left edge
-    drawRotatedLine(
-      centerX - FINISHER_W / 2,
-      centerY - h / 2,
-      centerX - FINISHER_W / 2,
-      centerY + h / 2,
-      tillerX,
-      tillerY,
-      tillerAngle,
-      COL_TEXT,
-      1
-    )
-
-
-    -- right edge
-    drawRotatedLine(
-      centerX + FINISHER_W / 2,
-      centerY - h / 2,
-      centerX + FINISHER_W / 2,
-      centerY + h / 2,
-      tillerX,
-      tillerY,
-      tillerAngle,
-      COL_TEXT,
-      1
-    )
-
-  end
-
-
-  drawFinisher(
-    -FINISHER_SPACING,
-    finLPos
-  )
-
-
-  drawFinisher(
-    FINISHER_SPACING,
-    finRPos
-  )
-
-
-  -- ----------------------------------------------------------
-  -- TILLER MOTOR STATUS
-  --
-  -- CH14:
-  --   <= 500  = not allowed
-  --   > 500   = allowed
-  -- ----------------------------------------------------------
-
-  local tillerMotor =
-    getValue("ch14") or -1024
-
-
-  local motorColor =
-    COL_ALERT
-
-
-  if tillerMotor > 500 then
-
-    motorColor =
-      COL_FWD
-
-  end
-
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    motorColor
-  )
-
-
-  -- Front of tiller housing.
-  lcd.drawFilledCircle(
-    tillerX - 20,
+  -- Housing edges.
+  drawRotatedLine(
+    tillerX - 32,
+    tillerY - 10,
+    tillerX + 32,
+    tillerY - 10,
+    tillerX,
     tillerY,
-    TILLER_MOTOR_R,
-    CUSTOM_COLOR
+    tillerAngle,
+    COL_TEXT,
+    1
   )
 
 
-  -- ----------------------------------------------------------
-  -- YELLOW REAR COMB
-  -- ----------------------------------------------------------
+  drawRotatedLine(
+    tillerX - 32,
+    tillerY + 10,
+    tillerX + 32,
+    tillerY + 10,
+    tillerX,
+    tillerY,
+    tillerAngle,
+    COL_TEXT,
+    1
+  )
 
+
+  -- Yellow rear comb.
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
