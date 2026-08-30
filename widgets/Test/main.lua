@@ -321,7 +321,7 @@ local function drawRotatedLine(
       ry1 + i,
       rx2,
       ry2 + i,
-      SOLID,
+      SOLID + color,
       FORCE
     )
 
@@ -1824,7 +1824,7 @@ local function drawSideTiller(
 
 
   local motorRequested =
-    s1 > -1000
+    s1 > -1024
 
 
   local motorLockout =
