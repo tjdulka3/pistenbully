@@ -7,6 +7,7 @@
 --   3 TillerMot
 --   4 BladeTr
 --   5 TillerTr
+--   6 EngOut
 --
 -- GV2 = Blade working depth %
 -- GV3 = Tiller Groom depth %
@@ -31,13 +32,13 @@
 
 local BLADE_LIFT_DOWN_FULL = 11.0
 local BLADE_LIFT_UP_FULL   = 17.0
-local BLADE_ANGLE_FULL  = 6.7
-local WING_FULL         = 3.75
+local BLADE_ANGLE_FULL     = 6.7
+local WING_FULL            = 3.75
 
 local TILLER_LIFT_DOWN_FULL = 11.0
 local TILLER_LIFT_UP_FULL   = 17.0
-local TILLER_ANGLE_FULL = 3.75
-local FIN_FULL_TIME     = 2.0
+local TILLER_ANGLE_FULL     = 3.75
+local FIN_FULL_TIME         = 2.0
 
 -- Must match blade.lua
 local WORK_WING_OPEN = 0.40
@@ -49,8 +50,24 @@ local WORK_ANGLE     = 0.50
 -- ============================================================
 
 -- Steering behavior
-local TURN_GAIN    = 0.4
-local SPEED_FACTOR = 0.3
+local TURN_GAIN       = 0.40
+local SPEED_FACTOR    = 0.30
+
+-- Throttle point where steering becomes completely
+-- conventional differential drive.
+--
+-- Below this point, pivot steering is progressively blended
+-- into the track commands.
+--
+-- 0.80 means:
+--
+--   0% throttle  = 100% pivot contribution
+--  20% throttle  =  75% pivot contribution
+--  40% throttle  =  50% pivot contribution
+--  60% throttle  =  25% pivot contribution
+--  80% throttle  =   0% pivot contribution
+local PIVOT_BLEND_END = 0.80
+
 
 -- Time-based output rates in channel units per second.
 --
@@ -58,6 +75,7 @@ local SPEED_FACTOR = 0.3
 -- 1024 / 512 = 2.0 sec
 local ACCEL_RATE = 205
 local DECEL_RATE = 512
+
 
 -- Additional pressure-dump rate while crossing zero
 -- during a direction reversal.
@@ -69,8 +87,10 @@ local DECEL_RATE = 512
 --   1024 / 762 ~= 1.34 sec
 local REVERSE_BOOST = 250
 
+
 local RUDDER_DEADBAND  = 0.02
 local REVERSE_DEADBAND = 0.02
+
 
 -- Track power while blade/tiller is repositioning.
 local TRANSITION_POWER = 0.25
@@ -252,8 +272,10 @@ local function run()
   local now =
     getTime()
 
+
   local dt =
     (now - lastTime) / 100
+
 
   lastTime =
     now
@@ -477,6 +499,7 @@ local function run()
       )
         and 1024
         or -1024,
+
       0 -- EngOut
   end
 
@@ -629,7 +652,7 @@ local function run()
     and reverseRequested
     and tillerTransitionRemaining <= 0
     and bladeTransitionRemaining <= 0
-    then
+  then
 
     reverseState =
       "lifting"
@@ -719,6 +742,7 @@ local function run()
   -- ==========================================================
   -- TRANSITION STATUS
   -- ==========================================================
+
   local reverseMovementActive =
     reverseState == "lifting"
     or reverseState == "returning"
@@ -769,6 +793,9 @@ local function run()
 
   -- ----------------------------------------------------------
   -- PROGRESSIVE RUDDER
+  --
+  -- Preserves fine control near rudder center while allowing
+  -- full steering authority near full stick.
   -- ----------------------------------------------------------
 
   local rudCurve =
@@ -784,11 +811,22 @@ local function run()
 
   -- ==========================================================
   -- PIVOT + DRIVE BLENDING
+  --
+  -- At zero throttle:
+  --     pure counter-rotating pivot
+  --
+  -- As throttle increases:
+  --     progressively blend toward differential forward/reverse
+  --     track drive.
+  --
+  -- PIVOT_BLEND_END determines the throttle point at which
+  -- the pivot contribution has completely faded away.
   -- ==========================================================
 
   local pivotBlend =
     clamp(
-      math.abs(thr) * 2,
+      math.abs(thr) /
+      PIVOT_BLEND_END,
       0,
       1
     )
@@ -825,26 +863,36 @@ local function run()
 
 
   -- ==========================================================
-  -- THROTTLE CEILING
+  -- TRACK OUTPUT LIMITS
+  --
+  -- IMPORTANT:
+  --
+  -- Do NOT limit track output to abs(throttle).
+  --
+  -- Doing that:
+  --   1. forces both tracks to zero when throttle is zero,
+  --      eliminating stationary pivot turns;
+  --
+  --   2. prevents the outside track from increasing above
+  --      throttle during a moving turn, greatly reducing
+  --      steering authority.
+  --
+  -- Allow the steering mixer to use the complete track range.
   -- ==========================================================
-
-  local maxT =
-    math.abs(thr)
-
 
   left =
     clamp(
       left,
-      -maxT,
-      maxT
+      -1,
+      1
     )
 
 
   right =
     clamp(
       right,
-      -maxT,
-      maxT
+      -1,
+      1
     )
 
 
@@ -961,6 +1009,7 @@ local function run()
   lastR =
     rightOut
 
+
   -- ============================================================
   -- ENGINE / SOUND CARD DRIVE SIGNAL
   --
@@ -1010,6 +1059,7 @@ local function run()
     engineOut = 0
   end
 
+
   -- ==========================================================
   -- OUTPUTS
   -- ==========================================================
@@ -1030,7 +1080,7 @@ local function run()
     tillerTransitionActive
       and 1024
       or -1024,
-    
+
     engineOut
 end
 
