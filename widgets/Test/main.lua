@@ -3,32 +3,41 @@
 --
 -- TOP VIEW
 --   * Animated tracks
---   * Blade slew
+--   * Black blade with slew
 --   * Tiller swing
---   * Yellow finishers above/below tiller body
+--   * Yellow finishers above/below tiller
 --
 -- SIDE VIEW
---   * Blade lift
---   * Blade angle
---   * Tiller lift
---   * Tiller angle
+--   * Black blade with lift + angle
+--   * Tiller lift + angle
 --   * Tiller motor indicator
 --   * Yellow rear comb
+--
+-- VISUAL STYLE
+--
+--   Blade:
+--     BLACK in top and side views
+--
+--   Linkages:
+--     BLACK
+--     thicker mechanical lines
+--
+--   Finishers:
+--     Yellow
+--     inner edge stays fixed near tiller
+--
+--     UP:
+--       wide / shallow rectangle
+--
+--     DOWN:
+--       same width
+--       grows outward away from tiller
+--       becomes deeper / less flat
 --
 -- TILLER MOTOR:
 --
 --   CH14 == -1024  -> RED
 --   CH14 >  -1024  -> GREEN
---
--- FINISHERS:
---
---   Fixed-size short yellow rectangles.
---
---   UP:
---     tucked close to tiller body
---
---   DOWN:
---     moved outward from tiller body
 --
 -- SH:
 --   Resets visual actuator positions to zero/home.
@@ -99,6 +108,9 @@ local COL_RED_DARK =
 local COL_YELLOW =
   lcd.RGB(225, 185, 25)
 
+local COL_BLACK =
+  lcd.RGB(0, 0, 0)
+
 local COL_METAL =
   lcd.RGB(125, 130, 135)
 
@@ -138,7 +150,17 @@ local FIN_FULL_TIME = 2.0
 local OUTPUT_DEADBAND = 0.025
 
 
+-- ------------------------------------------------------------
+-- LINKAGES
+-- ------------------------------------------------------------
+
+local LINKAGE_WIDTH =
+  4
+
+
+-- ------------------------------------------------------------
 -- TOP VIEW
+-- ------------------------------------------------------------
 
 local MAX_BLADE_SLEW_PIXELS = 34
 local MAX_TILLER_SWING_DEG  = 32
@@ -147,53 +169,105 @@ local TILLER_TOP_W = 18
 local TILLER_TOP_H = 108
 
 
--- Finishers.
-local FINISHER_W = 26
-local FINISHER_H = 7
+-- ------------------------------------------------------------
+-- FINISHERS
+--
+-- Inner edge remains fixed.
+--
+-- Width stays constant.
+-- Height grows outward as finisher deploys.
+-- ------------------------------------------------------------
 
-local FINISHER_UP_GAP = 3
-local FINISHER_DOWN_GAP = 20
+local FINISHER_W =
+  28
+
+local FINISHER_UP_H =
+  5
+
+local FINISHER_DOWN_H =
+  22
+
+-- Almost touches tiller when raised.
+local FINISHER_GAP =
+  1
 
 
+-- ------------------------------------------------------------
 -- SIDE VIEW
+-- ------------------------------------------------------------
 
-local MAX_BLADE_ANGLE_DEG = 30
-local MAX_TILLER_ANGLE_DEG = 26
+local MAX_BLADE_ANGLE_DEG =
+  30
 
-local TILLER_MOTOR_R = 7
+local MAX_TILLER_ANGLE_DEG =
+  26
 
-local TRACK_ANIM_SPEED = 55
+local TILLER_MOTOR_R =
+  7
+
+local TRACK_ANIM_SPEED =
+  55
 
 
 -- ============================================================
 -- HOME STATE
 -- ============================================================
 
-local homeActive = false
-local homeArmed = false
-local lastSh = false
+local homeActive =
+  false
 
-local HOME_SLIDER_DEADBAND = 100
+local homeArmed =
+  false
+
+local lastSh =
+  false
+
+local HOME_SLIDER_DEADBAND =
+  100
 
 
 -- ============================================================
 -- PERSISTENT VISUAL STATE
 -- ============================================================
 
-local bladeSlewPos = 0
-local tillerSwingPos = 0
+-- Top view.
+local bladeSlewPos =
+  0
 
-local trackPhaseL = 0
-local trackPhaseR = 0
+local tillerSwingPos =
+  0
 
-local finLPos = 0
-local finRPos = 0
+local trackPhaseL =
+  0
 
-local bladeLiftPos = 0
-local bladeAnglePos = 0
+local trackPhaseR =
+  0
 
-local tillerLiftPos = 0
-local tillerAnglePos = 0
+
+-- Finishers.
+--
+-- 0 = raised
+-- 1 = deployed/down
+local finLPos =
+  0
+
+local finRPos =
+  0
+
+
+-- Side view.
+local bladeLiftPos =
+  0
+
+local bladeAnglePos =
+  0
+
+local tillerLiftPos =
+  0
+
+local tillerAnglePos =
+  0
+
 
 local lastTime =
   getTime()
@@ -203,7 +277,11 @@ local lastTime =
 -- HELPERS
 -- ============================================================
 
-local function clamp(v, lo, hi)
+local function clamp(
+  v,
+  lo,
+  hi
+)
 
   if v < lo then
     return lo
@@ -268,9 +346,16 @@ local function rotatePoint(
   local y =
     py - cy
 
+
   return
-    cx + x * c - y * s,
-    cy + x * s + y * c
+
+    cx +
+    x * c -
+    y * s,
+
+    cy +
+    x * s +
+    y * c
 
 end
 
@@ -296,6 +381,7 @@ local function drawRotatedLine(
       angle
     )
 
+
   local rx2, ry2 =
     rotatePoint(
       x2,
@@ -305,13 +391,16 @@ local function drawRotatedLine(
       angle
     )
 
+
   lcd.setColor(
     CUSTOM_COLOR,
     color
   )
 
+
   width =
     width or 1
+
 
   for i = 0, width - 1 do
 
@@ -344,23 +433,36 @@ local function integrateLift(
   command =
     applyDeadband(command)
 
+
   if command == 0 then
     return position
   end
 
+
   local rate
 
+
   if command > 0 then
-    rate = 1 / downFullTime
+
+    rate =
+      1 /
+      downFullTime
+
   else
-    rate = 1 / upFullTime
+
+    rate =
+      1 /
+      upFullTime
+
   end
+
 
   position =
     position +
     command *
     rate *
     dt
+
 
   return clamp(
     position,
@@ -381,15 +483,18 @@ local function integrateAxis(
   command =
     applyDeadband(command)
 
+
   if command == 0 then
     return position
   end
+
 
   position =
     position +
     command *
     dt /
     fullTime
+
 
   return clamp(
     position,
@@ -409,15 +514,18 @@ local function integrateFinisher(
   command =
     applyDeadband(command)
 
+
   if command == 0 then
     return position
   end
+
 
   position =
     position +
     command *
     dt /
     FIN_FULL_TIME
+
 
   return clamp(
     position,
@@ -443,6 +551,7 @@ local function updateTrackAnimation(
     leftTrack *
     TRACK_ANIM_SPEED *
     dt
+
 
   trackPhaseR =
     trackPhaseR +
@@ -483,9 +592,10 @@ local function updateHomeState(
   local sh =
     (getValue("sh") or 0) > 500
 
+
   local homePressed =
-    sh
-    and not lastSh
+    sh and not lastSh
+
 
   lastSh =
     sh
@@ -523,8 +633,13 @@ local function updateHomeState(
     finLPos = 0
     finRPos = 0
 
-    homeArmed = true
-    homeActive = false
+
+    homeArmed =
+      true
+
+
+    homeActive =
+      false
 
   end
 
@@ -533,8 +648,12 @@ local function updateHomeState(
     and wingsCentered
   then
 
-    homeArmed = false
-    homeActive = true
+    homeArmed =
+      false
+
+
+    homeActive =
+      true
 
   end
 
@@ -564,7 +683,9 @@ local function drawHeader(
   )
 
 
+  -- ----------------------------------------------------------
   -- RIGHT STICK MODE
+  -- ----------------------------------------------------------
 
   local sc =
     getValue("sc") or 0
@@ -596,7 +717,9 @@ local function drawHeader(
   )
 
 
+  -- ----------------------------------------------------------
   -- SB MODE
+  -- ----------------------------------------------------------
 
   local sb =
     getValue("sb") or 0
@@ -608,6 +731,7 @@ local function drawHeader(
       CUSTOM_COLOR,
       COL_ACTIVE
     )
+
 
     lcd.drawText(
       x + 570,
@@ -624,6 +748,7 @@ local function drawHeader(
       COL_GRID
     )
 
+
     lcd.drawText(
       x + 570,
       y + 10,
@@ -639,6 +764,7 @@ local function drawHeader(
       COL_GRID
     )
 
+
     lcd.drawText(
       x + 570,
       y + 10,
@@ -649,7 +775,9 @@ local function drawHeader(
   end
 
 
+  -- ----------------------------------------------------------
   -- MACHINE MODE
+  -- ----------------------------------------------------------
 
   local sd =
     getValue("sd") or 0
@@ -675,12 +803,14 @@ local function drawHeader(
   local bladeTransition =
     getLogicalSwitchValue(10)
 
+
   local tillerTransition =
     getLogicalSwitchValue(11)
 
 
   local flags =
-    SMLSIZE + CUSTOM_COLOR
+    SMLSIZE +
+    CUSTOM_COLOR
 
 
   if bladeTransition
@@ -688,7 +818,8 @@ local function drawHeader(
   then
 
     flags =
-      flags + INVERS
+      flags +
+      INVERS
 
   end
 
@@ -707,7 +838,9 @@ local function drawHeader(
   )
 
 
+  -- ----------------------------------------------------------
   -- HOME
+  -- ----------------------------------------------------------
 
   if homeActive then
 
@@ -715,6 +848,7 @@ local function drawHeader(
       CUSTOM_COLOR,
       COL_ACTIVE
     )
+
 
     lcd.drawText(
       x + 640,
@@ -728,7 +862,9 @@ local function drawHeader(
   end
 
 
+  -- ----------------------------------------------------------
   -- E-STOP
+  -- ----------------------------------------------------------
 
   local sf =
     getValue("sf") or 0
@@ -740,6 +876,7 @@ local function drawHeader(
       CUSTOM_COLOR,
       COL_ALERT
     )
+
 
     lcd.drawText(
       x + 700,
@@ -771,6 +908,7 @@ local function drawViewTitle(
     COL_TEXT
   )
 
+
   lcd.drawText(
     x,
     y,
@@ -798,6 +936,7 @@ local function drawTopTrack(
     COL_TRACK
   )
 
+
   lcd.drawFilledRectangle(
     x,
     y,
@@ -811,6 +950,7 @@ local function drawTopTrack(
     CUSTOM_COLOR,
     COL_TRACK_BAR
   )
+
 
   lcd.drawRectangle(
     x,
@@ -838,6 +978,7 @@ local function drawTopTrack(
       SOLID,
       CUSTOM_COLOR
     )
+
 
     p =
       p + 14
@@ -874,10 +1015,12 @@ local function drawTopBody(
   )
 
 
+  -- Chassis.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED_DARK
   )
+
 
   lcd.drawFilledRectangle(
     cx - 61,
@@ -888,10 +1031,12 @@ local function drawTopBody(
   )
 
 
+  -- Deck.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
+
 
   lcd.drawFilledRectangle(
     cx - 3,
@@ -902,10 +1047,12 @@ local function drawTopBody(
   )
 
 
+  -- Cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
+
 
   lcd.drawFilledRectangle(
     cx - 50,
@@ -916,10 +1063,12 @@ local function drawTopBody(
   )
 
 
+  -- Glass.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
   )
+
 
   lcd.drawFilledRectangle(
     cx - 44,
@@ -934,6 +1083,9 @@ end
 
 -- ============================================================
 -- TOP VIEW BLADE
+--
+-- Black blade.
+-- Black heavy linkage.
 -- ============================================================
 
 local function drawTopBlade(
@@ -948,36 +1100,45 @@ local function drawTopBlade(
     MAX_BLADE_SLEW_PIXELS
 
 
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_METAL
-  )
+  -- ----------------------------------------------------------
+  -- BLACK HEAVY LINKAGE
+  -- ----------------------------------------------------------
 
-
-  lcd.drawLine(
+  drawRotatedLine(
     cx - 61,
     cy - 11,
     bladeCenterX + 17,
     cy - 29,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
 
-  lcd.drawLine(
+  drawRotatedLine(
     cx - 61,
     cy + 11,
     bladeCenterX + 17,
     cy + 29,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
+
+  -- ----------------------------------------------------------
+  -- BLACK BLADE
+  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_YELLOW
+    COL_BLACK
   )
+
 
   lcd.drawFilledRectangle(
     bladeCenterX - 8,
@@ -987,11 +1148,6 @@ local function drawTopBlade(
     CUSTOM_COLOR
   )
 
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_TEXT
-  )
 
   lcd.drawRectangle(
     bladeCenterX - 8,
@@ -1006,6 +1162,18 @@ end
 
 -- ============================================================
 -- TOP VIEW TILLER
+--
+-- Black thick hitch.
+--
+-- Finishers:
+--
+-- upper finisher:
+--   bottom/inner edge stays fixed
+--   body grows UPWARD
+--
+-- lower finisher:
+--   top/inner edge stays fixed
+--   body grows DOWNWARD
 -- ============================================================
 
 local function drawTopTiller(
@@ -1016,12 +1184,14 @@ local function drawTopTiller(
   local hitchX =
     cx + 61
 
+
   local hitchY =
     cy
 
 
   local tillerX =
     cx + 145
+
 
   local tillerY =
     cy
@@ -1034,7 +1204,9 @@ local function drawTopTiller(
     )
 
 
-  -- HITCH
+  -- ----------------------------------------------------------
+  -- BLACK HEAVY HITCH
+  -- ----------------------------------------------------------
 
   drawRotatedLine(
     hitchX,
@@ -1045,12 +1217,14 @@ local function drawTopTiller(
     hitchX,
     hitchY,
     swingAngle,
-    COL_METAL,
-    3
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
 
+  -- ----------------------------------------------------------
   -- TILLER BODY
+  -- ----------------------------------------------------------
 
   for xx =
     -TILLER_TOP_W / 2,
@@ -1074,6 +1248,7 @@ local function drawTopTiller(
   end
 
 
+  -- Tiller outline.
   drawRotatedLine(
     tillerX -
       TILLER_TOP_W / 2,
@@ -1086,8 +1261,8 @@ local function drawTopTiller(
     hitchX,
     hitchY,
     swingAngle,
-    COL_TEXT,
-    1
+    COL_BLACK,
+    2
   )
 
 
@@ -1103,8 +1278,8 @@ local function drawTopTiller(
     hitchX,
     hitchY,
     swingAngle,
-    COL_TEXT,
-    1
+    COL_BLACK,
+    2
   )
 
 
@@ -1120,8 +1295,8 @@ local function drawTopTiller(
     hitchX,
     hitchY,
     swingAngle,
-    COL_TEXT,
-    1
+    COL_BLACK,
+    2
   )
 
 
@@ -1137,98 +1312,56 @@ local function drawTopTiller(
     hitchX,
     hitchY,
     swingAngle,
-    COL_TEXT,
-    1
+    COL_BLACK,
+    2
   )
 
 
-  -- FINISHER DRAWER
+  -- ==========================================================
+  -- UPPER / LEFT FINISHER
+  --
+  -- Inner/bottom edge stays fixed.
+  -- Outer/top edge extends upward.
+  -- ==========================================================
 
-  local function drawTopFinisher(
-    centerX,
-    centerY
-  )
-
-    local left =
-      centerX -
-      FINISHER_W / 2
-
-    local right =
-      centerX +
-      FINISHER_W / 2
-
-    local top =
-      centerY -
-      FINISHER_H / 2
-
-    local bottom =
-      centerY +
-      FINISHER_H / 2
+  local finLH =
+    FINISHER_UP_H +
+    (
+      FINISHER_DOWN_H -
+      FINISHER_UP_H
+    ) *
+    finLPos
 
 
-    -- Yellow fill.
-    for yy = top, bottom do
-
-      drawRotatedLine(
-        left,
-        yy,
-        right,
-        yy,
-        hitchX,
-        hitchY,
-        swingAngle,
-        COL_YELLOW,
-        1
-      )
-
-    end
+  local finLBottom =
+    tillerY -
+    TILLER_TOP_H / 2 -
+    FINISHER_GAP
 
 
-    -- Yellow outline too.
-    drawRotatedLine(
-      left,
-      top,
-      right,
-      top,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
+  local finLTop =
+    finLBottom -
+    finLH
 
+
+  local finLLeft =
+    tillerX -
+    FINISHER_W / 2
+
+
+  local finLRight =
+    tillerX +
+    FINISHER_W / 2
+
+
+  -- Yellow fill.
+  for yy = finLTop, finLBottom do
 
     drawRotatedLine(
-      left,
-      bottom,
-      right,
-      bottom,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
-
-
-    drawRotatedLine(
-      left,
-      top,
-      left,
-      bottom,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
-
-
-    drawRotatedLine(
-      right,
-      top,
-      right,
-      bottom,
+      finLLeft,
+      yy,
+      finLRight,
+      yy,
       hitchX,
       hitchY,
       swingAngle,
@@ -1239,51 +1372,164 @@ local function drawTopTiller(
   end
 
 
-  -- LEFT FINISHER / ABOVE
-
-  local finLGap =
-    FINISHER_UP_GAP +
-    (
-      FINISHER_DOWN_GAP -
-      FINISHER_UP_GAP
-    ) *
-    finLPos
-
-
-  local finLY =
-    tillerY -
-    TILLER_TOP_H / 2 -
-    finLGap -
-    FINISHER_H / 2
-
-
-  drawTopFinisher(
-    tillerX,
-    finLY
+  -- Black outline.
+  drawRotatedLine(
+    finLLeft,
+    finLTop,
+    finLRight,
+    finLTop,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
   )
 
 
-  -- RIGHT FINISHER / BELOW
+  drawRotatedLine(
+    finLLeft,
+    finLBottom,
+    finLRight,
+    finLBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
 
-  local finRGap =
-    FINISHER_UP_GAP +
+
+  drawRotatedLine(
+    finLLeft,
+    finLTop,
+    finLLeft,
+    finLBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
+
+
+  drawRotatedLine(
+    finLRight,
+    finLTop,
+    finLRight,
+    finLBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
+
+
+  -- ==========================================================
+  -- LOWER / RIGHT FINISHER
+  --
+  -- Inner/top edge stays fixed.
+  -- Outer/bottom edge extends downward.
+  -- ==========================================================
+
+  local finRH =
+    FINISHER_UP_H +
     (
-      FINISHER_DOWN_GAP -
-      FINISHER_UP_GAP
+      FINISHER_DOWN_H -
+      FINISHER_UP_H
     ) *
     finRPos
 
 
-  local finRY =
+  local finRTop =
     tillerY +
     TILLER_TOP_H / 2 +
-    finRGap +
-    FINISHER_H / 2
+    FINISHER_GAP
 
 
-  drawTopFinisher(
-    tillerX,
-    finRY
+  local finRBottom =
+    finRTop +
+    finRH
+
+
+  local finRLeft =
+    tillerX -
+    FINISHER_W / 2
+
+
+  local finRRight =
+    tillerX +
+    FINISHER_W / 2
+
+
+  -- Yellow fill.
+  for yy = finRTop, finRBottom do
+
+    drawRotatedLine(
+      finRLeft,
+      yy,
+      finRRight,
+      yy,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_YELLOW,
+      1
+    )
+
+  end
+
+
+  -- Black outline.
+  drawRotatedLine(
+    finRLeft,
+    finRTop,
+    finRRight,
+    finRTop,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
+
+
+  drawRotatedLine(
+    finRLeft,
+    finRBottom,
+    finRRight,
+    finRBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
+
+
+  drawRotatedLine(
+    finRLeft,
+    finRTop,
+    finRLeft,
+    finRBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
+  )
+
+
+  drawRotatedLine(
+    finRRight,
+    finRTop,
+    finRRight,
+    finRBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_BLACK,
+    1
   )
 
 end
@@ -1307,6 +1553,7 @@ local function drawTopView(
 
   local cx =
     x + 194
+
 
   local cy =
     y + 157
@@ -1385,10 +1632,12 @@ local function drawSideBody(
   cy
 )
 
+  -- Track.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
   )
+
 
   lcd.drawFilledRectangle(
     cx - 72,
@@ -1404,6 +1653,7 @@ local function drawSideBody(
     COL_TRACK_BAR
   )
 
+
   lcd.drawRectangle(
     cx - 72,
     cy + 18,
@@ -1413,6 +1663,7 @@ local function drawSideBody(
   )
 
 
+  -- Wheels.
   for wx = -55, 50, 35 do
 
     lcd.drawCircle(
@@ -1425,10 +1676,12 @@ local function drawSideBody(
   end
 
 
+  -- Chassis.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED_DARK
   )
+
 
   lcd.drawFilledRectangle(
     cx - 67,
@@ -1439,10 +1692,12 @@ local function drawSideBody(
   )
 
 
+  -- Deck.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
+
 
   lcd.drawFilledRectangle(
     cx - 5,
@@ -1453,10 +1708,12 @@ local function drawSideBody(
   )
 
 
+  -- Cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
+
 
   lcd.drawFilledRectangle(
     cx - 54,
@@ -1476,10 +1733,12 @@ local function drawSideBody(
   )
 
 
+  -- Glass.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
   )
+
 
   lcd.drawFilledRectangle(
     cx - 47,
@@ -1494,6 +1753,9 @@ end
 
 -- ============================================================
 -- SIDE VIEW BLADE
+--
+-- Black animated blade.
+-- Black thick linkage.
 -- ============================================================
 
 local function drawSideBlade(
@@ -1556,31 +1818,39 @@ local function drawSideBlade(
     )
 
 
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_METAL
-  )
+  -- ----------------------------------------------------------
+  -- BLACK HEAVY LINKAGES
+  -- ----------------------------------------------------------
 
-
-  lcd.drawLine(
+  drawRotatedLine(
     cx - 64,
     cy - 9,
     bladeX + 12,
     bladeY - 10,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
 
-  lcd.drawLine(
+  drawRotatedLine(
     cx - 64,
     cy + 8,
     bladeX + 12,
     bladeY + 10,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
+
+  -- ----------------------------------------------------------
+  -- BLACK ANIMATED BLADE FACE
+  -- ----------------------------------------------------------
 
   for i = -7, 7 do
 
@@ -1592,13 +1862,14 @@ local function drawSideBlade(
       bladeX,
       bladeY,
       bladeAngle,
-      COL_YELLOW,
+      COL_BLACK,
       1
     )
 
   end
 
 
+  -- Heavy cutting/front edge.
   drawRotatedLine(
     bladeX - 8,
     bladeY - bladeHalfHeight,
@@ -1607,25 +1878,25 @@ local function drawSideBlade(
     bladeX,
     bladeY,
     bladeAngle,
-    COL_TEXT,
+    COL_BLACK,
+    3
+  )
+
+
+  drawRotatedLine(
+    bladeX + 8,
+    bladeY - bladeHalfHeight,
+    bladeX + 8,
+    bladeY + bladeHalfHeight,
+    bladeX,
+    bladeY,
+    bladeAngle,
+    COL_BLACK,
     2
   )
 
 
   drawRotatedLine(
-    bladeX + 8,
-    bladeY - bladeHalfHeight,
-    bladeX + 8,
-    bladeY + bladeHalfHeight,
-    bladeX,
-    bladeY,
-    bladeAngle,
-    COL_TEXT,
-    1
-  )
-
-
-  drawRotatedLine(
     bladeX - 8,
     bladeY - bladeHalfHeight,
     bladeX + 8,
@@ -1633,8 +1904,8 @@ local function drawSideBlade(
     bladeX,
     bladeY,
     bladeAngle,
-    COL_TEXT,
-    1
+    COL_BLACK,
+    2
   )
 
 
@@ -1646,7 +1917,7 @@ local function drawSideBlade(
     bladeX,
     bladeY,
     bladeAngle,
-    COL_TEXT,
+    COL_BLACK,
     2
   )
 
@@ -1655,6 +1926,12 @@ end
 
 -- ============================================================
 -- SIDE VIEW TILLER
+--
+-- Black thick linkages.
+--
+-- Red/green rotor status circle.
+--
+-- Yellow comb.
 -- ============================================================
 
 local function drawSideTiller(
@@ -1736,35 +2013,39 @@ local function drawSideTiller(
     )
 
 
-  -- LINKAGE
+  -- ----------------------------------------------------------
+  -- BLACK HEAVY LINKAGES
+  -- ----------------------------------------------------------
 
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_METAL
-  )
-
-
-  lcd.drawLine(
+  drawRotatedLine(
     cx + 64,
     cy - 7,
     tillerX - 31,
     tillerY - 5,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
 
-  lcd.drawLine(
+  drawRotatedLine(
     cx + 64,
     cy + 5,
     tillerX - 31,
     tillerY + 5,
-    SOLID,
-    CUSTOM_COLOR
+    0,
+    0,
+    0,
+    COL_BLACK,
+    LINKAGE_WIDTH
   )
 
 
-  -- HOUSING
+  -- ----------------------------------------------------------
+  -- TILLER HOUSING
+  -- ----------------------------------------------------------
 
   for i = -9, 9 do
 
@@ -1784,7 +2065,6 @@ local function drawSideTiller(
 
 
   -- Roller.
-
   for i = -4, 4 do
 
     drawRotatedLine(
@@ -1802,7 +2082,9 @@ local function drawSideTiller(
   end
 
 
+  -- ----------------------------------------------------------
   -- TILLER MOTOR INDICATOR
+  -- ----------------------------------------------------------
 
   local tillerMotor =
     getValue("ch14") or -1024
@@ -1853,7 +2135,9 @@ local function drawSideTiller(
   )
 
 
+  -- ----------------------------------------------------------
   -- YELLOW REAR COMB
+  -- ----------------------------------------------------------
 
   drawRotatedLine(
     tillerX + 31,
@@ -1864,7 +2148,7 @@ local function drawSideTiller(
     tillerY,
     tillerAngle,
     COL_YELLOW,
-    2
+    3
   )
 
 
@@ -1885,7 +2169,7 @@ local function drawSideTiller(
       tillerY,
       tillerAngle,
       COL_YELLOW,
-      1
+      2
     )
 
   end
@@ -1911,6 +2195,7 @@ local function drawSideView(
 
   local cx =
     x + 194
+
 
   local cy =
     y + 157
@@ -2025,6 +2310,7 @@ local function refresh(
       COL_TEXT
     )
 
+
     lcd.drawText(
       z.x + 2,
       z.y + z.h - 14,
@@ -2032,12 +2318,15 @@ local function refresh(
       SMLSIZE + CUSTOM_COLOR
     )
 
+
     return
 
   end
 
 
+  -- ==========================================================
   -- TIME
+  -- ==========================================================
 
   local now =
     getTime()
@@ -2062,7 +2351,9 @@ local function refresh(
   end
 
 
+  -- ==========================================================
   -- SOURCES
+  -- ==========================================================
 
   local leftTrack =
     norm(
@@ -2124,7 +2415,9 @@ local function refresh(
     )
 
 
+  -- ==========================================================
   -- TRANSITIONS
+  -- ==========================================================
 
   local bladeTransition =
     getLogicalSwitchValue(10)
@@ -2134,7 +2427,9 @@ local function refresh(
     getLogicalSwitchValue(11)
 
 
+  -- ==========================================================
   -- POSITION INTEGRATION
+  -- ==========================================================
 
   bladeLiftPos =
     integrateLift(
@@ -2244,7 +2539,9 @@ local function refresh(
   end
 
 
+  -- ==========================================================
   -- DRAW
+  -- ==========================================================
 
   lcd.clear(
     COL_BACKGROUND
@@ -2305,7 +2602,9 @@ local function refresh(
   )
 
 
+  -- ==========================================================
   -- TRANSITION STATUS
+  -- ==========================================================
 
   if bladeTransition
     and tillerTransition
@@ -2315,6 +2614,7 @@ local function refresh(
       CUSTOM_COLOR,
       COL_FWD
     )
+
 
     lcd.drawText(
       300,
@@ -2333,6 +2633,7 @@ local function refresh(
       COL_FWD
     )
 
+
     lcd.drawText(
       330,
       385,
@@ -2349,6 +2650,7 @@ local function refresh(
       CUSTOM_COLOR,
       COL_FWD
     )
+
 
     lcd.drawText(
       330,
