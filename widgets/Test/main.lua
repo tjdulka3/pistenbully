@@ -13,6 +13,9 @@
 --   * Blade angle
 --   * Tiller lift
 --   * Tiller angle
+--   * Left / Right finisher animation
+--   * Tiller motor status indicator
+--   * Yellow rear comb
 --
 -- VISUAL LIFT MODEL:
 --
@@ -27,7 +30,15 @@
 -- SIDE TILLER:
 --   * raised position = horizontal
 --   * Groom working position = horizontal
---   * may visibly pitch while transitioning between the two
+--   * may visibly pitch while transitioning
+--
+-- FINISHERS:
+--   * vertical yellow box when up
+--   * dynamically flattens as deployed
+--
+-- TILLER MOTOR:
+--   * red circle = locked out / not allowed
+--   * green circle = allowed to run
 --
 -- SH:
 --   Resets visual actuator positions to zero/home.
@@ -101,7 +112,6 @@ local COL_YELLOW =
 local COL_METAL =
   lcd.RGB(125, 130, 135)
 
--- Track body matches deck.
 local COL_TRACK =
   COL_METAL
 
@@ -111,15 +121,12 @@ local COL_TRACK_BAR =
 local COL_GLASS =
   lcd.RGB(30, 75, 100)
 
--- Existing operator-panel background.
 local COL_BACKGROUND =
   lcd.RGB(44, 143, 176)
 
 
 -- ============================================================
 -- ACTUATOR TIMING
---
--- Keep synchronized with blade.lua / tiller.lua.
 -- ============================================================
 
 local BLADE_LIFT_DOWN_FULL = 11.0
@@ -130,6 +137,8 @@ local BLADE_SLEW_FULL      = 6.7
 local TILLER_LIFT_DOWN_FULL = 11.0
 local TILLER_LIFT_UP_FULL   = 17.0
 local TILLER_ANGLE_FULL     = 3.75
+
+local FIN_FULL_TIME         = 2.0
 
 
 -- ============================================================
@@ -145,6 +154,15 @@ local MAX_TILLER_SWING_DEG  = 32
 -- Side view.
 local MAX_BLADE_ANGLE_DEG  = 30
 local MAX_TILLER_ANGLE_DEG = 26
+
+-- Finishers.
+local FINISHER_UP_H    = 22
+local FINISHER_DOWN_H  = 5
+local FINISHER_W       = 14
+local FINISHER_SPACING = 22
+
+-- Motor indicator.
+local TILLER_MOTOR_R = 7
 
 local TRACK_ANIM_SPEED = 55
 
@@ -178,6 +196,12 @@ local bladeAnglePos  = 0
 
 local tillerLiftPos  = 0
 local tillerAnglePos = 0
+
+-- Finishers.
+-- 0 = up
+-- 1 = down
+local finLPos = 0
+local finRPos = 0
 
 
 local lastTime =
@@ -409,6 +433,37 @@ local function integrateAxis(
 end
 
 
+local function integrateFinisher(
+  position,
+  command,
+  dt
+)
+
+  command =
+    applyDeadband(command)
+
+
+  if command == 0 then
+    return position
+  end
+
+
+  position =
+    position +
+    command *
+    dt /
+    FIN_FULL_TIME
+
+
+  return clamp(
+    position,
+    0,
+    1
+  )
+
+end
+
+
 -- ============================================================
 -- TRACK ANIMATION
 -- ============================================================
@@ -509,6 +564,12 @@ local function updateHomeState(
       0
 
     tillerAnglePos =
+      0
+
+    finLPos =
+      0
+
+    finRPos =
       0
 
 
@@ -1050,7 +1111,6 @@ local function drawTopTiller(
   )
 
 
-  -- Housing.
   for i = -17, 17 do
 
     drawRotatedLine(
@@ -1068,7 +1128,6 @@ local function drawTopTiller(
   end
 
 
-  -- Roller.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -1298,27 +1357,12 @@ end
 
 -- ============================================================
 -- SIDE-VIEW BLADE
---
--- Line-built blade:
---
---   angle = 0
---       => perfectly vertical
---
---   configured GV2 working depth
---       => full visual down position
---
---   at full visual down:
---       blade bottom = bottom of tracks
 -- ============================================================
 
 local function drawSideBlade(
   cx,
   cy
 )
-
-  -- ----------------------------------------------------------
-  -- WORKING DEPTH
-  -- ----------------------------------------------------------
 
   local bladeDepth =
     clamp(
@@ -1329,7 +1373,6 @@ local function drawSideBlade(
     )
 
 
-  -- Configured working depth becomes 100% visual travel.
   local visualLift =
     clamp(
       bladeLiftPos /
@@ -1339,19 +1382,10 @@ local function drawSideBlade(
     )
 
 
-  -- ----------------------------------------------------------
-  -- GEOMETRY
-  -- ----------------------------------------------------------
-
   local bladeX =
     cx - 132
 
 
-  -- Main track:
-  --
-  -- cy + 18 start
-  -- 30px high
-  -- therefore bottom = cy + 48
   local trackBottomY =
     cy + 48
 
@@ -1360,12 +1394,10 @@ local function drawSideBlade(
     35
 
 
-  -- Existing raised position.
   local bladeUpCenterY =
     cy - 48
 
 
-  -- When fully down, blade bottom meets track bottom.
   local bladeDownCenterY =
     trackBottomY -
     bladeHalfHeight
@@ -1380,15 +1412,6 @@ local function drawSideBlade(
     )
 
 
-  -- ----------------------------------------------------------
-  -- ANGLE
-  --
-  -- Zero means vertical.
-  --
-  -- Sign remains inverted to match the visual direction
-  -- established during testing.
-  -- ----------------------------------------------------------
-
   local bladeAngle =
     -bladeAnglePos *
     math.rad(
@@ -1396,10 +1419,7 @@ local function drawSideBlade(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGE
-  -- ----------------------------------------------------------
-
+  -- Linkage.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1426,14 +1446,7 @@ local function drawSideBlade(
   )
 
 
-  -- ----------------------------------------------------------
-  -- BLADE FACE
-  --
-  -- Constructed from vertical lines.
-  --
-  -- Entire set rotates around bladeX / bladeY.
-  -- ----------------------------------------------------------
-
+  -- Blade face.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -1451,11 +1464,7 @@ local function drawSideBlade(
   end
 
 
-  -- ----------------------------------------------------------
-  -- OUTLINE
-  -- ----------------------------------------------------------
-
-  -- Front edge.
+  -- Outline.
   drawRotatedLine(
     bladeX - 8,
     bladeY - bladeHalfHeight,
@@ -1469,7 +1478,6 @@ local function drawSideBlade(
   )
 
 
-  -- Rear edge.
   drawRotatedLine(
     bladeX + 8,
     bladeY - bladeHalfHeight,
@@ -1483,7 +1491,6 @@ local function drawSideBlade(
   )
 
 
-  -- Top.
   drawRotatedLine(
     bladeX - 8,
     bladeY - bladeHalfHeight,
@@ -1497,7 +1504,6 @@ local function drawSideBlade(
   )
 
 
-  -- Cutting edge / bottom.
   drawRotatedLine(
     bladeX - 8,
     bladeY + bladeHalfHeight,
@@ -1515,24 +1521,12 @@ end
 
 -- ============================================================
 -- SIDE-VIEW TILLER
---
--- Configured GV3 Groom depth = full visual down.
---
--- Horizontal:
---   * Home / Transport
---   * Groom working position
---
--- Angle deviation during the transition can still be shown.
 -- ============================================================
 
 local function drawSideTiller(
   cx,
   cy
 )
-
-  -- ----------------------------------------------------------
-  -- CONFIGURED GROOM VALUES
-  -- ----------------------------------------------------------
 
   local groomDepth =
     clamp(
@@ -1552,12 +1546,6 @@ local function drawSideTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- VISUAL LIFT
-  --
-  -- GV3 working depth = full visual down.
-  -- ----------------------------------------------------------
-
   local visualLift =
     clamp(
       tillerLiftPos /
@@ -1566,10 +1554,6 @@ local function drawSideTiller(
       1
     )
 
-
-  -- ----------------------------------------------------------
-  -- GEOMETRY
-  -- ----------------------------------------------------------
 
   local tillerX =
     cx + 137
@@ -1600,22 +1584,6 @@ local function drawSideTiller(
       tillerUpY
     )
 
-
-  -- ----------------------------------------------------------
-  -- ANGLE
-  --
-  -- Expected working angle progresses from:
-  --
-  --   Home  -> 0
-  --   Groom -> GV5
-  --
-  -- We draw only deviation from that expected path.
-  --
-  -- Therefore:
-  --
-  --   Transport settled = horizontal
-  --   Groom settled     = horizontal
-  -- ----------------------------------------------------------
 
   local expectedAngle =
     groomAngle *
@@ -1703,35 +1671,168 @@ local function drawSideTiller(
   end
 
 
-  -- Housing edges.
-  drawRotatedLine(
-    tillerX - 32,
-    tillerY - 10,
-    tillerX + 32,
-    tillerY - 10,
-    tillerX,
-    tillerY,
-    tillerAngle,
-    COL_TEXT,
-    1
+  -- ----------------------------------------------------------
+  -- FINISHERS
+  -- ----------------------------------------------------------
+
+  local function drawFinisher(
+    offsetX,
+    pos
+  )
+
+    local h =
+      FINISHER_UP_H +
+      (
+        FINISHER_DOWN_H -
+        FINISHER_UP_H
+      ) *
+      pos
+
+
+    local centerX =
+      tillerX +
+      offsetX
+
+
+    local deployDrop =
+      pos * 14
+
+
+    local centerY =
+      tillerY -
+      15 -
+      (h / 2) +
+      deployDrop
+
+
+    for yy = 0, h do
+
+      drawRotatedLine(
+        centerX - FINISHER_W / 2,
+        centerY - h / 2 + yy,
+        centerX + FINISHER_W / 2,
+        centerY - h / 2 + yy,
+        tillerX,
+        tillerY,
+        tillerAngle,
+        COL_YELLOW,
+        1
+      )
+
+    end
+
+
+    -- top
+    drawRotatedLine(
+      centerX - FINISHER_W / 2,
+      centerY - h / 2,
+      centerX + FINISHER_W / 2,
+      centerY - h / 2,
+      tillerX,
+      tillerY,
+      tillerAngle,
+      COL_TEXT,
+      1
+    )
+
+
+    -- bottom
+    drawRotatedLine(
+      centerX - FINISHER_W / 2,
+      centerY + h / 2,
+      centerX + FINISHER_W / 2,
+      centerY + h / 2,
+      tillerX,
+      tillerY,
+      tillerAngle,
+      COL_TEXT,
+      1
+    )
+
+
+    -- left edge
+    drawRotatedLine(
+      centerX - FINISHER_W / 2,
+      centerY - h / 2,
+      centerX - FINISHER_W / 2,
+      centerY + h / 2,
+      tillerX,
+      tillerY,
+      tillerAngle,
+      COL_TEXT,
+      1
+    )
+
+
+    -- right edge
+    drawRotatedLine(
+      centerX + FINISHER_W / 2,
+      centerY - h / 2,
+      centerX + FINISHER_W / 2,
+      centerY + h / 2,
+      tillerX,
+      tillerY,
+      tillerAngle,
+      COL_TEXT,
+      1
+    )
+
+  end
+
+
+  drawFinisher(
+    -FINISHER_SPACING,
+    finLPos
   )
 
 
-  drawRotatedLine(
-    tillerX - 32,
-    tillerY + 10,
-    tillerX + 32,
-    tillerY + 10,
-    tillerX,
-    tillerY,
-    tillerAngle,
-    COL_TEXT,
-    1
+  drawFinisher(
+    FINISHER_SPACING,
+    finRPos
   )
 
 
   -- ----------------------------------------------------------
-  -- REAR COMB
+  -- TILLER MOTOR STATUS
+  --
+  -- CH14:
+  --   <= 500  = not allowed
+  --   > 500   = allowed
+  -- ----------------------------------------------------------
+
+  local tillerMotor =
+    getValue("ch14") or -1024
+
+
+  local motorColor =
+    COL_ALERT
+
+
+  if tillerMotor > 500 then
+
+    motorColor =
+      COL_FWD
+
+  end
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    motorColor
+  )
+
+
+  -- Front of tiller housing.
+  lcd.drawFilledCircle(
+    tillerX - 20,
+    tillerY,
+    TILLER_MOTOR_R,
+    CUSTOM_COLOR
+  )
+
+
+  -- ----------------------------------------------------------
+  -- YELLOW REAR COMB
   -- ----------------------------------------------------------
 
   drawRotatedLine(
@@ -1742,12 +1843,11 @@ local function drawSideTiller(
     tillerX,
     tillerY,
     tillerAngle,
-    COL_TEXT,
+    COL_YELLOW,
     2
   )
 
 
-  -- Comb teeth.
   for i = 0, 5 do
 
     local tx =
@@ -1764,7 +1864,7 @@ local function drawSideTiller(
       tillerX,
       tillerY,
       tillerAngle,
-      COL_TEXT,
+      COL_YELLOW,
       1
     )
 
@@ -1796,7 +1896,6 @@ local function drawSideView(
     y + 157
 
 
-  -- Ground / track-bottom reference.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GRID
@@ -1813,8 +1912,6 @@ local function drawSideView(
   )
 
 
-  -- Draw attachments behind the machine body so linkages
-  -- disappear naturally under the chassis.
   drawSideBlade(
     cx,
     cy
@@ -1832,10 +1929,6 @@ local function drawSideView(
     cy
   )
 
-
-  -- ----------------------------------------------------------
-  -- CURRENT MODELED VALUES
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1955,7 +2048,6 @@ local function refresh(
   -- SOURCES
   -- ==========================================================
 
-  -- Tracks.
   local leftTrack =
     norm(
       getValue("ch3") or 0
@@ -2000,15 +2092,27 @@ local function refresh(
     )
 
 
-  -- Swing is positional.
   tillerSwingPos =
     norm(
       getValue("ch9") or 0
     )
 
 
+  -- Finishers.
+  local finLCmd =
+    norm(
+      getValue("ch7") or 0
+    )
+
+
+  local finRCmd =
+    norm(
+      getValue("ch8") or 0
+    )
+
+
   -- ==========================================================
-  -- TRANSITION STATE
+  -- TRANSITIONS
   -- ==========================================================
 
   local bladeTransition =
@@ -2070,6 +2174,22 @@ local function refresh(
     )
 
 
+  finLPos =
+    integrateFinisher(
+      finLPos,
+      finLCmd,
+      dt
+    )
+
+
+  finRPos =
+    integrateFinisher(
+      finRPos,
+      finRCmd,
+      dt
+    )
+
+
   -- ==========================================================
   -- TRACK ANIMATION
   -- ==========================================================
@@ -2108,6 +2228,12 @@ local function refresh(
       or
       math.abs(tillerAngleCmd)
         > OUTPUT_DEADBAND
+      or
+      math.abs(finLCmd)
+        > OUTPUT_DEADBAND
+      or
+      math.abs(finRCmd)
+        > OUTPUT_DEADBAND
 
 
     if movement then
@@ -2134,10 +2260,6 @@ local function refresh(
     5
   )
 
-
-  -- ----------------------------------------------------------
-  -- SEPARATORS
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -2174,10 +2296,6 @@ local function refresh(
     FORCE
   )
 
-
-  -- ----------------------------------------------------------
-  -- MACHINE VIEWS
-  -- ----------------------------------------------------------
 
   drawTopView(
     0,
