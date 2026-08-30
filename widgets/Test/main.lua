@@ -321,8 +321,8 @@ local function drawRotatedLine(
       ry1 + i,
       rx2,
       ry2 + i,
-      SOLID + color,
-      FORCE
+      SOLID ,
+      FORCE+ color
     )
 
   end
