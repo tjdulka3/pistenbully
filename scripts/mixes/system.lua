@@ -40,6 +40,7 @@ local TILLER_LIFT_UP_FULL   = 17.0
 local TILLER_ANGLE_FULL     = 3.75
 local FIN_FULL_TIME         = 2.0
 
+
 -- Must match blade.lua
 local WORK_WING_OPEN = 0.40
 local WORK_ANGLE     = 0.50
@@ -49,32 +50,52 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Steering behavior
-local TURN_GAIN       = 0.40
-local SPEED_FACTOR    = 0.30
+-- Overall steering authority.
+local TURN_GAIN =
+  0.40
 
--- Throttle point where steering becomes completely
--- conventional differential drive.
+
+-- Amount of steering authority removed at maximum
+-- actual vehicle speed.
 --
--- Below this point, pivot steering is progressively blended
--- into the track commands.
+-- 0.30 means:
+--
+--   speed 0%   -> 100% steering retained
+--   speed 25%  ->  92.5%
+--   speed 50%  ->  85%
+--   speed 75%  ->  77.5%
+--   speed 100% ->  70%
+--
+-- IMPORTANT:
+-- This is now based on estimated ACTUAL vehicle speed,
+-- not throttle-stick position.
+local SPEED_FACTOR =
+  0.30
+
+
+-- Throttle point at which the low-speed pivot component
+-- has completely transitioned to normal differential drive.
 --
 -- 0.80 means:
 --
---   0% throttle  = 100% pivot contribution
---  20% throttle  =  75% pivot contribution
---  40% throttle  =  50% pivot contribution
---  60% throttle  =  25% pivot contribution
---  80% throttle  =   0% pivot contribution
-local PIVOT_BLEND_END = 0.80
+--    0% throttle -> 100% pivot component
+--   20% throttle ->  75% pivot component
+--   40% throttle ->  50% pivot component
+--   60% throttle ->  25% pivot component
+--   80% throttle ->   0% pivot component
+local PIVOT_BLEND_END =
+  0.80
 
 
 -- Time-based output rates in channel units per second.
 --
 -- 1024 / 205 ~= 5.0 sec
 -- 1024 / 512 = 2.0 sec
-local ACCEL_RATE = 205
-local DECEL_RATE = 512
+local ACCEL_RATE =
+  205
+
+local DECEL_RATE =
+  512
 
 
 -- Additional pressure-dump rate while crossing zero
@@ -85,31 +106,52 @@ local DECEL_RATE = 512
 --
 -- Full power -> zero during reversal:
 --   1024 / 762 ~= 1.34 sec
-local REVERSE_BOOST = 250
+local REVERSE_BOOST =
+  250
 
 
-local RUDDER_DEADBAND  = 0.02
-local REVERSE_DEADBAND = 0.02
+local RUDDER_DEADBAND =
+  0.02
+
+local REVERSE_DEADBAND =
+  0.02
 
 
 -- Track power while blade/tiller is repositioning.
-local TRANSITION_POWER = 0.25
+local TRANSITION_POWER =
+  0.25
 
 
 -- ============================================================
 -- STATE
 -- ============================================================
 
-local initialized = false
-local lastSd = nil
-local lastTime = getTime()
+local initialized =
+  false
 
-local bladeTransitionRemaining  = 0
-local tillerTransitionRemaining = 0
+local lastSd =
+  nil
 
--- Current smoothed track outputs
-local lastL = 0
-local lastR = 0
+local lastTime =
+  getTime()
+
+
+local bladeTransitionRemaining =
+  0
+
+local tillerTransitionRemaining =
+  0
+
+
+-- Current hydrostatically smoothed INTERNAL track outputs.
+--
+-- These are maintained before the physical Right-track
+-- direction inversion at the final return statement.
+local lastL =
+  0
+
+local lastR =
+  0
 
 
 -- ============================================================
@@ -121,21 +163,34 @@ local lastR = 0
 -- returning
 -- ============================================================
 
-local reverseState = "idle"
+local reverseState =
+  "idle"
 
-local reverseRemaining = 0
+
+local reverseRemaining =
+  0
 
 
 -- ============================================================
 -- HELPERS
 -- ============================================================
 
-local function clamp(v, lo, hi)
+local function clamp(
+  v,
+  lo,
+  hi
+)
 
-  if v < lo then return lo end
-  if v > hi then return hi end
+  if v < lo then
+    return lo
+  end
+
+  if v > hi then
+    return hi
+  end
 
   return v
+
 end
 
 
@@ -145,12 +200,19 @@ local function normStick(v)
     return 0
   end
 
+
   -- EdgeTX sources may appear as +/-1024 or +/-100.
   if math.abs(v) > 100 then
-    return v / 1024
+
+    return
+      v / 1024
+
   end
 
-  return v / 100
+
+  return
+    v / 100
+
 end
 
 
@@ -177,23 +239,32 @@ local function smoothDirectional(
 
   -- Already effectively at target.
   if math.abs(delta) < 1 then
-    return target
+
+    return
+      target
+
   end
 
 
   local crossingZero =
-    (prev > 0 and target < 0) or
+    (prev > 0 and target < 0)
+    or
     (prev < 0 and target > 0)
 
 
   local sameDirection =
-    (prev >= 0 and target >= 0) or
+    (prev >= 0 and target >= 0)
+    or
     (prev <= 0 and target <= 0)
 
 
   local accelerating =
-    sameDirection and
-    (math.abs(target) > math.abs(prev))
+    sameDirection
+    and
+    (
+      math.abs(target) >
+      math.abs(prev)
+    )
 
 
   local rate
@@ -240,12 +311,16 @@ local function smoothDirectional(
 
 
   local step =
-    rate * dt
+    rate *
+    dt
 
 
   -- Prevent overshooting the target.
   if math.abs(delta) <= step then
-    return target
+
+    return
+      target
+
   end
 
 
@@ -260,6 +335,7 @@ local function smoothDirectional(
       prev - step
 
   end
+
 end
 
 
@@ -274,7 +350,8 @@ local function run()
 
 
   local dt =
-    (now - lastTime) / 100
+    (now - lastTime) /
+    100
 
 
   lastTime =
@@ -285,6 +362,7 @@ local function run()
   if dt < 0 then
     dt = 0
   end
+
 
   if dt > 0.25 then
     dt = 0.25
@@ -297,6 +375,7 @@ local function run()
 
   local sd =
     getValue("sd") or 0
+
 
   local sf =
     getValue("sf") or 0
@@ -314,8 +393,13 @@ local function run()
     )
 
 
-  if math.abs(rud) < RUDDER_DEADBAND then
-    rud = 0
+  if math.abs(rud) <
+    RUDDER_DEADBAND
+  then
+
+    rud =
+      0
+
   end
 
 
@@ -333,7 +417,8 @@ local function run()
 
   local bladeDepth =
     clamp(
-      (getValue("gvar2") or 0) / 100,
+      (getValue("gvar2") or 0) /
+      100,
       0,
       1
     )
@@ -341,7 +426,8 @@ local function run()
 
   local groomDepth =
     clamp(
-      (getValue("gvar3") or 0) / 100,
+      (getValue("gvar3") or 0) /
+      100,
       0,
       1
     )
@@ -349,7 +435,8 @@ local function run()
 
   local reverseLift =
     clamp(
-      (getValue("gvar4") or 0) / 100,
+      (getValue("gvar4") or 0) /
+      100,
       0,
       1
     )
@@ -357,7 +444,8 @@ local function run()
 
   local groomAngle =
     clamp(
-      (getValue("gvar5") or 0) / 100,
+      (getValue("gvar5") or 0) /
+      100,
       0,
       1
     )
@@ -418,7 +506,9 @@ local function run()
   -- REVERSE CLEARANCE
   -- ----------------------------------------------------------
 
-  local BLADE_REVERSE_LIFT_FACTOR = 1.00
+  local BLADE_REVERSE_LIFT_FACTOR =
+    1.00
+
 
   local bladeReverseLift =
     reverseLift *
@@ -429,9 +519,11 @@ local function run()
     bladeReverseLift *
     BLADE_LIFT_UP_FULL
 
+
   local tillerReverseLiftUpTime =
     reverseLift *
     TILLER_LIFT_UP_FULL
+
 
   local reverseLiftUpTime =
     math.max(
@@ -444,9 +536,11 @@ local function run()
     bladeReverseLift *
     BLADE_LIFT_DOWN_FULL
 
+
   local tillerReverseLiftDownTime =
     reverseLift *
     TILLER_LIFT_DOWN_FULL
+
 
   local reverseLiftDownTime =
     math.max(
@@ -464,8 +558,10 @@ local function run()
     lastSd =
       sd
 
+
     initialized =
       true
+
   end
 
 
@@ -479,14 +575,17 @@ local function run()
 
   if eStop then
 
-    lastL = 0
-    lastR = 0
+    lastL =
+      0
+
+    lastR =
+      0
 
 
     return
-      0, -- TrackL
-      0, -- TrackR
-      -1024, -- TillerMot
+      0,       -- TrackL
+      0,       -- TrackR
+      -1024,   -- TillerMot
 
       bladeTransitionRemaining > 0
         and 1024
@@ -500,7 +599,8 @@ local function run()
         and 1024
         or -1024,
 
-      0 -- EngOut
+      0        -- EngOut
+
   end
 
 
@@ -514,6 +614,7 @@ local function run()
 
     local from =
       lastSd
+
 
     local to =
       sd
@@ -551,6 +652,7 @@ local function run()
           )
 
       end
+
     end
 
 
@@ -592,13 +694,16 @@ local function run()
       reverseState =
         "idle"
 
+
       reverseRemaining =
         0
+
     end
 
 
     lastSd =
       sd
+
   end
 
 
@@ -614,8 +719,12 @@ local function run()
 
 
     if bladeTransitionRemaining < 0 then
-      bladeTransitionRemaining = 0
+
+      bladeTransitionRemaining =
+        0
+
     end
+
   end
 
 
@@ -627,13 +736,17 @@ local function run()
 
 
     if tillerTransitionRemaining < 0 then
-      tillerTransitionRemaining = 0
+
+      tillerTransitionRemaining =
+        0
+
     end
+
   end
 
 
   -- ==========================================================
-  -- AUTOMATIC REVERSE / TILLER LIFT
+  -- AUTOMATIC REVERSE / BLADE + TILLER LIFT
   -- ==========================================================
 
   local reverseRequested =
@@ -657,8 +770,10 @@ local function run()
     reverseState =
       "lifting"
 
+
     reverseRemaining =
       reverseLiftUpTime
+
   end
 
 
@@ -688,15 +803,17 @@ local function run()
 
         -- Operator released reverse early.
         --
-        -- The tiller.lua logic still completes the full lift
-        -- and then returns.
+        -- Blade/Tiller scripts still complete their full lift
+        -- before beginning their return.
         reverseState =
           "returning"
+
 
         reverseRemaining =
           reverseLiftDownTime
 
       end
+
     end
 
 
@@ -711,8 +828,10 @@ local function run()
       reverseState =
         "returning"
 
+
       reverseRemaining =
         reverseLiftDownTime
+
     end
 
 
@@ -732,8 +851,10 @@ local function run()
       reverseRemaining =
         0
 
+
       reverseState =
         "idle"
+
     end
 
   end
@@ -747,9 +868,11 @@ local function run()
     reverseState == "lifting"
     or reverseState == "returning"
 
+
   local bladeTransitionActive =
     bladeTransitionRemaining > 0
     or reverseMovementActive
+
 
   local tillerTransitionActive =
     tillerTransitionRemaining > 0
@@ -766,13 +889,18 @@ local function run()
   --   + no reverse lift/backing/return cycle active
   -- ==========================================================
 
-  local tillerMotorEnable = -1024
+  local tillerMotorEnable =
+    -1024
+
 
   if isGroom
     and tillerTransitionRemaining <= 0
     and reverseState == "idle"
   then
-    tillerMotorEnable = 1024
+
+    tillerMotorEnable =
+      1024
+
   end
 
 
@@ -782,20 +910,77 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- HIGH-SPEED STEERING REDUCTION
+  -- ACTUAL VEHICLE SPEED ESTIMATE
+  --
+  -- Derive forward/reverse vehicle speed from the current
+  -- HYDROSTATICALLY SMOOTHED track outputs.
+  --
+  -- We use the signed directional average:
+  --
+  --   vehicleSpeed =
+  --       abs((lastL + lastR) / 2)
+  --
+  -- rather than average track magnitude.
+  --
+  -- This is important during a stationary pivot:
+  --
+  --   Left  = +40%
+  --   Right = -40%
+  --
+  -- Average magnitude would incorrectly indicate 40% speed.
+  --
+  -- Directional average correctly gives:
+  --
+  --   (+40 + -40) / 2 = 0%
+  --
+  -- meaning the vehicle has essentially no longitudinal speed,
+  -- so full steering authority remains available.
+  -- ----------------------------------------------------------
+
+  local vehicleSpeed =
+    math.abs(
+      (lastL + lastR) /
+      2
+    ) /
+    1024
+
+
+  vehicleSpeed =
+    clamp(
+      vehicleSpeed,
+      0,
+      1
+    )
+
+
+  -- ----------------------------------------------------------
+  -- SPEED-BASED STEERING REDUCTION
+  --
+  -- Steering authority now follows actual vehicle movement
+  -- rather than throttle-stick position.
+  --
+  -- SPEED_FACTOR = 0.30:
+  --
+  --   0% actual speed   = 100% steering
+  --  25% actual speed   =  92.5%
+  --  50% actual speed   =  85%
+  --  75% actual speed   =  77.5%
+  -- 100% actual speed   =  70%
   -- ----------------------------------------------------------
 
   local speedScale =
     1 -
-    (math.abs(thr) *
-     SPEED_FACTOR)
+    (
+      vehicleSpeed *
+      SPEED_FACTOR
+    )
 
 
   -- ----------------------------------------------------------
   -- PROGRESSIVE RUDDER
   --
-  -- Preserves fine control near rudder center while allowing
-  -- full steering authority near full stick.
+  -- Squared rudder response gives fine center-stick control
+  -- while preserving strong steering near full stick.
   -- ----------------------------------------------------------
 
   local rudCurve =
@@ -816,11 +1001,18 @@ local function run()
   --     pure counter-rotating pivot
   --
   -- As throttle increases:
-  --     progressively blend toward differential forward/reverse
-  --     track drive.
+  --     progressively blend toward differential track drive.
   --
-  -- PIVOT_BLEND_END determines the throttle point at which
-  -- the pivot contribution has completely faded away.
+  -- NOTE:
+  --
+  -- Pivot blending is still based on throttle demand.
+  --
+  -- SPEED DAMPING is now based on actual hydrostatic speed.
+  --
+  -- These serve different purposes:
+  --
+  --   pivotBlend = type of steering geometry
+  --   speedScale = amount of steering authority
   -- ==========================================================
 
   local pivotBlend =
@@ -832,15 +1024,29 @@ local function run()
     )
 
 
+  -- ----------------------------------------------------------
+  -- MOVING DIFFERENTIAL DRIVE
+  -- ----------------------------------------------------------
+
   local driveLeft =
     thr *
-    (1 + turn * 0.7)
+    (
+      1 +
+      turn * 0.7
+    )
 
 
   local driveRight =
     thr *
-    (1 - turn * 0.4)
+    (
+      1 -
+      turn * 0.4
+    )
 
+
+  -- ----------------------------------------------------------
+  -- STATIONARY / LOW-SPEED PIVOT
+  -- ----------------------------------------------------------
 
   local pivotLeft =
     turn
@@ -850,34 +1056,45 @@ local function run()
     -turn
 
 
+  -- ----------------------------------------------------------
+  -- BLEND THE TWO STEERING MODES
+  -- ----------------------------------------------------------
+
   local left =
-    (driveLeft * pivotBlend)
+    (
+      driveLeft *
+      pivotBlend
+    )
     +
-    (pivotLeft * (1 - pivotBlend))
+    (
+      pivotLeft *
+      (1 - pivotBlend)
+    )
 
 
   local right =
-    (driveRight * pivotBlend)
+    (
+      driveRight *
+      pivotBlend
+    )
     +
-    (pivotRight * (1 - pivotBlend))
+    (
+      pivotRight *
+      (1 - pivotBlend)
+    )
 
 
   -- ==========================================================
   -- TRACK OUTPUT LIMITS
   --
-  -- IMPORTANT:
+  -- Do NOT limit to abs(throttle).
   --
-  -- Do NOT limit track output to abs(throttle).
+  -- The previous throttle ceiling:
   --
-  -- Doing that:
-  --   1. forces both tracks to zero when throttle is zero,
-  --      eliminating stationary pivot turns;
+  --   * prevented stationary pivot turns
+  --   * clipped outside-track steering boost
   --
-  --   2. prevents the outside track from increasing above
-  --      throttle during a moving turn, greatly reducing
-  --      steering authority.
-  --
-  -- Allow the steering mixer to use the complete track range.
+  -- Allow the mixer to use the complete track range.
   -- ==========================================================
 
   left =
@@ -900,7 +1117,7 @@ local function run()
   -- GROOM REVERSE SAFETY
   --
   -- Reverse track output is permitted only after the
-  -- automatic tiller clearance movement completes.
+  -- automatic blade/tiller clearance movement completes.
   -- ==========================================================
 
   local reverseAllowed =
@@ -914,12 +1131,20 @@ local function run()
   then
 
     if left < 0 then
-      left = 0
+
+      left =
+        0
+
     end
 
+
     if right < 0 then
-      right = 0
+
+      right =
+        0
+
     end
+
   end
 
 
@@ -939,6 +1164,7 @@ local function run()
     right =
       right *
       TRANSITION_POWER
+
   end
 
 
@@ -946,19 +1172,27 @@ local function run()
   -- REVERSE-LIFT HARD BLOCK
   --
   -- Even though transition creep is normally permitted,
-  -- absolutely no reverse output is allowed while the tiller
-  -- is still lifting.
+  -- absolutely no reverse output is allowed while the
+  -- blade/tiller reverse clearance lift is still occurring.
   -- ==========================================================
 
   if reverseState == "lifting" then
 
     if left < 0 then
-      left = 0
+
+      left =
+        0
+
     end
 
+
     if right < 0 then
-      right = 0
+
+      right =
+        0
+
     end
+
   end
 
 
@@ -1023,18 +1257,39 @@ local function run()
   -- one track is slowed for steering.
   -- ============================================================
 
-  local absL = math.abs(leftOut)
-  local absR = math.abs(rightOut)
+  local absL =
+    math.abs(leftOut)
+
+
+  local absR =
+    math.abs(rightOut)
+
 
   local maxTrack =
-    math.max(absL, absR)
+    math.max(
+      absL,
+      absR
+    )
+
 
   local avgTrack =
-    (absL + absR) / 2
+    (
+      absL +
+      absR
+    ) /
+    2
+
 
   local engineMagnitude =
-    (maxTrack * 0.75) +
-    (avgTrack * 0.25)
+    (
+      maxTrack *
+      0.75
+    )
+    +
+    (
+      avgTrack *
+      0.25
+    )
 
 
   -- Determine effective direction.
@@ -1047,16 +1302,28 @@ local function run()
 
   local engineOut
 
-  if leftOut < 0 and rightOut < 0 then
-    engineOut = -engineMagnitude
+
+  if leftOut < 0
+    and rightOut < 0
+  then
+
+    engineOut =
+      -engineMagnitude
+
   else
-    engineOut = engineMagnitude
+
+    engineOut =
+      engineMagnitude
+
   end
 
 
   -- Keep tiny residual values at idle from affecting sound.
   if math.abs(engineOut) < 10 then
-    engineOut = 0
+
+    engineOut =
+      0
+
   end
 
 
@@ -1082,18 +1349,25 @@ local function run()
       or -1024,
 
     engineOut
+
 end
 
 
 return {
-  run = run,
+
+  run =
+    run,
+
 
   output = {
+
     "TrackL",
     "TrackR",
     "TMotor",
     "TranB",
     "TranT",
     "EngOut"
+
   }
+
 }
