@@ -211,6 +211,11 @@ local WING_LENGTH =
 local WING_WIDTH =
   8
 
+-- Wings are drawn heavier when the blade is in PLOW mode so
+-- the straight/open blade reads as one substantial cutting edge.
+local WING_WIDTH_PLOW =
+  14
+
 local WING_UP_ANGLE_DEG =
   45
 
@@ -1499,6 +1504,20 @@ local function drawTopBlade(
     rightWingPos
 
 
+  -- Make the wings visually heavier in PLOW mode.
+  -- Transport/Groom retain the normal wing thickness.
+  local wingDrawWidth =
+    WING_WIDTH
+
+
+  if getWingMode() == "PLOW" then
+
+    wingDrawWidth =
+      WING_WIDTH_PLOW
+
+  end
+
+
   -- Angles are relative to the main blade:
   --   +45 = folded forward (toward screen-left)
   --     0 = exactly in-line with blade
@@ -1559,7 +1578,7 @@ local function drawTopBlade(
     0,
     0,
     COL_BLACK,
-    WING_WIDTH
+    wingDrawWidth
   )
 
 
@@ -1601,7 +1620,7 @@ local function drawTopBlade(
     0,
     0,
     COL_BLACK,
-    WING_WIDTH
+    wingDrawWidth
   )
 
 end
@@ -2081,8 +2100,26 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- CHASSIS
+  -- FULL-LENGTH UPPER BODY / CHASSIS
+  --
+  -- Stretch the bodywork to the complete visual length of the
+  -- rounded track assembly underneath.
   -- ==========================================================
+
+  local bodyFront =
+    trackLeft -
+    SIDE_TRACK_RADIUS
+
+
+  local bodyRear =
+    trackRight +
+    SIDE_TRACK_RADIUS
+
+
+  local bodyLength =
+    bodyRear -
+    bodyFront
+
 
   local chassisBottom =
     trackTop - 1
@@ -2100,9 +2137,9 @@ local function drawSideBody(
 
 
   lcd.drawFilledRectangle(
-    cx - 72,
+    bodyFront,
     chassisTop,
-    142,
+    bodyLength,
     SIDE_CHASSIS_H,
     CUSTOM_COLOR
   )
@@ -2110,19 +2147,27 @@ local function drawSideBody(
 
   -- ==========================================================
   -- CAB
+  --
+  -- The cab and rear deck now span the full track footprint.
+  -- The front is a long sloped nose, followed by the main cab,
+  -- then a low rear deck all the way to the back of the tracks.
   -- ==========================================================
 
   local cabX =
-    cx - 50
+    cx - 34
+
 
   local cabW =
-    49
+    56
+
 
   local cabBottom =
     chassisTop + 1
 
+
   local cabH =
     68
+
 
   local cabY =
     cabBottom -
@@ -2145,20 +2190,27 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- SLOPED CAB NOSE
+  -- LONG SLOPED CAB NOSE
+  --
+  -- The lower point now starts at the full front of the track
+  -- footprint so the cab/body silhouette spans the tracks.
   -- ==========================================================
 
   local noseTopY =
     cabY + 6
 
+
   local noseBottomY =
     cabBottom
+
 
   local noseTopX =
     cabX
 
+
   local noseBottomX =
-    cabX - 20
+    bodyFront
+
 
   local noseHeight =
     noseBottomY -
@@ -2216,17 +2268,22 @@ local function drawSideBody(
   local glassTopY =
     cabY + 10
 
+
   local glassBottomY =
     cabY + 46
 
+
   local glassRearX =
-    cabX + 33
+    cabX + 40
+
 
   local glassFrontTopX =
     cabX + 5
 
+
   local glassFrontBottomX =
-    cabX - 7
+    cabX - 11
+
 
   local glassH =
     glassBottomY -
@@ -2268,7 +2325,7 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- REAR DECK
+  -- FULL-LENGTH REAR DECK
   -- ==========================================================
 
   lcd.setColor(
@@ -2278,16 +2335,23 @@ local function drawSideBody(
 
 
   local deckX =
-    cx - 1
+    cabX +
+    cabW
+
 
   local deckY =
     chassisTop - 13
 
 
+  local deckW =
+    bodyRear -
+    deckX
+
+
   lcd.drawFilledRectangle(
     deckX,
     deckY,
-    67,
+    deckW,
     12,
     CUSTOM_COLOR
   )
