@@ -2278,9 +2278,15 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- LARGE WINDSHIELD
+  -- WINDSHIELD
   --
-  -- Front edge uses exactly the same slope as the cab nose.
+  -- 25% narrower than previous windshield.
+  --
+  -- Keep the FRONT edge in its existing position so the glass
+  -- remains close to the sloped front of the cab.
+  --
+  -- The reduction comes entirely from the REAR edge, leaving
+  -- a wider vertical red cab pillar behind the windshield.
   -- ==========================================================
 
   local glassTopY =
@@ -2296,14 +2302,28 @@ local function drawSideBody(
     glassTopY
 
 
+  -- Keep front of windshield close to front of cab.
   local glassFrontTopX =
     cabX + 3
 
 
+  -- Previous rear edge was:
+  --
+  --   cabX + cabW - 4
+  --
+  -- Calculate the previous usable windshield width and
+  -- reduce it by 25%.
+  local oldGlassWidth =
+    cabW - 7
+
+
+  local newGlassWidth =
+    oldGlassWidth * 0.75
+
+
   local glassRearX =
-    cabX +
-    cabW -
-    4
+    glassFrontTopX +
+    newGlassWidth
 
 
   lcd.setColor(
@@ -2314,6 +2334,7 @@ local function drawSideBody(
 
   for yy = 0, glassH do
 
+    -- Front edge follows the same slope as the cab nose.
     local glassFrontX =
       glassFrontTopX -
       yy *
