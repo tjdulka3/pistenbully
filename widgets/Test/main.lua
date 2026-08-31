@@ -20,7 +20,7 @@
 --   * Blade lift + subtle angle
 --   * Tiller lift + angle
 --   * Tiller motor indicator
---   * Reserved space for three telemetry rows above snowcat
+--   * 25%-larger tachometer and speedometer above side view
 --
 -- WINGS
 --
@@ -300,8 +300,9 @@ local PB600_MAX_SPEED_KMH =
   23
 
 -- 50% larger than the original 38 px radius.
+-- 25% larger than the previous 57 px radius.
 local GAUGE_RADIUS =
-  57
+  71
 
 local GAUGE_START_DEG =
   225
@@ -320,19 +321,21 @@ local GAUGE_SWEEP_DEG =
 local TOP_VIEW_CAT_Y_OFFSET =
   185
 
+-- Side-view cat moved farther down so the larger gauges
+-- sit cleanly above it without overlapping the cab.
 local SIDE_VIEW_CAT_Y_OFFSET =
-  185
+  225
 
--- Gauges move upward and to the right within the top-view box,
--- leaving the upper-left area available for telemetry rows.
-local TOP_GAUGE_CENTER_Y_OFFSET =
-  61
+-- Gauges now live above the SIDE VIEW snowcat.
+-- The pair is centered in the 400 px right-hand view.
+local SIDE_GAUGE_CENTER_Y_OFFSET =
+  78
 
-local TOP_GAUGE_PAIR_CENTER_X_OFFSET =
-  240
+local SIDE_GAUGE_PAIR_CENTER_X_OFFSET =
+  200
 
-local TOP_GAUGE_SPACING =
-  132
+local SIDE_GAUGE_SPACING =
+  150
 
 
 -- ============================================================
@@ -2233,63 +2236,6 @@ local function drawTopView(
     y + TOP_VIEW_CAT_Y_OFFSET
 
 
-  -- ==========================================================
-  -- TACHOMETER / SPEEDOMETER
-  --
-  -- 50% larger gauges, centered as a pair above the top-view
-  -- snowcat/cab.
-  -- ==========================================================
-
-  local rpm, speedKmh =
-    getGaugeTelemetry()
-
-
-  local gaugeCenterY =
-    y + TOP_GAUGE_CENTER_Y_OFFSET
-
-
-  local gaugePairCenterX =
-    x + TOP_GAUGE_PAIR_CENTER_X_OFFSET
-
-
-  local tachCenterX =
-    gaugePairCenterX -
-    TOP_GAUGE_SPACING / 2
-
-
-  local speedCenterX =
-    gaugePairCenterX +
-    TOP_GAUGE_SPACING / 2
-
-
-  drawAnalogGauge(
-    tachCenterX,
-    gaugeCenterY,
-    GAUGE_RADIUS,
-    rpm,
-    TACH_GAUGE_MAX_RPM,
-    500,
-    "RPM",
-    string.format(
-      "%d",
-      math.floor(rpm + 0.5)
-    )
-  )
-
-
-  drawAnalogGauge(
-    speedCenterX,
-    gaugeCenterY,
-    GAUGE_RADIUS,
-    speedKmh,
-    SPEED_GAUGE_MAX_KMH,
-    5,
-    "km/h",
-    string.format(
-      "%.1f",
-      speedKmh
-    )
-  )
 
 
   lcd.setColor(
@@ -3210,6 +3156,65 @@ local function drawSideView(
   -- Snowcat moved lower to leave three telemetry rows above.
   local cy =
     y + SIDE_VIEW_CAT_Y_OFFSET
+
+
+  -- ==========================================================
+  -- TACHOMETER / SPEEDOMETER
+  --
+  -- Gauges are 25% larger than the previous version and are
+  -- centered above the SIDE VIEW snowcat.
+  -- ==========================================================
+
+  local rpm, speedKmh =
+    getGaugeTelemetry()
+
+
+  local gaugeCenterY =
+    y + SIDE_GAUGE_CENTER_Y_OFFSET
+
+
+  local gaugePairCenterX =
+    x + SIDE_GAUGE_PAIR_CENTER_X_OFFSET
+
+
+  local tachCenterX =
+    gaugePairCenterX -
+    SIDE_GAUGE_SPACING / 2
+
+
+  local speedCenterX =
+    gaugePairCenterX +
+    SIDE_GAUGE_SPACING / 2
+
+
+  drawAnalogGauge(
+    tachCenterX,
+    gaugeCenterY,
+    GAUGE_RADIUS,
+    rpm,
+    TACH_GAUGE_MAX_RPM,
+    500,
+    "RPM",
+    string.format(
+      "%d",
+      math.floor(rpm + 0.5)
+    )
+  )
+
+
+  drawAnalogGauge(
+    speedCenterX,
+    gaugeCenterY,
+    GAUGE_RADIUS,
+    speedKmh,
+    SPEED_GAUGE_MAX_KMH,
+    5,
+    "km/h",
+    string.format(
+      "%.1f",
+      speedKmh
+    )
+  )
 
 
   lcd.setColor(
