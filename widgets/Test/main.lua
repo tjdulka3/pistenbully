@@ -91,6 +91,12 @@ local COL_RED =
 local COL_YELLOW =
   lcd.RGB(225, 185, 25)
 
+local COL_WHITE =
+  lcd.RGB(255, 255, 255)
+
+local COL_AMBER =
+  lcd.RGB(255, 165, 0)
+
 local COL_BLACK =
   lcd.RGB(0, 0, 0)
 
@@ -331,11 +337,11 @@ local SIDE_VIEW_CAT_Y_OFFSET =
 local SIDE_GAUGE_CENTER_Y_OFFSET =
   78
 
--- Upper-left aligned within the 400 px SIDE VIEW panel.
--- Gauge diameter is 142 px, so centers at 79 and 231 keep
--- the first gauge close to the left edge with a small gap.
+-- Upper-right aligned within the 400 px SIDE VIEW panel.
+-- Gauge diameter is 142 px. Centers at 169 and 321 leave
+-- about 8 px between the right gauge and panel edge.
 local SIDE_GAUGE_PAIR_CENTER_X_OFFSET =
-  155
+  245
 
 local SIDE_GAUGE_SPACING =
   152
@@ -2253,7 +2259,8 @@ local function drawLightIndicator(
   cx,
   cy,
   label,
-  channelName
+  channelName,
+  onColor
 )
 
   local output =
@@ -2271,7 +2278,7 @@ local function drawLightIndicator(
   if active then
 
     fillColor =
-      COL_YELLOW
+      onColor
 
   end
 
@@ -2331,7 +2338,8 @@ local function drawTopLightTelemetry(
     x + LIGHT_HEADLIGHT_X_OFFSET,
     y + LIGHT_INDICATOR_Y_OFFSET,
     "HEADLIGHTS",
-    "ch17"
+    "ch17",
+    COL_WHITE
   )
 
 
@@ -2339,7 +2347,8 @@ local function drawTopLightTelemetry(
     x + LIGHT_WARNING_X_OFFSET,
     y + LIGHT_INDICATOR_Y_OFFSET,
     "WARNING",
-    "ch18"
+    "ch18",
+    COL_AMBER
   )
 
 
@@ -2347,7 +2356,8 @@ local function drawTopLightTelemetry(
     x + LIGHT_SPOTLIGHT_X_OFFSET,
     y + LIGHT_INDICATOR_Y_OFFSET,
     "SPOTLIGHTS",
-    "ch19"
+    "ch19",
+    COL_WHITE
   )
 
 end
