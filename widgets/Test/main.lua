@@ -2193,11 +2193,16 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- LONG SLOPED CAB NOSE
+  -- SLOPED CAB FRONT
   --
-  -- The lower point now starts at the full front of the track
-  -- footprint so the cab/body silhouette spans the tracks.
+  -- The cab front and windshield now use the SAME slope.
+  -- A common slope factor keeps the windshield parallel to
+  -- the red cab nose as the cab proportions change.
   -- ==========================================================
+
+  local cabFrontSlope =
+    0.20
+
 
   local noseTopY =
     cabY + 6
@@ -2211,13 +2216,15 @@ local function drawSideBody(
     cabX
 
 
-  local noseBottomX =
-    bodyFront
-
-
   local noseHeight =
     noseBottomY -
     noseTopY
+
+
+  local noseBottomX =
+    noseTopX -
+    noseHeight *
+    cabFrontSlope
 
 
   lcd.setColor(
@@ -2228,18 +2235,10 @@ local function drawSideBody(
 
   for yy = 0, noseHeight do
 
-    local t =
-      yy /
-      noseHeight
-
-
     local leftX =
-      noseTopX +
-      (
-        noseBottomX -
-        noseTopX
-      ) *
-      t
+      noseTopX -
+      yy *
+      cabFrontSlope
 
 
     lcd.drawLine(
@@ -2248,6 +2247,26 @@ local function drawSideBody(
       cabX,
       noseTopY + yy,
       SOLID,
+      CUSTOM_COLOR
+    )
+
+  end
+
+
+  -- Extend the lower red body forward so the sloped cab front
+  -- blends cleanly into the full-length black chassis.
+  local noseBaseW =
+    cabX -
+    noseBottomX
+
+
+  if noseBaseW > 0 then
+
+    lcd.drawFilledRectangle(
+      noseBottomX,
+      cabBottom - 8,
+      noseBaseW,
+      8,
       CUSTOM_COLOR
     )
 
@@ -2265,35 +2284,42 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- WINDSHIELD
+  -- LARGE WINDSHIELD
+  --
+  -- Scaled up to fill the reduced-width cab while keeping a
+  -- red border around it.
+  --
+  -- Its front edge uses exactly the same slope as the cab
+  -- front above.
   -- ==========================================================
 
   local glassTopY =
-    cabY + 10
+    cabY + 8
 
 
   local glassBottomY =
-    cabY + 46
-
-
-  -- Windshield narrowed to match the smaller cab.
-  local glassRearX =
-    cabX + 31
-
-
-  -- Steeper windshield:
-  -- only 7 px of forward sweep from top to bottom instead of 16.
-  local glassFrontTopX =
-    cabX + 4
-
-
-  local glassFrontBottomX =
-    cabX - 3
+    cabBottom - 9
 
 
   local glassH =
     glassBottomY -
     glassTopY
+
+
+  local glassFrontTopX =
+    cabX + 3
+
+
+  local glassFrontBottomX =
+    glassFrontTopX -
+    glassH *
+    cabFrontSlope
+
+
+  local glassRearX =
+    cabX +
+    cabW -
+    4
 
 
   lcd.setColor(
@@ -2304,18 +2330,10 @@ local function drawSideBody(
 
   for yy = 0, glassH do
 
-    local t =
-      yy /
-      glassH
-
-
     local glassFrontX =
-      glassFrontTopX +
-      (
-        glassFrontBottomX -
-        glassFrontTopX
-      ) *
-      t
+      glassFrontTopX -
+      yy *
+      cabFrontSlope
 
 
     lcd.drawLine(
