@@ -20,6 +20,7 @@
 --   * Blade lift + subtle angle
 --   * Tiller lift + angle
 --   * Tiller motor indicator
+--   * Reserved space for three telemetry rows above snowcat
 --
 -- WINGS
 --
@@ -307,6 +308,31 @@ local GAUGE_START_DEG =
 
 local GAUGE_SWEEP_DEG =
   270
+
+
+-- ------------------------------------------------------------
+-- VIEW LAYOUT
+--
+-- Move both snowcat drawings lower to reserve room for three
+-- telemetry rows above them.
+-- ------------------------------------------------------------
+
+local TOP_VIEW_CAT_Y_OFFSET =
+  185
+
+local SIDE_VIEW_CAT_Y_OFFSET =
+  185
+
+-- Gauges move upward and to the right within the top-view box,
+-- leaving the upper-left area available for telemetry rows.
+local TOP_GAUGE_CENTER_Y_OFFSET =
+  61
+
+local TOP_GAUGE_PAIR_CENTER_X_OFFSET =
+  240
+
+local TOP_GAUGE_SPACING =
+  132
 
 
 -- ============================================================
@@ -2202,8 +2228,9 @@ local function drawTopView(
   local cx =
     x + 194
 
+  -- Snowcat moved lower to leave room for telemetry above.
   local cy =
-    y + 157
+    y + TOP_VIEW_CAT_Y_OFFSET
 
 
   -- ==========================================================
@@ -2218,21 +2245,21 @@ local function drawTopView(
 
 
   local gaugeCenterY =
-    y + 74
+    y + TOP_GAUGE_CENTER_Y_OFFSET
 
 
-  local gaugeSpacing =
-    132
+  local gaugePairCenterX =
+    x + TOP_GAUGE_PAIR_CENTER_X_OFFSET
 
 
   local tachCenterX =
-    cx -
-    gaugeSpacing / 2
+    gaugePairCenterX -
+    TOP_GAUGE_SPACING / 2
 
 
   local speedCenterX =
-    cx +
-    gaugeSpacing / 2
+    gaugePairCenterX +
+    TOP_GAUGE_SPACING / 2
 
 
   drawAnalogGauge(
@@ -3180,8 +3207,9 @@ local function drawSideView(
   local cx =
     x + 194
 
+  -- Snowcat moved lower to leave three telemetry rows above.
   local cy =
-    y + 157
+    y + SIDE_VIEW_CAT_Y_OFFSET
 
 
   lcd.setColor(
