@@ -1429,16 +1429,16 @@ local function drawTopBlade(
 
 
   local leftEndX =
-    topTipX -
-    math.sin(
+    topTipX +
+    math.cos(
       leftAngle
     ) *
     WING_LENGTH
 
 
   local leftEndY =
-    topTipY -
-    math.cos(
+    topTipY +
+    math.sin(
       leftAngle
     ) *
     WING_LENGTH
@@ -1458,16 +1458,16 @@ local function drawTopBlade(
 
 
   local rightEndX =
-    bottomTipX -
-    math.sin(
+    bottomTipX +
+    math.cos(
       rightAngle
     ) *
     WING_LENGTH
 
 
   local rightEndY =
-    bottomTipY +
-    math.cos(
+    bottomTipY -
+    math.sin(
       rightAngle
     ) *
     WING_LENGTH
@@ -1506,7 +1506,6 @@ local function drawTopTiller(
 
   local tillerX =
     cx + 145
-
   local tillerY =
     cy
 
@@ -1644,7 +1643,6 @@ local function drawTopTiller(
     TILLER_TOP_H / 2 -
     FINISHER_GAP
 
-
   local finLTop =
     finLBottom -
     finLH
@@ -1697,7 +1695,6 @@ local function drawTopTiller(
     tillerY +
     TILLER_TOP_H / 2 +
     FINISHER_GAP
-
 
   local finRBottom =
     finRTop +
