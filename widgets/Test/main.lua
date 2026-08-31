@@ -1,4 +1,3 @@
--- ============================================================
 -- PB600 OPERATOR DASHBOARD
 --
 -- TOP VIEW
@@ -33,16 +32,11 @@
 --      STRAIGHT = 0 degrees
 --      FULL     = 15 degrees rearward
 --
--- ============================================================
-
 
 local name = "PB600OP"
 local options = {}
 
-
--- ============================================================
 -- WIDGET LIFECYCLE
--- ============================================================
 
 local function create(zone, options)
 
@@ -53,22 +47,17 @@ local function create(zone, options)
 
 end
 
-
 local function update(wgt, options)
 
   wgt.options = options
 
 end
 
-
 local function background(wgt)
 
 end
 
-
--- ============================================================
 -- COLORS
--- ============================================================
 
 local COL_GRID =
   lcd.RGB(70, 70, 75)
@@ -115,10 +104,7 @@ local COL_GLASS =
 local COL_BACKGROUND =
   lcd.RGB(44, 143, 176)
 
-
--- ============================================================
 -- ACTUATOR TIMING
--- ============================================================
 
 local BLADE_LIFT_DOWN_FULL = 11.0
 local BLADE_LIFT_UP_FULL   = 17.0
@@ -135,10 +121,7 @@ local FIN_FULL_TIME =
 local WING_FULL_TIME =
   4.0
 
-
--- ============================================================
 -- VISUAL CALIBRATION
--- ============================================================
 
 local OUTPUT_DEADBAND =
   0.025
@@ -146,10 +129,7 @@ local OUTPUT_DEADBAND =
 local LINKAGE_WIDTH =
   4
 
-
--- ------------------------------------------------------------
 -- TOP VIEW
--- ------------------------------------------------------------
 
 local MAX_BLADE_SLEW_DEG =
   28
@@ -163,10 +143,7 @@ local TILLER_TOP_W =
 local TILLER_TOP_H =
   108
 
-
--- ------------------------------------------------------------
 -- TOP-VIEW TRACKS
--- ------------------------------------------------------------
 
 -- Original track width was 25 pixels.
 -- 38 pixels is approximately 50% wider.
@@ -182,10 +159,7 @@ local TOP_TRACK_GROUSER_SPACING =
 local TOP_TRACK_SHORT_GROUSER =
   0.80
 
-
--- ------------------------------------------------------------
 -- TOP-VIEW TILLER COMB
--- ------------------------------------------------------------
 
 local TILLER_COMB_W =
   14
@@ -199,8 +173,6 @@ local TILLER_COMB_GAP =
 local TILLER_COMB_LINE_SPACING =
   9
 
-
--- ------------------------------------------------------------
 -- WINGS
 --
 -- wingPos = 0:
@@ -210,7 +182,6 @@ local TILLER_COMB_LINE_SPACING =
 --      15 degrees rearward
 --
 -- Straight is approximately 75% of travel.
--- ------------------------------------------------------------
 
 local WING_LENGTH =
   30
@@ -233,10 +204,7 @@ local WING_STRAIGHT_POS =
   WING_UP_ANGLE_DEG /
   (WING_UP_ANGLE_DEG - WING_DOWN_ANGLE_DEG)
 
-
--- ------------------------------------------------------------
 -- FINISHERS
--- ------------------------------------------------------------
 
 local FINISHER_W =
   28
@@ -250,10 +218,7 @@ local FINISHER_DOWN_H =
 local FINISHER_GAP =
   1
 
-
--- ------------------------------------------------------------
 -- SIDE VIEW
--- ------------------------------------------------------------
 
 local MAX_BLADE_ANGLE_DEG =
   8
@@ -267,7 +232,6 @@ local TILLER_MOTOR_R =
 local TRACK_ANIM_SPEED =
   55
 
-
 local SIDE_TRACK_H =
   38
 
@@ -276,7 +240,6 @@ local SIDE_TRACK_RADIUS =
 
 local SIDE_TRACK_HALF_LENGTH =
   76
-
 
 local SIDE_ROAD_WHEEL_R =
   15
@@ -287,14 +250,10 @@ local SIDE_ROAD_WHEEL_COUNT =
 local SIDE_ROAD_WHEEL_MARGIN =
   8
 
-
 local SIDE_CHASSIS_H =
   14
 
-
--- ------------------------------------------------------------
 -- ANALOG GAUGES
--- ------------------------------------------------------------
 
 local TACH_GAUGE_MAX_RPM =
   2200
@@ -316,13 +275,10 @@ local GAUGE_START_DEG =
 local GAUGE_SWEEP_DEG =
   270
 
-
--- ------------------------------------------------------------
 -- VIEW LAYOUT
 --
 -- Move both snowcat drawings lower to reserve room for three
 -- telemetry rows above them.
--- ------------------------------------------------------------
 
 local TOP_VIEW_CAT_Y_OFFSET =
   185
@@ -348,14 +304,11 @@ local SIDE_GAUGE_PAIR_CENTER_X_OFFSET =
 local SIDE_GAUGE_SPACING =
   152
 
-
--- ------------------------------------------------------------
 -- TOP-VIEW LIGHT TELEMETRY
 --
 -- CH17 = Headlights
 -- CH18 = Warning lights
 -- CH19 = Spotlights
--- ------------------------------------------------------------
 
 -- Stacked light telemetry in the upper-right corner
 -- of the TOP VIEW panel.
@@ -377,10 +330,7 @@ local LIGHT_LIST_ROW_SPACING =
 local LIGHT_ON_THRESHOLD =
   0
 
-
--- ============================================================
 -- HOME STATE
--- ============================================================
 
 local homeActive =
   false
@@ -394,10 +344,7 @@ local lastSh =
 local HOME_SLIDER_DEADBAND =
   100
 
-
--- ============================================================
 -- PERSISTENT VISUAL STATE
--- ============================================================
 
 local bladeSlewPos =
   0
@@ -447,10 +394,7 @@ local tillerAnglePos =
 local lastTime =
   getTime()
 
-
--- ============================================================
 -- HELPERS
--- ============================================================
 
 local function clamp(v, lo, hi)
 
@@ -466,7 +410,6 @@ local function clamp(v, lo, hi)
 
 end
 
-
 local function norm(v)
 
   if type(v) ~= "number" then
@@ -481,7 +424,6 @@ local function norm(v)
 
 end
 
-
 local function applyDeadband(v)
 
   if math.abs(v) <= OUTPUT_DEADBAND then
@@ -492,10 +434,7 @@ local function applyDeadband(v)
 
 end
 
-
--- ============================================================
 -- ROTATION
--- ============================================================
 
 local function rotatePoint(
   px,
@@ -517,75 +456,67 @@ local function rotatePoint(
   local y =
     py - cy
 
-
   return
     cx + x * c - y * s,
     cy + x * s + y * c
 
 end
 
-
 local function drawRotatedLine(
-  x1,
-  y1,
-  x2,
-  y2,
-  cx,
-  cy,
-  angle,
-  color,
-  width
+  x1, y1, x2, y2,
+  cx, cy, angle,
+  color, width
 )
+  local rx1, ry1 = rotatePoint(x1, y1, cx, cy, angle)
+  local rx2, ry2 = rotatePoint(x2, y2, cx, cy, angle)
 
-  local rx1, ry1 =
-    rotatePoint(
-      x1,
-      y1,
-      cx,
-      cy,
-      angle
-    )
+  lcd.setColor(CUSTOM_COLOR, color)
 
+  width = width or 1
 
-  local rx2, ry2 =
-    rotatePoint(
-      x2,
-      y2,
-      cx,
-      cy,
-      angle
-    )
-
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    color
-  )
-
-
-  width =
-    width or 1
-
-
-  for i = 0, width - 1 do
-
-    lcd.drawLine(
-      rx1,
-      ry1 + i,
-      rx2,
-      ry2 + i,
-      SOLID,
-      CUSTOM_COLOR
-    )
-
+  if width <= 1 then
+    lcd.drawLine(rx1, ry1, rx2, ry2, SOLID, CUSTOM_COLOR)
+    return
   end
 
+  local dx = rx2 - rx1
+  local dy = ry2 - ry1
+  local len = math.sqrt(dx * dx + dy * dy)
+
+  if len < 0.001 then
+    lcd.drawFilledCircle(rx1, ry1, math.max(1, width / 2), CUSTOM_COLOR)
+    return
+  end
+
+  local half = width / 2
+  local ox = -dy / len * half
+  local oy =  dx / len * half
+
+  local ax = rx1 + ox
+  local ay = ry1 + oy
+  local bx = rx2 + ox
+  local by = ry2 + oy
+  local cx2 = rx2 - ox
+  local cy2 = ry2 - oy
+  local dx2 = rx1 - ox
+  local dy2 = ry1 - oy
+
+  lcd.drawFilledTriangle(
+    ax, ay,
+    bx, by,
+    cx2, cy2,
+    CUSTOM_COLOR
+  )
+
+  lcd.drawFilledTriangle(
+    ax, ay,
+    cx2, cy2,
+    dx2, dy2,
+    CUSTOM_COLOR
+  )
 end
 
-
--- ============================================================
 -- INTEGRATORS
--- ============================================================
 
 local function integrateLift(
   position,
@@ -598,14 +529,11 @@ local function integrateLift(
   command =
     applyDeadband(command)
 
-
   if command == 0 then
     return position
   end
 
-
   local rate
-
 
   if command > 0 then
 
@@ -619,13 +547,11 @@ local function integrateLift(
 
   end
 
-
   position =
     position +
     command *
     rate *
     dt
-
 
   return clamp(
     position,
@@ -634,7 +560,6 @@ local function integrateLift(
   )
 
 end
-
 
 local function integrateAxis(
   position,
@@ -646,18 +571,15 @@ local function integrateAxis(
   command =
     applyDeadband(command)
 
-
   if command == 0 then
     return position
   end
-
 
   position =
     position +
     command *
     dt /
     fullTime
-
 
   return clamp(
     position,
@@ -666,7 +588,6 @@ local function integrateAxis(
   )
 
 end
-
 
 local function integrateFinisher(
   position,
@@ -677,18 +598,15 @@ local function integrateFinisher(
   command =
     applyDeadband(command)
 
-
   if command == 0 then
     return position
   end
-
 
   position =
     position +
     command *
     dt /
     FIN_FULL_TIME
-
 
   return clamp(
     position,
@@ -697,7 +615,6 @@ local function integrateFinisher(
   )
 
 end
-
 
 local function integrateWing(
   position,
@@ -708,18 +625,15 @@ local function integrateWing(
   command =
     applyDeadband(command)
 
-
   if command == 0 then
     return position
   end
-
 
   position =
     position +
     command *
     dt /
     WING_FULL_TIME
-
 
   return clamp(
     position,
@@ -729,10 +643,7 @@ local function integrateWing(
 
 end
 
-
--- ============================================================
 -- WING MODE ANIMATION
--- ============================================================
 
 local function getWingMode()
 
@@ -751,7 +662,6 @@ local function getWingMode()
 
 end
 
-
 local function getWingModeTarget(mode)
 
   if mode == "TRANSPORT" then
@@ -761,7 +671,6 @@ local function getWingModeTarget(mode)
   return WING_STRAIGHT_POS
 
 end
-
 
 local function moveWingToward(
   position,
@@ -801,10 +710,7 @@ local function moveWingToward(
 
 end
 
-
--- ============================================================
 -- TRACK ANIMATION
--- ============================================================
 
 local function updateTrackAnimation(
   leftTrack,
@@ -818,13 +724,11 @@ local function updateTrackAnimation(
     TRACK_ANIM_SPEED *
     dt
 
-
   trackPhaseR =
     trackPhaseR -
     rightTrack *
     TRACK_ANIM_SPEED *
     dt
-
 
   while trackPhaseL >= TOP_TRACK_GROUSER_SPACING do
     trackPhaseL =
@@ -832,20 +736,17 @@ local function updateTrackAnimation(
       TOP_TRACK_GROUSER_SPACING
   end
 
-
   while trackPhaseL < 0 do
     trackPhaseL =
       trackPhaseL +
       TOP_TRACK_GROUSER_SPACING
   end
 
-
   while trackPhaseR >= TOP_TRACK_GROUSER_SPACING do
     trackPhaseR =
       trackPhaseR -
       TOP_TRACK_GROUSER_SPACING
   end
-
 
   while trackPhaseR < 0 do
     trackPhaseR =
@@ -855,10 +756,7 @@ local function updateTrackAnimation(
 
 end
 
-
--- ============================================================
 -- HOME
--- ============================================================
 
 local function updateHomeState(
   bladeTransition,
@@ -868,14 +766,11 @@ local function updateHomeState(
   local sh =
     (getValue("sh") or 0) > 500
 
-
   local homePressed =
     sh and not lastSh
 
-
   lastSh =
     sh
-
 
   local ls =
     getValue("ls") or 0
@@ -883,17 +778,14 @@ local function updateHomeState(
   local rs =
     getValue("rs") or 0
 
-
   local wingsCentered =
     math.abs(ls) <= HOME_SLIDER_DEADBAND
     and
     math.abs(rs) <= HOME_SLIDER_DEADBAND
 
-
   local anyTransition =
     bladeTransition
     or tillerTransition
-
 
   if homePressed
     and not anyTransition
@@ -934,7 +826,6 @@ local function updateHomeState(
 
   end
 
-
   if homeArmed
     and wingsCentered
   then
@@ -949,10 +840,7 @@ local function updateHomeState(
 
 end
 
-
--- ============================================================
 -- HEADER
--- ============================================================
 
 local function drawHeader(
   x,
@@ -964,7 +852,6 @@ local function drawHeader(
     COL_TEXT
   )
 
-
   lcd.drawText(
     x,
     y,
@@ -972,14 +859,11 @@ local function drawHeader(
     MIDSIZE + CUSTOM_COLOR
   )
 
-
   local sc =
     getValue("sc") or 0
 
-
   local stickMode =
     "BLADE SLEW/ANGLE"
-
 
   if sc < -500 then
 
@@ -993,7 +877,6 @@ local function drawHeader(
 
   end
 
-
   lcd.drawText(
     x + 260,
     y + 10,
@@ -1002,10 +885,8 @@ local function drawHeader(
     SMLSIZE + CUSTOM_COLOR
   )
 
-
   local sb =
     getValue("sb") or 0
-
 
   if sb < -500 then
 
@@ -1021,7 +902,6 @@ local function drawHeader(
       SMLSIZE + CUSTOM_COLOR
     )
 
-
   elseif sb < 500 then
 
     lcd.setColor(
@@ -1035,7 +915,6 @@ local function drawHeader(
       "SWING ONLY",
       SMLSIZE + CUSTOM_COLOR
     )
-
 
   else
 
@@ -1053,14 +932,11 @@ local function drawHeader(
 
   end
 
-
   local sd =
     getValue("sd") or 0
 
-
   local mode =
     "PLOW"
-
 
   if sd < -500 then
 
@@ -1074,12 +950,10 @@ local function drawHeader(
 
   end
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TEXT
   )
-
 
   lcd.drawText(
     x + 695,
@@ -1090,10 +964,7 @@ local function drawHeader(
 
 end
 
-
--- ============================================================
 -- VIEW TITLE
--- ============================================================
 
 local function drawViewTitle(
   x,
@@ -1106,7 +977,6 @@ local function drawViewTitle(
     COL_TEXT
   )
 
-
   lcd.drawText(
     x,
     y,
@@ -1116,10 +986,7 @@ local function drawViewTitle(
 
 end
 
-
--- ============================================================
 -- TOP VIEW TRACK
--- ============================================================
 
 local function drawTopTrack(
   x,
@@ -1130,15 +997,12 @@ local function drawTopTrack(
   innerEdgeBottom
 )
 
-  -- ----------------------------------------------------------
   -- GRAY TRACK BED
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
   )
-
 
   lcd.drawFilledRectangle(
     x,
@@ -1148,16 +1012,12 @@ local function drawTopTrack(
     CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
   -- TRACK OUTLINE / GROUSER COLOR
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
   )
-
 
   lcd.drawRectangle(
     x,
@@ -1167,8 +1027,6 @@ local function drawTopTrack(
     CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
   -- PISTENBULLY-STYLE GROUSERS
   --
   -- Every other grouser spans:
@@ -1188,11 +1046,9 @@ local function drawTopTrack(
   -- LOWER TRACK:
   --      cat is above the track
   --      short grouser begins at top edge
-  -- ----------------------------------------------------------
 
   local usableH =
     h - 4
-
 
   local p =
     -TOP_TRACK_GROUSER_SPACING +
@@ -1200,13 +1056,11 @@ local function drawTopTrack(
       phase
     )
 
-
   local barIndex =
     math.floor(
       p /
       TOP_TRACK_GROUSER_SPACING
     )
-
 
   while p <
     w + TOP_TRACK_GROUSER_SPACING
@@ -1215,7 +1069,6 @@ local function drawTopTrack(
     local barX =
       x + p
 
-
     if barX >= x + 2
       and
       barX <= x + w - 3
@@ -1223,21 +1076,16 @@ local function drawTopTrack(
 
       local barH
 
-
       if math.abs(barIndex) % 2 == 0 then
 
-        -- -----------------------------------------------
         -- 100% GROUSER
-        -- -----------------------------------------------
 
         barH =
           usableH
 
       else
 
-        -- -----------------------------------------------
         -- 80% GROUSER
-        -- -----------------------------------------------
 
         barH =
           math.floor(
@@ -1247,32 +1095,25 @@ local function drawTopTrack(
 
       end
 
-
       local barY
-
 
       if barH == usableH then
 
-        -- -----------------------------------------------
         -- FULL GROUSER
         --
         -- Runs from outside edge to inside edge.
-        -- -----------------------------------------------
 
         barY =
           y + 2
 
-
       elseif innerEdgeBottom then
 
-        -- -----------------------------------------------
         -- UPPER TRACK
         --
         -- Cat is BELOW the track.
         --
         -- Anchor the 80% grouser at the lower/inside
         -- edge and let it extend upward/outward.
-        -- -----------------------------------------------
 
         barY =
           y +
@@ -1280,54 +1121,35 @@ local function drawTopTrack(
           2 -
           barH
 
-
       else
 
-        -- -----------------------------------------------
         -- LOWER TRACK
         --
         -- Cat is ABOVE the track.
         --
         -- Anchor the 80% grouser at the upper/inside
         -- edge and let it extend downward/outward.
-        -- -----------------------------------------------
 
         barY =
           y + 2
 
       end
 
-
-      -- -----------------------------------------------
       -- TWO-PIXEL-THICK GROUSER
-      -- -----------------------------------------------
 
-      lcd.drawLine(
+      lcd.drawFilledRectangle(
         barX,
         barY,
-        barX,
-        barY + barH - 1,
-        SOLID,
-        CUSTOM_COLOR
-      )
-
-
-      lcd.drawLine(
-        barX + 1,
-        barY,
-        barX + 1,
-        barY + barH - 1,
-        SOLID,
+        2,
+        barH,
         CUSTOM_COLOR
       )
 
     end
 
-
     p =
       p +
       TOP_TRACK_GROUSER_SPACING
-
 
     barIndex =
       barIndex + 1
@@ -1336,17 +1158,13 @@ local function drawTopTrack(
 
 end
 
-
--- ============================================================
 -- TOP VIEW BODY
--- ============================================================
 
 local function drawTopBody(
   cx,
   cy
 )
 
-  -- ----------------------------------------------------------
   -- UPPER TRACK
   --
   -- 38 px wide versus the original 25 px.
@@ -1356,7 +1174,6 @@ local function drawTopBody(
   --
   -- TRUE tells drawTopTrack() that the cat-side edge
   -- is the BOTTOM of this track.
-  -- ----------------------------------------------------------
 
   drawTopTrack(
     cx - 74,
@@ -1367,13 +1184,10 @@ local function drawTopBody(
     true
   )
 
-
-  -- ----------------------------------------------------------
   -- LOWER TRACK
   --
   -- FALSE tells drawTopTrack() that the cat-side edge
   -- is the TOP of this track.
-  -- ----------------------------------------------------------
 
   drawTopTrack(
     cx - 74,
@@ -1384,16 +1198,12 @@ local function drawTopBody(
     false
   )
 
-
-  -- ----------------------------------------------------------
   -- MAIN BODY
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
-
 
   lcd.drawFilledRectangle(
     cx - 61,
@@ -1403,16 +1213,12 @@ local function drawTopBody(
     CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
   -- REAR DECK
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
-
 
   lcd.drawFilledRectangle(
     cx - 3,
@@ -1422,16 +1228,12 @@ local function drawTopBody(
     CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
   -- CAB
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
-
 
   lcd.drawFilledRectangle(
     cx - 50,
@@ -1441,16 +1243,12 @@ local function drawTopBody(
     CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
   -- WINDSHIELD
-  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
   )
-
 
   lcd.drawFilledRectangle(
     cx - 44,
@@ -1462,10 +1260,7 @@ local function drawTopBody(
 
 end
 
-
--- ============================================================
 -- TOP VIEW BLADE
--- ============================================================
 
 local function drawTopBlade(
   cx,
@@ -1484,13 +1279,11 @@ local function drawTopBlade(
   local bladeHalfWidth =
     8
 
-
   local bladeSlewAngle =
     bladeSlewPos *
     math.rad(
       MAX_BLADE_SLEW_DEG
     )
-
 
   local attachTopX, attachTopY =
     rotatePoint(
@@ -1501,7 +1294,6 @@ local function drawTopBlade(
       bladeSlewAngle
     )
 
-
   local attachBottomX, attachBottomY =
     rotatePoint(
       bladeX + 12,
@@ -1510,7 +1302,6 @@ local function drawTopBlade(
       bladeY,
       bladeSlewAngle
     )
-
 
   drawRotatedLine(
     cx - 61,
@@ -1524,7 +1315,6 @@ local function drawTopBlade(
     LINKAGE_WIDTH
   )
 
-
   drawRotatedLine(
     cx - 61,
     cy + 11,
@@ -1537,27 +1327,18 @@ local function drawTopBlade(
     LINKAGE_WIDTH
   )
 
-
-  -- Main blade.
-  for i =
-    -bladeHalfWidth,
-    bladeHalfWidth
-  do
-
-    drawRotatedLine(
-      bladeX + i,
-      bladeY - bladeHalfHeight,
-      bladeX + i,
-      bladeY + bladeHalfHeight,
-      bladeX,
-      bladeY,
-      bladeSlewAngle,
-      COL_BLACK,
-      1
-    )
-
-  end
-
+  -- Main blade as one filled rotated bar.
+  drawRotatedLine(
+    bladeX,
+    bladeY - bladeHalfHeight,
+    bladeX,
+    bladeY + bladeHalfHeight,
+    bladeX,
+    bladeY,
+    bladeSlewAngle,
+    COL_BLACK,
+    bladeHalfWidth * 2 + 1
+  )
 
   local topTipX, topTipY =
     rotatePoint(
@@ -1568,7 +1349,6 @@ local function drawTopBlade(
       bladeSlewAngle
     )
 
-
   local bottomTipX, bottomTipY =
     rotatePoint(
       bladeX,
@@ -1578,7 +1358,6 @@ local function drawTopBlade(
       bladeSlewAngle
     )
 
-
   local leftRelativeDeg =
     WING_UP_ANGLE_DEG +
     (
@@ -1586,7 +1365,6 @@ local function drawTopBlade(
       WING_UP_ANGLE_DEG
     ) *
     leftWingPos
-
 
   local rightRelativeDeg =
     WING_UP_ANGLE_DEG +
@@ -1596,12 +1374,10 @@ local function drawTopBlade(
     ) *
     rightWingPos
 
-
   -- Make the wings visually heavier in PLOW mode.
   -- Transport/Groom retain the normal wing thickness.
   local wingDrawWidth =
     WING_WIDTH
-
 
   if getWingMode() == "PLOW" then
 
@@ -1609,7 +1385,6 @@ local function drawTopBlade(
       WING_WIDTH_PLOW
 
   end
-
 
   -- Angles are relative to the main blade:
   --   +45 = folded forward (toward screen-left)
@@ -1626,12 +1401,10 @@ local function drawTopBlade(
       leftRelativeDeg
     )
 
-
   local rightRelativeRad =
     math.rad(
       rightRelativeDeg
     )
-
 
   -- Upper / left wing local endpoint:
   -- forward means LEFT + UP.
@@ -1642,7 +1415,6 @@ local function drawTopBlade(
     ) *
     WING_LENGTH
 
-
   local leftLocalEndY =
     bladeY -
     bladeHalfHeight -
@@ -1650,7 +1422,6 @@ local function drawTopBlade(
       leftRelativeRad
     ) *
     WING_LENGTH
-
 
   local leftEndX, leftEndY =
     rotatePoint(
@@ -1660,7 +1431,6 @@ local function drawTopBlade(
       bladeY,
       bladeSlewAngle
     )
-
 
   drawRotatedLine(
     topTipX,
@@ -1674,7 +1444,6 @@ local function drawTopBlade(
     wingDrawWidth
   )
 
-
   -- Lower / right wing local endpoint:
   -- forward means LEFT + DOWN.
   local rightLocalEndX =
@@ -1684,7 +1453,6 @@ local function drawTopBlade(
     ) *
     WING_LENGTH
 
-
   local rightLocalEndY =
     bladeY +
     bladeHalfHeight +
@@ -1692,7 +1460,6 @@ local function drawTopBlade(
       rightRelativeRad
     ) *
     WING_LENGTH
-
 
   local rightEndX, rightEndY =
     rotatePoint(
@@ -1702,7 +1469,6 @@ local function drawTopBlade(
       bladeY,
       bladeSlewAngle
     )
-
 
   drawRotatedLine(
     bottomTipX,
@@ -1718,10 +1484,7 @@ local function drawTopBlade(
 
 end
 
-
--- ============================================================
 -- TOP VIEW TILLER
--- ============================================================
 
 local function drawTopTiller(
   cx,
@@ -1734,19 +1497,16 @@ local function drawTopTiller(
   local hitchY =
     cy
 
-
   local tillerX =
     cx + 145
   local tillerY =
     cy
-
 
   local swingAngle =
     tillerSwingPos *
     math.rad(
       MAX_TILLER_SWING_DEG
     )
-
 
   drawRotatedLine(
     hitchX,
@@ -1761,78 +1521,52 @@ local function drawTopTiller(
     LINKAGE_WIDTH
   )
 
+  drawRotatedLine(
+    tillerX,
+    tillerY - TILLER_TOP_H / 2,
+    tillerX,
+    tillerY + TILLER_TOP_H / 2,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_RED,
+    TILLER_TOP_W
+  )
 
-  for xx =
-    -TILLER_TOP_W / 2,
-    TILLER_TOP_W / 2
-  do
-
-    drawRotatedLine(
-      tillerX + xx,
-      tillerY -
-        TILLER_TOP_H / 2,
-      tillerX + xx,
-      tillerY +
-        TILLER_TOP_H / 2,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_RED,
-      1
-    )
-
-  end
-
-
-  -- ==========================================================
   -- YELLOW REAR COMB
-  -- ==========================================================
 
   local combLeft =
     tillerX +
     TILLER_TOP_W / 2 +
     TILLER_COMB_GAP
 
-
   local combRight =
     combLeft +
     TILLER_COMB_W
-
 
   local combTop =
     tillerY -
     TILLER_COMB_H / 2
 
-
   local combBottom =
     tillerY +
     TILLER_COMB_H / 2
 
-
-  for xx =
-    combLeft,
-    combRight
-  do
-
-    drawRotatedLine(
-      xx,
-      combTop,
-      xx,
-      combBottom,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
-
-  end
-
+  drawRotatedLine(
+    (combLeft + combRight) / 2,
+    combTop,
+    (combLeft + combRight) / 2,
+    combBottom,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_YELLOW,
+    combRight - combLeft + 1
+  )
 
   local combLineY =
     combTop +
     TILLER_COMB_LINE_SPACING
-
 
   while combLineY < combBottom do
 
@@ -1848,17 +1582,13 @@ local function drawTopTiller(
       2
     )
 
-
     combLineY =
       combLineY +
       TILLER_COMB_LINE_SPACING
 
   end
 
-
-  -- ==========================================================
   -- UPPER FINISHER
-  -- ==========================================================
 
   local finLH =
     FINISHER_UP_H +
@@ -1867,7 +1597,6 @@ local function drawTopTiller(
       FINISHER_UP_H
     ) *
     finLPos
-
 
   local finLBottom =
     tillerY -
@@ -1878,40 +1607,27 @@ local function drawTopTiller(
     finLBottom -
     finLH
 
-
   local finLLeft =
     tillerX -
     FINISHER_W / 2
-
 
   local finLRight =
     tillerX +
     FINISHER_W / 2
 
+  drawRotatedLine(
+    finLLeft,
+    (finLTop + finLBottom) / 2,
+    finLRight,
+    (finLTop + finLBottom) / 2,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_YELLOW,
+    math.max(1, finLBottom - finLTop + 1)
+  )
 
-  for yy =
-    finLTop,
-    finLBottom
-  do
-
-    drawRotatedLine(
-      finLLeft,
-      yy,
-      finLRight,
-      yy,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
-
-  end
-
-
-  -- ==========================================================
   -- LOWER FINISHER
-  -- ==========================================================
 
   local finRH =
     FINISHER_UP_H +
@@ -1920,7 +1636,6 @@ local function drawTopTiller(
       FINISHER_UP_H
     ) *
     finRPos
-
 
   local finRTop =
     tillerY +
@@ -1931,42 +1646,29 @@ local function drawTopTiller(
     finRTop +
     finRH
 
-
   local finRLeft =
     tillerX -
     FINISHER_W / 2
-
 
   local finRRight =
     tillerX +
     FINISHER_W / 2
 
-
-  for yy =
-    finRTop,
-    finRBottom
-  do
-
-    drawRotatedLine(
-      finRLeft,
-      yy,
-      finRRight,
-      yy,
-      hitchX,
-      hitchY,
-      swingAngle,
-      COL_YELLOW,
-      1
-    )
-
-  end
+  drawRotatedLine(
+    finRLeft,
+    (finRTop + finRBottom) / 2,
+    finRRight,
+    (finRTop + finRBottom) / 2,
+    hitchX,
+    hitchY,
+    swingAngle,
+    COL_YELLOW,
+    math.max(1, finRBottom - finRTop + 1)
+  )
 
 end
 
-
--- ============================================================
 -- ANALOG GAUGE HELPERS
--- ============================================================
 
 local function gaugePoint(
   cx,
@@ -1980,13 +1682,11 @@ local function gaugePoint(
       deg
     )
 
-
   return
     cx + math.cos(rad) * radius,
     cy + math.sin(rad) * radius
 
 end
-
 
 local function drawAnalogGauge(
   cx,
@@ -2006,12 +1706,10 @@ local function drawAnalogGauge(
       scaleMax
     )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
-
 
   lcd.drawFilledCircle(
     cx,
@@ -2020,12 +1718,10 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
   )
-
 
   lcd.drawCircle(
     cx,
@@ -2034,7 +1730,6 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   lcd.drawCircle(
     cx,
     cy,
@@ -2042,10 +1737,8 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   local tickValue =
     0
-
 
   while tickValue <= scaleMax + 0.001 do
 
@@ -2053,12 +1746,10 @@ local function drawAnalogGauge(
       tickValue /
       scaleMax
 
-
     local angle =
       GAUGE_START_DEG +
       ratio *
       GAUGE_SWEEP_DEG
-
 
     local x1, y1 =
       gaugePoint(
@@ -2068,7 +1759,6 @@ local function drawAnalogGauge(
         angle
       )
 
-
     local x2, y2 =
       gaugePoint(
         cx,
@@ -2076,7 +1766,6 @@ local function drawAnalogGauge(
         radius - 10,
         angle
       )
-
 
     lcd.drawLine(
       x1,
@@ -2087,7 +1776,6 @@ local function drawAnalogGauge(
       CUSTOM_COLOR
     )
 
-
     local tx, ty =
       gaugePoint(
         cx,
@@ -2095,7 +1783,6 @@ local function drawAnalogGauge(
         radius - 21,
         angle
       )
-
 
     lcd.drawText(
       tx,
@@ -2110,24 +1797,20 @@ local function drawAnalogGauge(
       CUSTOM_COLOR
     )
 
-
     tickValue =
       tickValue +
       majorStep
 
   end
 
-
   local needleRatio =
     value /
     scaleMax
-
 
   local needleAngle =
     GAUGE_START_DEG +
     needleRatio *
     GAUGE_SWEEP_DEG
-
 
   local nx, ny =
     gaugePoint(
@@ -2137,12 +1820,10 @@ local function drawAnalogGauge(
       needleAngle
     )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
-
 
   lcd.drawLine(
     cx,
@@ -2153,7 +1834,6 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   lcd.drawLine(
     cx + 1,
     cy,
@@ -2163,7 +1843,6 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   lcd.drawFilledCircle(
     cx,
     cy,
@@ -2171,12 +1850,10 @@ local function drawAnalogGauge(
     CUSTOM_COLOR
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
   )
-
 
   lcd.drawText(
     cx,
@@ -2186,7 +1863,6 @@ local function drawAnalogGauge(
     CENTER +
     CUSTOM_COLOR
   )
-
 
   lcd.drawText(
     cx,
@@ -2199,14 +1875,12 @@ local function drawAnalogGauge(
 
 end
 
-
 local function getGaugeTelemetry()
 
   local throttleAbs =
     math.abs(
       getValue("thr") or 0
     )
-
 
   local rpm =
     clamp(
@@ -2216,18 +1890,15 @@ local function getGaugeTelemetry()
     ) *
     TACH_GAUGE_MAX_RPM
 
-
   local leftOutput =
     norm(
       getValue("ch3") or 0
     )
 
-
   local rightOutput =
     -norm(
       getValue("ch1") or 0
     )
-
 
   local vehicleOutput =
     math.abs(
@@ -2237,7 +1908,6 @@ local function getGaugeTelemetry()
       ) / 2
     )
 
-
   local speedKmh =
     clamp(
       vehicleOutput,
@@ -2246,15 +1916,11 @@ local function getGaugeTelemetry()
     ) *
     PB600_MAX_SPEED_KMH
 
-
   return rpm, speedKmh
 
 end
 
-
--- ============================================================
 -- LIGHT TELEMETRY
--- ============================================================
 
 local function drawLightIndicator(
   labelX,
@@ -2268,14 +1934,11 @@ local function drawLightIndicator(
   local output =
     getValue(channelName) or -1024
 
-
   local active =
     output > LIGHT_ON_THRESHOLD
 
-
   local fillColor =
     COL_GRID
-
 
   if active then
 
@@ -2284,13 +1947,11 @@ local function drawLightIndicator(
 
   end
 
-
   -- Label first, indicator immediately to its right.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TEXT
   )
-
 
   lcd.drawText(
     labelX,
@@ -2302,12 +1963,10 @@ local function drawLightIndicator(
     CUSTOM_COLOR
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     fillColor
   )
-
 
   lcd.drawFilledCircle(
     indicatorX,
@@ -2316,12 +1975,10 @@ local function drawLightIndicator(
     CUSTOM_COLOR
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
   )
-
 
   lcd.drawCircle(
     indicatorX,
@@ -2332,7 +1989,6 @@ local function drawLightIndicator(
 
 end
 
-
 local function drawTopLightTelemetry(
   x,
   y
@@ -2341,24 +1997,19 @@ local function drawTopLightTelemetry(
   local labelX =
     x + LIGHT_LIST_LABEL_X_OFFSET
 
-
   local indicatorX =
     x + LIGHT_LIST_INDICATOR_X_OFFSET
 
-
   local row1Y =
     y + LIGHT_LIST_FIRST_Y_OFFSET
-
 
   local row2Y =
     row1Y +
     LIGHT_LIST_ROW_SPACING
 
-
   local row3Y =
     row2Y +
     LIGHT_LIST_ROW_SPACING
-
 
   drawLightIndicator(
     labelX,
@@ -2369,7 +2020,6 @@ local function drawTopLightTelemetry(
     COL_WHITE
   )
 
-
   drawLightIndicator(
     labelX,
     indicatorX,
@@ -2378,7 +2028,6 @@ local function drawTopLightTelemetry(
     "ch18",
     COL_AMBER
   )
-
 
   drawLightIndicator(
     labelX,
@@ -2391,10 +2040,7 @@ local function drawTopLightTelemetry(
 
 end
 
-
--- ============================================================
 -- TOP VIEW
--- ============================================================
 
 local function drawTopView(
   x,
@@ -2407,7 +2053,6 @@ local function drawTopView(
     "TOP VIEW"
   )
 
-
   local cx =
     x + 194
 
@@ -2415,24 +2060,17 @@ local function drawTopView(
   local cy =
     y + TOP_VIEW_CAT_Y_OFFSET
 
-
-  -- ==========================================================
   -- LIGHT OUTPUT TELEMETRY
-  -- ==========================================================
 
   drawTopLightTelemetry(
     x,
     y
   )
 
-
-
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GRID
   )
-
 
   lcd.drawLine(
     x + 18,
@@ -2443,30 +2081,25 @@ local function drawTopView(
     CUSTOM_COLOR
   )
 
-
   drawTopBlade(
     cx,
     cy
   )
-
 
   drawTopBody(
     cx,
     cy
   )
 
-
   drawTopTiller(
     cx,
     cy
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TEXT
   )
-
 
   lcd.drawText(
     x + 15,
@@ -2477,7 +2110,6 @@ local function drawTopView(
     ),
     SMLSIZE + CUSTOM_COLOR
   )
-
 
   lcd.drawText(
     x + 205,
@@ -2491,10 +2123,7 @@ local function drawTopView(
 
 end
 
-
--- ============================================================
 -- SIDE VIEW BODY
--- ============================================================
 
 local function drawSideBody(
   cx,
@@ -2504,28 +2133,23 @@ local function drawSideBody(
   local trackCenterY =
     cy + 30
 
-
   local trackTop =
     trackCenterY -
     SIDE_TRACK_H / 2
-
 
   local trackLeft =
     cx -
     SIDE_TRACK_HALF_LENGTH
 
-
   local trackRight =
     cx +
     SIDE_TRACK_HALF_LENGTH
-
 
   -- Gray track body.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
   )
-
 
   lcd.drawFilledRectangle(
     trackLeft,
@@ -2535,14 +2159,12 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
     SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
-
 
   lcd.drawFilledCircle(
     trackRight,
@@ -2551,13 +2173,11 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
   -- Track outline.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
   )
-
 
   lcd.drawRectangle(
     trackLeft,
@@ -2567,14 +2187,12 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
   lcd.drawCircle(
     trackLeft,
     trackCenterY,
     SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
-
 
   lcd.drawCircle(
     trackRight,
@@ -2583,38 +2201,28 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- SIX EVENLY-SPACED ROAD WHEELS
-  -- ==========================================================
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
   )
 
-
   local wheelLeft =
-    trackLeft 
-
-
+    trackLeft
 
   local wheelRight =
-    trackRight 
-
-
+    trackRight
 
   local wheelSpacing =
     (wheelRight - wheelLeft) /
     (SIDE_ROAD_WHEEL_COUNT - 1)
-
 
   for i = 0, SIDE_ROAD_WHEEL_COUNT - 1 do
 
     local wheelX =
       wheelLeft +
       wheelSpacing * i
-
 
     lcd.drawFilledCircle(
       wheelX,
@@ -2632,43 +2240,34 @@ local function drawSideBody(
 
   end
 
-
-  -- ==========================================================
   -- FULL-LENGTH UPPER BODY / CHASSIS
   --
   -- Stretch the bodywork to the complete visual length of the
   -- rounded track assembly underneath.
-  -- ==========================================================
 
   local bodyFront =
     trackLeft -
     SIDE_TRACK_RADIUS
 
-
   local bodyRear =
     trackRight +
     SIDE_TRACK_RADIUS
-
 
   local bodyLength =
     bodyRear -
     bodyFront
 
-
   local chassisBottom =
     trackTop - 1
-
 
   local chassisTop =
     chassisBottom -
     SIDE_CHASSIS_H
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
   )
-
 
   lcd.drawFilledRectangle(
     bodyFront,
@@ -2678,8 +2277,6 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- CAB / ENGINE HOUSING
   --
   -- The cab is moved forward so the lower leading edge of its
@@ -2687,44 +2284,35 @@ local function drawSideBody(
   --
   -- Behind the cab is a red engine housing at half cab height,
   -- followed by the gray rear deck.
-  -- ==========================================================
 
   -- Cab widened by the 27 px recovered from halving the
   -- backpack/engine enclosure width.
   local cabW =
     69
 
-
   local cabBottom =
     chassisTop + 1
 
-
   local cabH =
     68
-
 
   local cabY =
     cabBottom -
     cabH
 
-
   -- Cab front and windshield share this slope.
   local cabFrontSlope =
     0.20
 
-
   local noseTopY =
     cabY + 6
-
 
   local noseBottomY =
     cabBottom
 
-
   local noseHeight =
     noseBottomY -
     noseTopY
-
 
   -- Position the rectangular part of the cab so the bottom
   -- point of the sloped nose lands exactly at bodyFront.
@@ -2733,20 +2321,16 @@ local function drawSideBody(
     noseHeight *
     cabFrontSlope
 
-
   local noseTopX =
     cabX
 
-
   local noseBottomX =
     bodyFront
-
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
-
 
   -- Main rectangular cab.
   lcd.drawFilledRectangle(
@@ -2757,36 +2341,22 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- SLOPED CAB FRONT
-  -- ==========================================================
 
-  for yy = 0, noseHeight do
-
-    local leftX =
-      noseTopX -
-      yy *
-      cabFrontSlope
-
-
-    lcd.drawLine(
-      leftX,
-      noseTopY + yy,
-      cabX,
-      noseTopY + yy,
-      SOLID,
-      CUSTOM_COLOR
-    )
-
-  end
-
+  lcd.drawFilledTriangle(
+    noseTopX,
+    noseTopY,
+    cabX,
+    noseBottomY,
+    noseBottomX,
+    noseBottomY,
+    CUSTOM_COLOR
+  )
 
   -- Fill the lower nose area cleanly into the chassis.
   local noseBaseW =
     cabX -
     noseBottomX
-
 
   if noseBaseW > 0 then
 
@@ -2800,7 +2370,6 @@ local function drawSideBody(
 
   end
 
-
   -- Roof.
   lcd.drawFilledRectangle(
     cabX - 3,
@@ -2810,102 +2379,88 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- LARGE WINDSHIELD
   --
   -- Front edge uses exactly the same slope as the cab nose.
-  -- ==========================================================
 
   local glassTopY =
     cabY + 8
 
-
   local glassBottomY =
     cabBottom - 9
-
 
   local glassH =
     glassBottomY -
     glassTopY
 
-
   local glassFrontTopX =
     cabX + 3
-
 
   local oldGlassWidth =
     cabW - 7
 
-
   local newGlassWidth =
     oldGlassWidth * 0.75
-
 
   local glassRearX =
     glassFrontTopX +
     newGlassWidth
-
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
   )
 
+  local glassFrontBottomX =
+    glassFrontTopX -
+    glassH * cabFrontSlope
 
-  for yy = 0, glassH do
+  lcd.drawFilledTriangle(
+    glassFrontTopX,
+    glassTopY,
+    glassRearX,
+    glassTopY,
+    glassRearX,
+    glassBottomY,
+    CUSTOM_COLOR
+  )
 
-    local glassFrontX =
-      glassFrontTopX -
-      yy *
-      cabFrontSlope
+  lcd.drawFilledTriangle(
+    glassFrontTopX,
+    glassTopY,
+    glassRearX,
+    glassBottomY,
+    glassFrontBottomX,
+    glassBottomY,
+    CUSTOM_COLOR
+  )
 
-
-    lcd.drawLine(
-      glassFrontX,
-      glassTopY + yy,
-      glassRearX,
-      glassTopY + yy,
-      SOLID,
-      CUSTOM_COLOR
-    )
-
-  end
-
-
-  -- ==========================================================
   -- RED ENGINE HOUSING
   --
   -- Half the height of the cab and placed directly behind it.
-  -- ==========================================================
 
   local engineX =
     cabX +
     cabW
-
 
   local engineH =
     math.floor(
       cabH * 0.50
     )
 
-
   local engineY =
     cabBottom -
     engineH
-
 
   -- Leave enough room at the rear for the gray deck.
   -- Backpack / engine enclosure is half its previous width.
   local engineW =
     27
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
   )
-
 
   lcd.drawFilledRectangle(
     engineX,
@@ -2915,21 +2470,16 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- EXHAUST PIPE
   --
   -- Small gray rectangle centered on the engine housing.
-  -- ==========================================================
 
   -- Exhaust is 25% wider and 50% taller.
   local exhaustW =
     10
 
-
   local exhaustH =
     21
-
 
   local exhaustX =
     engineX +
@@ -2937,17 +2487,14 @@ local function drawSideBody(
       (engineW - exhaustW) / 2
     )
 
-
   local exhaustY =
     engineY -
     exhaustH
-
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
-
 
   lcd.drawFilledRectangle(
     exhaustX,
@@ -2957,30 +2504,23 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- FULL-LENGTH REAR DECK
-  -- ==========================================================
 
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
   )
 
-
   local deckX =
     engineX +
     engineW
 
-
   local deckY =
     chassisTop - 13
-
 
   local deckW =
     bodyRear -
     deckX
-
 
   lcd.drawFilledRectangle(
     deckX,
@@ -2992,10 +2532,7 @@ local function drawSideBody(
 
 end
 
-
--- ============================================================
 -- SIDE VIEW BLADE
--- ============================================================
 
 local function drawSideBlade(
   cx,
@@ -3010,7 +2547,6 @@ local function drawSideBlade(
       1
     )
 
-
   local visualLift =
     clamp(
       bladeLiftPos /
@@ -3019,27 +2555,21 @@ local function drawSideBlade(
       1
     )
 
-
   local bladeX =
     cx - 132
-
 
   local trackBottomY =
     cy + 49
 
-
   local bladeHalfHeight =
     35
-
 
   local bladeUpCenterY =
     cy - 48
 
-
   local bladeDownCenterY =
     trackBottomY -
     bladeHalfHeight
-
 
   local bladeY =
     bladeUpCenterY +
@@ -3049,13 +2579,11 @@ local function drawSideBlade(
       bladeUpCenterY
     )
 
-
   local bladeAngle =
     -bladeAnglePos *
     math.rad(
       MAX_BLADE_ANGLE_DEG
     )
-
 
   drawRotatedLine(
     cx - 64,
@@ -3069,7 +2597,6 @@ local function drawSideBlade(
     LINKAGE_WIDTH
   )
 
-
   drawRotatedLine(
     cx - 64,
     cy + 8,
@@ -3082,31 +2609,21 @@ local function drawSideBlade(
     LINKAGE_WIDTH
   )
 
-
-  for i = -7, 7 do
-
-    drawRotatedLine(
-      bladeX + i,
-      bladeY -
-        bladeHalfHeight,
-      bladeX + i,
-      bladeY +
-        bladeHalfHeight,
-      bladeX,
-      bladeY,
-      bladeAngle,
-      COL_BLACK,
-      1
-    )
-
-  end
+  drawRotatedLine(
+    bladeX,
+    bladeY - bladeHalfHeight,
+    bladeX,
+    bladeY + bladeHalfHeight,
+    bladeX,
+    bladeY,
+    bladeAngle,
+    COL_BLACK,
+    15
+  )
 
 end
 
-
--- ============================================================
 -- SIDE VIEW TILLER
--- ============================================================
 
 local function drawSideTiller(
   cx,
@@ -3121,7 +2638,6 @@ local function drawSideTiller(
       1
     )
 
-
   local groomAngle =
     clamp(
       (getValue("gvar5") or 0) /
@@ -3129,7 +2645,6 @@ local function drawSideTiller(
       0,
       1
     )
-
 
   local visualLift =
     clamp(
@@ -3139,27 +2654,21 @@ local function drawSideTiller(
       1
     )
 
-
   local tillerX =
     cx + 137
-
 
   local trackBottomY =
     cy + 49
 
-
   local tillerHalfHeight =
     9
-
 
   local tillerUpY =
     cy - 42
 
-
   local tillerDownY =
     trackBottomY -
     tillerHalfHeight
-
 
   local tillerY =
     tillerUpY +
@@ -3169,23 +2678,19 @@ local function drawSideTiller(
       tillerUpY
     )
 
-
   local expectedAngle =
     groomAngle *
     visualLift
 
-
   local angleDeviation =
     tillerAnglePos -
     expectedAngle
-
 
   local tillerAngle =
     -angleDeviation *
     math.rad(
       MAX_TILLER_ANGLE_DEG
     )
-
 
   drawRotatedLine(
     cx + 64,
@@ -3199,7 +2704,6 @@ local function drawSideTiller(
     LINKAGE_WIDTH
   )
 
-
   drawRotatedLine(
     cx + 64,
     cy + 5,
@@ -3212,28 +2716,20 @@ local function drawSideTiller(
     LINKAGE_WIDTH
   )
 
+  -- Tiller body as one filled rotated bar.
+  drawRotatedLine(
+    tillerX - 31,
+    tillerY,
+    tillerX + 31,
+    tillerY,
+    tillerX,
+    tillerY,
+    tillerAngle,
+    COL_RED,
+    19
+  )
 
-  -- Tiller body.
-  for i = -9, 9 do
-
-    drawRotatedLine(
-      tillerX - 31,
-      tillerY + i,
-      tillerX + 31,
-      tillerY + i,
-      tillerX,
-      tillerY,
-      tillerAngle,
-      COL_RED,
-      1
-    )
-
-  end
-
-
-  -- ==========================================================
   -- MOTOR INDICATOR
-  -- ==========================================================
 
   local tillerMotor =
     getValue("ch14") or -1024
@@ -3257,7 +2753,6 @@ local function drawSideTiller(
 
   end
 
-
   local motorX, motorY =
     rotatePoint(
       tillerX - 18,
@@ -3267,12 +2762,10 @@ local function drawSideTiller(
       tillerAngle
     )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     motorColor
   )
-
 
   lcd.drawFilledCircle(
     motorX,
@@ -3281,10 +2774,7 @@ local function drawSideTiller(
     CUSTOM_COLOR
   )
 
-
-  -- ==========================================================
   -- SIDE-VIEW COMB
-  -- ==========================================================
 
   drawRotatedLine(
     tillerX + 31,
@@ -3298,14 +2788,12 @@ local function drawSideTiller(
     3
   )
 
-
   for i = 0, 5 do
 
     local tx =
       tillerX +
       37 +
       i * 5
-
 
     drawRotatedLine(
       tx,
@@ -3323,10 +2811,7 @@ local function drawSideTiller(
 
 end
 
-
--- ============================================================
 -- SIDE VIEW
--- ============================================================
 
 local function drawSideView(
   x,
@@ -3339,7 +2824,6 @@ local function drawSideView(
     "SIDE VIEW"
   )
 
-
   local cx =
     x + 194
 
@@ -3347,35 +2831,27 @@ local function drawSideView(
   local cy =
     y + SIDE_VIEW_CAT_Y_OFFSET
 
-
-  -- ==========================================================
   -- TACHOMETER / SPEEDOMETER
   --
   -- Gauges are 25% larger than the previous version and are
   -- centered above the SIDE VIEW snowcat.
-  -- ==========================================================
 
   local rpm, speedKmh =
     getGaugeTelemetry()
 
-
   local gaugeCenterY =
     y + SIDE_GAUGE_CENTER_Y_OFFSET
 
-
   local gaugePairCenterX =
     x + SIDE_GAUGE_PAIR_CENTER_X_OFFSET
-
 
   local tachCenterX =
     gaugePairCenterX -
     SIDE_GAUGE_SPACING / 2
 
-
   local speedCenterX =
     gaugePairCenterX +
     SIDE_GAUGE_SPACING / 2
-
 
   drawAnalogGauge(
     tachCenterX,
@@ -3391,7 +2867,6 @@ local function drawSideView(
     )
   )
 
-
   drawAnalogGauge(
     speedCenterX,
     gaugeCenterY,
@@ -3406,12 +2881,10 @@ local function drawSideView(
     )
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GRID
   )
-
 
   lcd.drawLine(
     x + 12,
@@ -3422,30 +2895,25 @@ local function drawSideView(
     CUSTOM_COLOR
   )
 
-
   drawSideBlade(
     cx,
     cy
   )
-
 
   drawSideTiller(
     cx,
     cy
   )
 
-
   drawSideBody(
     cx,
     cy
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TEXT
   )
-
 
   lcd.drawText(
     x + 10,
@@ -3457,7 +2925,6 @@ local function drawSideView(
     SMLSIZE + CUSTOM_COLOR
   )
 
-
   lcd.drawText(
     x + 10,
     y + 298,
@@ -3468,7 +2935,6 @@ local function drawSideView(
     SMLSIZE + CUSTOM_COLOR
   )
 
-
   lcd.drawText(
     x + 203,
     y + 278,
@@ -3478,7 +2944,6 @@ local function drawSideView(
     ),
     SMLSIZE + CUSTOM_COLOR
   )
-
 
   lcd.drawText(
     x + 203,
@@ -3492,10 +2957,7 @@ local function drawSideView(
 
 end
 
-
--- ============================================================
 -- REFRESH
--- ============================================================
 
 local function refresh(
   wgt,
@@ -3506,7 +2968,6 @@ local function refresh(
   local z =
     wgt.zone
 
-
   if z.w < 800
     or z.h < 400
   then
@@ -3515,121 +2976,95 @@ local function refresh(
 
   end
 
-
-  -- ==========================================================
   -- TIME
-  -- ==========================================================
 
   local now =
     getTime()
-
 
   local dt =
     (now - lastTime) /
     100
 
-
   lastTime =
     now
-
 
   if dt < 0 then
     dt = 0
   end
 
-
   if dt > 0.20 then
     dt = 0.20
   end
 
-
-  -- ==========================================================
   -- SOURCES
-  -- ==========================================================
 
   local leftTrack =
     norm(
       getValue("ch3") or 0
     )
 
-
   local rightTrack =
     -norm(
       getValue("ch1") or 0
     )
-
 
   local bladeLiftCmd =
     norm(
       getValue("ch2") or 0
     )
 
-
   local leftWingCmd =
     norm(
       getValue("ch5") or 0
     )
-
 
   local rightWingCmd =
     norm(
       getValue("ch6") or 0
     )
 
-
   local bladeAngleCmd =
     norm(
       getValue("ch10") or 0
     )
-
 
   local bladeSlewCmd =
     norm(
       getValue("ch11") or 0
     )
 
-
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
     )
-
 
   local tillerAngleCmd =
     norm(
       getValue("ch13") or 0
     )
 
-
   tillerSwingPos =
     -norm(
       getValue("ch9") or 0
     )
-
 
   local finLCmd =
     norm(
       getValue("ch7") or 0
     )
 
-
   local finRCmd =
     norm(
       getValue("ch8") or 0
     )
 
-
   local bladeTransition =
     getLogicalSwitchValue(10)
-
 
   local tillerTransition =
     getLogicalSwitchValue(11)
 
-
-  -- ==========================================================
   -- POSITION INTEGRATION
-  -- ==========================================================
 
   bladeLiftPos =
     integrateLift(
@@ -3640,7 +3075,6 @@ local function refresh(
       dt
     )
 
-
   bladeAnglePos =
     integrateAxis(
       bladeAnglePos,
@@ -3648,7 +3082,6 @@ local function refresh(
       BLADE_ANGLE_FULL,
       dt
     )
-
 
   bladeSlewPos =
     integrateAxis(
@@ -3658,8 +3091,6 @@ local function refresh(
       dt
     )
 
-
-  -- ==========================================================
   -- WING POSITION
   --
   -- Automatic mode moves use SD directly so the display does
@@ -3668,11 +3099,9 @@ local function refresh(
   -- TRANSPORT = 45 degrees forward
   -- PLOW      = in-line with blade
   -- GROOM     = in-line with blade
-  -- ==========================================================
 
   local currentWingMode =
     getWingMode()
-
 
   if lastWingMode == nil then
 
@@ -3693,7 +3122,6 @@ local function refresh(
     wingModeMoving =
       false
 
-
   elseif currentWingMode ~= lastWingMode then
 
     lastWingMode =
@@ -3709,7 +3137,6 @@ local function refresh(
 
   end
 
-
   if wingModeMoving then
 
     leftWingPos =
@@ -3719,14 +3146,12 @@ local function refresh(
         dt
       )
 
-
     rightWingPos =
       moveWingToward(
         rightWingPos,
         wingModeTarget,
         dt
       )
-
 
     if math.abs(
       leftWingPos -
@@ -3759,7 +3184,6 @@ local function refresh(
         dt
       )
 
-
     rightWingPos =
       integrateWing(
         rightWingPos,
@@ -3768,7 +3192,6 @@ local function refresh(
       )
 
   end
-
 
   tillerLiftPos =
     integrateLift(
@@ -3779,7 +3202,6 @@ local function refresh(
       dt
     )
 
-
   tillerAnglePos =
     integrateAxis(
       tillerAnglePos,
@@ -3788,14 +3210,12 @@ local function refresh(
       dt
     )
 
-
   finLPos =
     integrateFinisher(
       finLPos,
       -finLCmd,
       dt
     )
-
 
   finRPos =
     integrateFinisher(
@@ -3804,41 +3224,33 @@ local function refresh(
       dt
     )
 
-
   updateTrackAnimation(
     leftTrack,
     rightTrack,
     dt
   )
 
-
   updateHomeState(
     bladeTransition,
     tillerTransition
   )
 
-
-  -- ==========================================================
   -- DRAW
-  -- ==========================================================
 
   lcd.clear(
     COL_BACKGROUND
   )
-
 
   drawHeader(
     0,
     5
   )
 
-
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GRID
   )
 
-
   lcd.drawLine(
     0,
     50,
@@ -3847,7 +3259,6 @@ local function refresh(
     SOLID,
     CUSTOM_COLOR
   )
-
 
   lcd.drawLine(
     400,
@@ -3858,7 +3269,6 @@ local function refresh(
     CUSTOM_COLOR
   )
 
-
   lcd.drawLine(
     0,
     380,
@@ -3867,13 +3277,11 @@ local function refresh(
     SOLID,
     CUSTOM_COLOR
   )
-
 
   drawTopView(
     0,
     63
   )
-
 
   drawSideView(
     400,
@@ -3882,10 +3290,7 @@ local function refresh(
 
 end
 
-
--- ============================================================
 -- EXPORT
--- ============================================================
 
 return {
   name = name,
