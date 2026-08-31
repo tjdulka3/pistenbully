@@ -170,7 +170,7 @@ local TOP_TRACK_LENGTH =
   148
 
 local TOP_TRACK_GROUSER_SPACING =
-  12
+  8
 
 local TOP_TRACK_SHORT_GROUSER =
   0.80
@@ -1927,14 +1927,12 @@ local function drawSideBody(
 
   local wheelLeft =
     trackLeft +
-    SIDE_TRACK_RADIUS +
-    SIDE_ROAD_WHEEL_MARGIN
+
 
 
   local wheelRight =
     trackRight -
-    SIDE_TRACK_RADIUS -
-    SIDE_ROAD_WHEEL_MARGIN
+
 
 
   local wheelSpacing =
@@ -1953,7 +1951,14 @@ local function drawSideBody(
       wheelX,
       trackCenterY,
       SIDE_ROAD_WHEEL_R,
-      CUSTOM_COLOR
+      COL_BLACK
+    )
+
+        lcd.drawFilledCircle(
+      wheelX,
+      trackCenterY,
+      SIDE_ROAD_WHEEL_R*.1,
+      COL_METAL
     )
 
   end
