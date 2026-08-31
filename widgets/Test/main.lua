@@ -7,22 +7,29 @@
 --   * Animated blade wings
 --   * Reversed tiller swing
 --   * Yellow finishers
---   * Yellow tiller comb behind red tiller body
---   * Black horizontal comb lines
+--   * Yellow tiller comb
 --
 -- SIDE VIEW
---   * PB600-like proportions
+--   * PB600-like body proportions
 --   * Large rounded gray track body
---   * Six large black road wheels
+--   * Six large evenly-spaced black road wheels
 --   * Thin black chassis
---   * Enlarged cab close to tracks
---   * Sloped triangular cab nose
---   * Large sloped windshield
---   * Lower rear deck
+--   * Sloped cab nose / windshield
 --   * Blade lift + subtle angle
 --   * Tiller lift + angle
 --   * Tiller motor indicator
---   * Yellow rear comb
+--
+-- WINGS
+--
+--   Left  = CH5
+--   Right = CH6
+--
+--   Visual range:
+--
+--      UP      = 45 degrees forward
+--      DOWN    = 15 degrees rearward
+--
+--   Left actuator direction is reversed relative to right.
 --
 -- ============================================================
 
@@ -168,6 +175,14 @@ local TILLER_COMB_LINE_SPACING =
 
 -- ------------------------------------------------------------
 -- WINGS
+--
+-- wingPos = 0:
+--      45 degrees forward
+--
+-- wingPos = 1:
+--      15 degrees rearward
+--
+-- Total displayed travel = 60 degrees.
 -- ------------------------------------------------------------
 
 local WING_LENGTH =
@@ -180,7 +195,7 @@ local WING_UP_ANGLE_DEG =
   45
 
 local WING_DOWN_ANGLE_DEG =
-  0
+  -15
 
 
 -- ------------------------------------------------------------
@@ -217,7 +232,6 @@ local TRACK_ANIM_SPEED =
   55
 
 
--- Larger PB600 track proportions.
 local SIDE_TRACK_H =
   38
 
@@ -260,14 +274,18 @@ local HOME_SLIDER_DEADBAND =
 local bladeSlewPos =
   0
 
+
+-- Wing positions are 0..1.
 local leftWingPos =
   0
 
 local rightWingPos =
   0
 
+
 local tillerSwingPos =
   0
+
 
 local trackPhaseL =
   0
@@ -275,11 +293,13 @@ local trackPhaseL =
 local trackPhaseR =
   0
 
+
 local finLPos =
   0
 
 local finRPos =
   0
+
 
 local bladeLiftPos =
   0
@@ -287,11 +307,13 @@ local bladeLiftPos =
 local bladeAnglePos =
   0
 
+
 local tillerLiftPos =
   0
 
 local tillerAnglePos =
   0
+
 
 local lastTime =
   getTime()
@@ -368,14 +390,8 @@ local function rotatePoint(
 
 
   return
-
-    cx +
-    x * c -
-    y * s,
-
-    cy +
-    x * s +
-    y * c
+    cx + x * c - y * s,
+    cy + x * s + y * c
 
 end
 
@@ -463,9 +479,15 @@ local function integrateLift(
 
 
   if command > 0 then
-    rate = 1 / downFullTime
+
+    rate =
+      1 / downFullTime
+
   else
-    rate = 1 / upFullTime
+
+    rate =
+      1 / upFullTime
+
   end
 
 
@@ -677,17 +699,20 @@ local function updateHomeState(
     bladeSlewPos =
       0
 
+
     leftWingPos =
       0
 
     rightWingPos =
       0
 
+
     tillerLiftPos =
       0
 
     tillerAnglePos =
       0
+
 
     finLPos =
       0
@@ -935,9 +960,7 @@ local function drawTopTrack(
 
   local p =
     -spacing +
-    math.floor(
-      phase
-    )
+    math.floor(phase)
 
 
   while p < w + spacing do
@@ -1149,6 +1172,7 @@ local function drawTopBlade(
   )
 
 
+  -- Main blade.
   for i =
     -bladeHalfWidth,
     bladeHalfWidth
@@ -1169,6 +1193,10 @@ local function drawTopBlade(
   end
 
 
+  -- ----------------------------------------------------------
+  -- ROTATED BLADE TIPS
+  -- ----------------------------------------------------------
+
   local topTipX, topTipY =
     rotatePoint(
       bladeX,
@@ -1188,6 +1216,20 @@ local function drawTopBlade(
       bladeSlewAngle
     )
 
+
+  -- ----------------------------------------------------------
+  -- WING ANGLE MAPPING
+  --
+  -- pos 0 = +45 deg forward
+  -- pos 1 = -15 deg rearward
+  --
+  -- At pos = 0.75 the wing is exactly in line:
+  --
+  --   45 + (-15 - 45) * .75
+  --   = 0 degrees
+  --
+  -- This gives us useful travel slightly behind straight.
+  -- ----------------------------------------------------------
 
   local leftRelativeDeg =
     WING_UP_ANGLE_DEG +
@@ -1221,6 +1263,10 @@ local function drawTopBlade(
     )
 
 
+  -- ----------------------------------------------------------
+  -- UPPER / LEFT WING
+  -- ----------------------------------------------------------
+
   local leftEndX =
     topTipX -
     math.sin(
@@ -1249,6 +1295,10 @@ local function drawTopBlade(
     WING_WIDTH
   )
 
+
+  -- ----------------------------------------------------------
+  -- LOWER / RIGHT WING
+  -- ----------------------------------------------------------
 
   local rightEndX =
     bottomTipX -
@@ -1283,11 +1333,6 @@ end
 
 -- ============================================================
 -- TOP VIEW TILLER
---
--- Red tiller body
--- Yellow comb immediately behind it
--- Black horizontal lines across comb
--- Yellow finishers above/below tiller
 -- ============================================================
 
 local function drawTopTiller(
@@ -1316,10 +1361,7 @@ local function drawTopTiller(
     )
 
 
-  -- ==========================================================
-  -- TILLER LINKAGE
-  -- ==========================================================
-
+  -- Linkage.
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1334,10 +1376,7 @@ local function drawTopTiller(
   )
 
 
-  -- ==========================================================
-  -- RED TILLER BODY
-  -- ==========================================================
-
+  -- Red tiller body.
   for xx =
     -TILLER_TOP_W / 2,
     TILLER_TOP_W / 2
@@ -1361,10 +1400,7 @@ local function drawTopTiller(
 
 
   -- ==========================================================
-  -- YELLOW TILLER COMB
-  --
-  -- Front of cat is LEFT.
-  -- Comb sits immediately behind tiller toward screen RIGHT.
+  -- YELLOW REAR COMB
   -- ==========================================================
 
   local combLeft =
@@ -1388,7 +1424,6 @@ local function drawTopTiller(
     TILLER_COMB_H / 2
 
 
-  -- Fill.
   for xx =
     combLeft,
     combRight
@@ -1409,7 +1444,6 @@ local function drawTopTiller(
   end
 
 
-  -- Black horizontal comb lines.
   local combLineY =
     combTop +
     TILLER_COMB_LINE_SPACING
@@ -1682,7 +1716,6 @@ local function drawSideBody(
   )
 
 
-  -- Rounded ends.
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
@@ -1733,6 +1766,14 @@ local function drawSideBody(
 
   -- ==========================================================
   -- SIX LARGE BLACK ROAD WHEELS
+  --
+  -- First wheel center:
+  --   exactly one wheel radius inside front edge
+  --
+  -- Last wheel center:
+  --   exactly one wheel radius inside rear edge
+  --
+  -- Remaining wheels evenly distributed between them.
   -- ==========================================================
 
   lcd.setColor(
@@ -1742,15 +1783,18 @@ local function drawSideBody(
 
 
   local wheelLeft =
-    trackLeft + 16
+    trackLeft +
+    SIDE_ROAD_WHEEL_R
 
 
   local wheelRight =
-    trackRight - 16
+    trackRight -
+    SIDE_ROAD_WHEEL_R
 
 
   local wheelSpacing =
-    (wheelRight - wheelLeft) / 5
+    (wheelRight - wheelLeft) /
+    5
 
 
   for i = 0, 5 do
@@ -1823,7 +1867,6 @@ local function drawSideBody(
     cabH
 
 
-  -- Main red cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -1898,7 +1941,7 @@ local function drawSideBody(
   end
 
 
-  -- Roof overhang.
+  -- Roof.
   lcd.drawFilledRectangle(
     cabX - 3,
     cabY - 6,
@@ -1909,7 +1952,7 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- LARGE SLOPED WINDSHIELD
+  -- SLOPED WINDSHIELD
   -- ==========================================================
 
   local glassTopY =
@@ -1972,7 +2015,7 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- LOWER REAR DECK
+  -- REAR DECK
   -- ==========================================================
 
   lcd.setColor(
@@ -2194,6 +2237,7 @@ local function drawSideTiller(
     )
 
 
+  -- Linkages.
   drawRotatedLine(
     cx + 64,
     cy - 7,
@@ -2220,6 +2264,7 @@ local function drawSideTiller(
   )
 
 
+  -- Tiller body.
   for i = -9, 9 do
 
     drawRotatedLine(
@@ -2237,10 +2282,7 @@ local function drawSideTiller(
   end
 
 
-  -- ==========================================================
-  -- MOTOR INDICATOR
-  -- ==========================================================
-
+  -- Motor indicator.
   local tillerMotor =
     getValue("ch14") or -1024
 
@@ -2281,10 +2323,7 @@ local function drawSideTiller(
   )
 
 
-  -- ==========================================================
-  -- YELLOW REAR COMB
-  -- ==========================================================
-
+  -- Yellow comb.
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -2480,7 +2519,7 @@ local function refresh(
 
 
   -- ==========================================================
-  -- TRACK SOURCES
+  -- SOURCES
   -- ==========================================================
 
   local leftTrack =
@@ -2494,10 +2533,6 @@ local function refresh(
       getValue("ch1") or 0
     )
 
-
-  -- ==========================================================
-  -- BLADE SOURCES
-  -- ==========================================================
 
   local bladeLiftCmd =
     norm(
@@ -2529,10 +2564,6 @@ local function refresh(
     )
 
 
-  -- ==========================================================
-  -- TILLER SOURCES
-  -- ==========================================================
-
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
@@ -2550,10 +2581,6 @@ local function refresh(
       getValue("ch9") or 0
     )
 
-
-  -- ==========================================================
-  -- FINISHERS
-  -- ==========================================================
 
   local finLCmd =
     norm(
@@ -2607,10 +2634,29 @@ local function refresh(
     )
 
 
+  -- ----------------------------------------------------------
+  -- WINGS
+  --
+  -- IMPORTANT:
+  --
+  -- Physical CH5 and CH6 output directions are opposite.
+  --
+  -- Left wing:
+  --    reverse command
+  --
+  -- Right wing:
+  --    normal command
+  --
+  -- Both visual positions then increase:
+  --
+  --    0 -> 45 deg forward
+  --    1 -> 15 deg rearward
+  -- ----------------------------------------------------------
+
   leftWingPos =
     integrateWing(
       leftWingPos,
-      leftWingCmd,
+      -leftWingCmd,
       dt
     )
 
