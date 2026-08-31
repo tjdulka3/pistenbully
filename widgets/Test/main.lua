@@ -2115,7 +2115,7 @@ local function drawStatusBar(
   )
 
   lcd.drawText(
-    x + 10,
+    x + 15,
     y,
     "STATUS:",
     SMLSIZE + CUSTOM_COLOR
@@ -2127,7 +2127,7 @@ local function drawStatusBar(
   )
 
   lcd.drawText(
-    x + 72,
+    x + 90,
     y,
     status,
     SMLSIZE + CUSTOM_COLOR
