@@ -5,30 +5,20 @@
 --   * Animated tracks
 --   * Black blade with angular slew
 --   * Animated blade wings
---   * Tiller swing
+--   * Reversed tiller swing
 --   * Yellow finishers
 --
 -- SIDE VIEW
---   * Black blade lift + subtle angle
---   * Rounded gray track body
---   * Six black road wheels
+--   * PB600-like proportions
+--   * Large rounded gray track
+--   * Six large black road wheels
+--   * Thin black chassis/body rail
+--   * Larger cab riding close to tracks
+--   * Lower rear deck
+--   * Blade lift + subtle angle
 --   * Tiller lift + angle
 --   * Tiller motor indicator
 --   * Yellow rear comb
---
--- CORRECTIONS IN THIS VERSION
---
---   Tiller swing:
---     Visual CH9 direction reversed
---
---   Track animation:
---     Visual belt direction reversed
---
---   Wings:
---     0 = Transport / 45 deg folded FORWARD
---     1 = Groom / straight in-line with main blade
---
---     Both wings fold toward screen-left/front of cat.
 --
 -- ============================================================
 
@@ -42,24 +32,19 @@ local options = {}
 -- ============================================================
 
 local function create(zone, options)
-
   return {
     zone = zone,
     options = options
   }
-
 end
 
 
 local function update(wgt, options)
-
   wgt.options = options
-
 end
 
 
 local function background(wgt)
-
 end
 
 
@@ -84,9 +69,6 @@ local COL_FWD =
 
 local COL_RED =
   lcd.RGB(180, 35, 30)
-
-local COL_RED_DARK =
-  lcd.RGB(95, 25, 22)
 
 local COL_YELLOW =
   lcd.RGB(225, 185, 25)
@@ -137,7 +119,6 @@ local WING_FULL_TIME =
 local OUTPUT_DEADBAND =
   0.025
 
-
 local LINKAGE_WIDTH =
   4
 
@@ -152,7 +133,6 @@ local MAX_BLADE_SLEW_DEG =
 local MAX_TILLER_SWING_DEG =
   32
 
-
 local TILLER_TOP_W =
   18
 
@@ -163,11 +143,8 @@ local TILLER_TOP_H =
 -- ------------------------------------------------------------
 -- WINGS
 --
--- 0 = UP / Transport
---     45 degrees forward
---
--- 1 = DOWN / Groom
---     straight with blade
+-- 0 = Transport / folded 45 degrees forward
+-- 1 = Groom / straight with blade
 -- ------------------------------------------------------------
 
 local WING_LENGTH =
@@ -217,6 +194,23 @@ local TRACK_ANIM_SPEED =
   55
 
 
+-- PB600 side-view proportions.
+local SIDE_TRACK_H =
+  34
+
+local SIDE_TRACK_RADIUS =
+  17
+
+local SIDE_TRACK_HALF_LENGTH =
+  63
+
+local SIDE_ROAD_WHEEL_R =
+  10
+
+local SIDE_CHASSIS_H =
+  16
+
+
 -- ============================================================
 -- HOME STATE
 -- ============================================================
@@ -241,21 +235,14 @@ local HOME_SLIDER_DEADBAND =
 local bladeSlewPos =
   0
 
-
--- Wings:
---
--- 0 = folded/up
--- 1 = deployed/straight
 local leftWingPos =
   0
 
 local rightWingPos =
   0
 
-
 local tillerSwingPos =
   0
-
 
 local trackPhaseL =
   0
@@ -263,13 +250,11 @@ local trackPhaseL =
 local trackPhaseR =
   0
 
-
 local finLPos =
   0
 
 local finRPos =
   0
-
 
 local bladeLiftPos =
   0
@@ -277,13 +262,11 @@ local bladeLiftPos =
 local bladeAnglePos =
   0
 
-
 local tillerLiftPos =
   0
 
 local tillerAnglePos =
   0
-
 
 local lastTime =
   getTime()
@@ -293,11 +276,7 @@ local lastTime =
 -- HELPERS
 -- ============================================================
 
-local function clamp(
-  v,
-  lo,
-  hi
-)
+local function clamp(v, lo, hi)
 
   if v < lo then
     return lo
@@ -459,15 +438,9 @@ local function integrateLift(
 
 
   if command > 0 then
-
-    rate =
-      1 / downFullTime
-
+    rate = 1 / downFullTime
   else
-
-    rate =
-      1 / upFullTime
-
+    rate = 1 / upFullTime
   end
 
 
@@ -550,10 +523,6 @@ local function integrateFinisher(
 end
 
 
--- Wings are positional 0..1:
---
--- 0 = folded/up
--- 1 = straight/down
 local function integrateWing(
   position,
   command,
@@ -587,9 +556,6 @@ end
 
 -- ============================================================
 -- TRACK ANIMATION
---
--- Direction intentionally inverted from output sign so the
--- displayed belt movement agrees with vehicle direction.
 -- ============================================================
 
 local function updateTrackAnimation(
@@ -616,6 +582,7 @@ local function updateTrackAnimation(
     trackPhaseL = trackPhaseL - 14
   end
 
+
   while trackPhaseL < 0 do
     trackPhaseL = trackPhaseL + 14
   end
@@ -624,6 +591,7 @@ local function updateTrackAnimation(
   while trackPhaseR >= 14 do
     trackPhaseR = trackPhaseR - 14
   end
+
 
   while trackPhaseR < 0 do
     trackPhaseR = trackPhaseR + 14
@@ -684,20 +652,17 @@ local function updateHomeState(
     bladeSlewPos =
       0
 
-
     leftWingPos =
       0
 
     rightWingPos =
       0
 
-
     tillerLiftPos =
       0
 
     tillerAnglePos =
       0
-
 
     finLPos =
       0
@@ -708,7 +673,6 @@ local function updateHomeState(
 
     homeArmed =
       true
-
 
     homeActive =
       false
@@ -722,7 +686,6 @@ local function updateHomeState(
 
     homeArmed =
       false
-
 
     homeActive =
       true
@@ -755,10 +718,6 @@ local function drawHeader(
   )
 
 
-  -- ----------------------------------------------------------
-  -- RIGHT STICK MODE
-  -- ----------------------------------------------------------
-
   local sc =
     getValue("sc") or 0
 
@@ -788,10 +747,6 @@ local function drawHeader(
     SMLSIZE + CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
-  -- COORDINATION MODE
-  -- ----------------------------------------------------------
 
   local sb =
     getValue("sb") or 0
@@ -843,10 +798,6 @@ local function drawHeader(
 
   end
 
-
-  -- ----------------------------------------------------------
-  -- MACHINE MODE
-  -- ----------------------------------------------------------
 
   local sd =
     getValue("sd") or 0
@@ -1038,7 +989,7 @@ local function drawTopBody(
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_RED_DARK
+    COL_RED
   )
 
 
@@ -1100,26 +1051,6 @@ end
 
 -- ============================================================
 -- TOP VIEW BLADE
---
--- Blade:
---   angular CH11 slew
---
--- Wings:
---
---   Transport:
---
---       \   /
---        | |
---        | |
---
---   Groom:
---
---       |
---       |
---       |
---       |
---
--- Both wings fold toward screen-left / vehicle front.
 -- ============================================================
 
 local function drawTopBlade(
@@ -1130,14 +1061,11 @@ local function drawTopBlade(
   local bladeX =
     cx - 124
 
-
   local bladeY =
     cy
 
-
   local bladeHalfHeight =
     61
-
 
   local bladeHalfWidth =
     8
@@ -1149,10 +1077,6 @@ local function drawTopBlade(
       MAX_BLADE_SLEW_DEG
     )
 
-
-  -- ----------------------------------------------------------
-  -- LINKAGE TARGETS
-  -- ----------------------------------------------------------
 
   local attachTopX, attachTopY =
     rotatePoint(
@@ -1200,10 +1124,6 @@ local function drawTopBlade(
   )
 
 
-  -- ----------------------------------------------------------
-  -- MAIN BLADE
-  -- ----------------------------------------------------------
-
   for i =
     -bladeHalfWidth,
     bladeHalfWidth
@@ -1211,11 +1131,9 @@ local function drawTopBlade(
 
     drawRotatedLine(
       bladeX + i,
-      bladeY -
-        bladeHalfHeight,
+      bladeY - bladeHalfHeight,
       bladeX + i,
-      bladeY +
-        bladeHalfHeight,
+      bladeY + bladeHalfHeight,
       bladeX,
       bladeY,
       bladeSlewAngle,
@@ -1226,15 +1144,10 @@ local function drawTopBlade(
   end
 
 
-  -- ----------------------------------------------------------
-  -- ROTATED TIP LOCATIONS
-  -- ----------------------------------------------------------
-
   local topTipX, topTipY =
     rotatePoint(
       bladeX,
-      bladeY -
-        bladeHalfHeight,
+      bladeY - bladeHalfHeight,
       bladeX,
       bladeY,
       bladeSlewAngle
@@ -1244,20 +1157,12 @@ local function drawTopBlade(
   local bottomTipX, bottomTipY =
     rotatePoint(
       bladeX,
-      bladeY +
-        bladeHalfHeight,
+      bladeY + bladeHalfHeight,
       bladeX,
       bladeY,
       bladeSlewAngle
     )
 
-
-  -- ----------------------------------------------------------
-  -- RELATIVE WING ANGLES
-  --
-  -- pos 0 -> 45 degrees forward
-  -- pos 1 -> 0 degrees / straight
-  -- ----------------------------------------------------------
 
   local leftRelativeDeg =
     WING_UP_ANGLE_DEG +
@@ -1277,13 +1182,6 @@ local function drawTopBlade(
     rightWingPos
 
 
-  -- IMPORTANT:
-  --
-  -- Both use +relativeDeg.
-  --
-  -- This makes BOTH upper and lower wing fold toward
-  -- screen-left rather than mirroring the lower wing toward
-  -- the snowcat.
   local leftAngle =
     bladeSlewAngle +
     math.rad(
@@ -1297,10 +1195,6 @@ local function drawTopBlade(
       rightRelativeDeg
     )
 
-
-  -- ----------------------------------------------------------
-  -- UPPER WING
-  -- ----------------------------------------------------------
 
   local leftEndX =
     topTipX -
@@ -1330,10 +1224,6 @@ local function drawTopBlade(
     WING_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- LOWER WING
-  -- ----------------------------------------------------------
 
   local rightEndX =
     bottomTipX -
@@ -1378,14 +1268,12 @@ local function drawTopTiller(
   local hitchX =
     cx + 61
 
-
   local hitchY =
     cy
 
 
   local tillerX =
     cx + 145
-
 
   local tillerY =
     cy
@@ -1397,10 +1285,6 @@ local function drawTopTiller(
       MAX_TILLER_SWING_DEG
     )
 
-
-  -- ----------------------------------------------------------
-  -- HITCH
-  -- ----------------------------------------------------------
 
   drawRotatedLine(
     hitchX,
@@ -1415,10 +1299,6 @@ local function drawTopTiller(
     LINKAGE_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- TILLER BODY
-  -- ----------------------------------------------------------
 
   for xx =
     -TILLER_TOP_W / 2,
@@ -1441,10 +1321,6 @@ local function drawTopTiller(
 
   end
 
-
-  -- ----------------------------------------------------------
-  -- UPPER FINISHER
-  -- ----------------------------------------------------------
 
   local finLH =
     FINISHER_UP_H +
@@ -1495,10 +1371,6 @@ local function drawTopTiller(
 
   end
 
-
-  -- ----------------------------------------------------------
-  -- LOWER FINISHER
-  -- ----------------------------------------------------------
 
   local finRH =
     FINISHER_UP_H +
@@ -1571,7 +1443,6 @@ local function drawTopView(
   local cx =
     x + 194
 
-
   local cy =
     y + 157
 
@@ -1642,6 +1513,16 @@ end
 
 -- ============================================================
 -- SIDE VIEW BODY
+--
+-- Revised to resemble actual PB600 proportions:
+--
+--      ________
+--     / CAB   |
+--    |        |____ deck
+--    |________|______
+--      BLACK CHASSIS
+--    ( ● ● ● ● ● ● )
+--
 -- ============================================================
 
 local function drawSideBody(
@@ -1649,20 +1530,33 @@ local function drawSideBody(
   cy
 )
 
-  local trackY =
-    cy + 18
-
-
-  local trackH =
-    30
-
+  -- ----------------------------------------------------------
+  -- TRACK GEOMETRY
+  --
+  -- Larger and more dominant than previous version.
+  -- ----------------------------------------------------------
 
   local trackCenterY =
-    cy + 33
+    cy + 30
+
+
+  local trackTop =
+    trackCenterY -
+    SIDE_TRACK_H / 2
+
+
+  local trackLeft =
+    cx -
+    SIDE_TRACK_HALF_LENGTH
+
+
+  local trackRight =
+    cx +
+    SIDE_TRACK_HALF_LENGTH
 
 
   -- ----------------------------------------------------------
-  -- TRACK BODY
+  -- GRAY TRACK BODY
   -- ----------------------------------------------------------
 
   lcd.setColor(
@@ -1672,33 +1566,33 @@ local function drawSideBody(
 
 
   lcd.drawFilledRectangle(
-    cx - 58,
-    trackY,
-    116,
-    trackH,
+    trackLeft,
+    trackTop,
+    SIDE_TRACK_HALF_LENGTH * 2,
+    SIDE_TRACK_H,
     CUSTOM_COLOR
   )
 
 
-  -- Rounded end caps.
+  -- Rounded track ends.
   lcd.drawFilledCircle(
-    cx - 58,
+    trackLeft,
     trackCenterY,
-    15,
+    SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
 
 
   lcd.drawFilledCircle(
-    cx + 58,
+    trackRight,
     trackCenterY,
-    15,
+    SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
 
 
   -- ----------------------------------------------------------
-  -- OUTLINE
+  -- TRACK OUTLINE
   -- ----------------------------------------------------------
 
   lcd.setColor(
@@ -1708,32 +1602,34 @@ local function drawSideBody(
 
 
   lcd.drawRectangle(
-    cx - 58,
-    trackY,
-    116,
-    trackH,
+    trackLeft,
+    trackTop,
+    SIDE_TRACK_HALF_LENGTH * 2,
+    SIDE_TRACK_H,
     CUSTOM_COLOR
   )
 
 
   lcd.drawCircle(
-    cx - 58,
+    trackLeft,
     trackCenterY,
-    15,
+    SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
 
 
   lcd.drawCircle(
-    cx + 58,
+    trackRight,
     trackCenterY,
-    15,
+    SIDE_TRACK_RADIUS,
     CUSTOM_COLOR
   )
 
 
   -- ----------------------------------------------------------
-  -- SIX BLACK ROAD WHEELS
+  -- SIX LARGE BLACK ROAD WHEELS
+  --
+  -- More closely matches the visible PB600 wheel proportion.
   -- ----------------------------------------------------------
 
   lcd.setColor(
@@ -1742,12 +1638,26 @@ local function drawSideBody(
   )
 
 
-  for wx = -45, 45, 18 do
+  local roadWheelSpacing =
+    20
+
+
+  local roadWheelStart =
+    -50
+
+
+  for i = 0, 5 do
+
+    local wheelX =
+      cx +
+      roadWheelStart +
+      i * roadWheelSpacing
+
 
     lcd.drawFilledCircle(
-      cx + wx,
+      wheelX,
       trackCenterY,
-      8,
+      SIDE_ROAD_WHEEL_R,
       CUSTOM_COLOR
     )
 
@@ -1755,41 +1665,66 @@ local function drawSideBody(
 
 
   -- ----------------------------------------------------------
-  -- CHASSIS
+  -- THIN BLACK CHASSIS / BODY RAIL
+  --
+  -- Replaces previous tall rust-colored rectangle.
+  -- Approximately half the previous height.
+  --
+  -- It sits immediately above the track.
   -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_RED_DARK
+    COL_BLACK
   )
+
+
+  local chassisBottom =
+    trackTop - 1
+
+
+  local chassisTop =
+    chassisBottom -
+    SIDE_CHASSIS_H
 
 
   lcd.drawFilledRectangle(
     cx - 67,
-    cy - 15,
+    chassisTop,
     132,
-    34,
+    SIDE_CHASSIS_H,
     CUSTOM_COLOR
   )
 
 
-  -- Deck.
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_METAL
-  )
+  -- ----------------------------------------------------------
+  -- LARGE CAB
+  --
+  -- Bigger than previous version.
+  -- Bottom nearly sits directly on chassis/track assembly.
+  -- ----------------------------------------------------------
+
+  local cabX =
+    cx - 56
 
 
-  lcd.drawFilledRectangle(
-    cx - 5,
-    cy - 34,
-    63,
-    20,
-    CUSTOM_COLOR
-  )
+  local cabW =
+    53
 
 
-  -- Cab.
+  local cabBottom =
+    chassisTop + 1
+
+
+  local cabH =
+    64
+
+
+  local cabY =
+    cabBottom -
+    cabH
+
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -1797,24 +1732,28 @@ local function drawSideBody(
 
 
   lcd.drawFilledRectangle(
-    cx - 54,
-    cy - 69,
-    46,
-    54,
+    cabX,
+    cabY,
+    cabW,
+    cabH,
     CUSTOM_COLOR
   )
 
 
+  -- Slight roof overhang.
   lcd.drawFilledRectangle(
-    cx - 58,
-    cy - 75,
-    55,
+    cabX - 4,
+    cabY - 7,
+    cabW + 8,
     7,
     CUSTOM_COLOR
   )
 
 
-  -- Glass.
+  -- ----------------------------------------------------------
+  -- CAB GLASS
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_GLASS
@@ -1822,10 +1761,39 @@ local function drawSideBody(
 
 
   lcd.drawFilledRectangle(
-    cx - 47,
-    cy - 59,
-    29,
-    27,
+    cabX + 8,
+    cabY + 10,
+    32,
+    30,
+    CUSTOM_COLOR
+  )
+
+
+  -- ----------------------------------------------------------
+  -- LOWER REAR DECK
+  --
+  -- Sits much closer to the black chassis than before.
+  -- ----------------------------------------------------------
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_METAL
+  )
+
+
+  local deckX =
+    cx - 1
+
+
+  local deckY =
+    chassisTop - 15
+
+
+  lcd.drawFilledRectangle(
+    deckX,
+    deckY,
+    61,
+    14,
     CUSTOM_COLOR
   )
 
@@ -1864,7 +1832,7 @@ local function drawSideBlade(
 
 
   local trackBottomY =
-    cy + 48
+    cy + 47
 
 
   local bladeHalfHeight =
@@ -1896,7 +1864,6 @@ local function drawSideBlade(
     )
 
 
-  -- Linkages.
   drawRotatedLine(
     cx - 64,
     cy - 9,
@@ -1923,7 +1890,6 @@ local function drawSideBlade(
   )
 
 
-  -- Blade.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -1986,7 +1952,7 @@ local function drawSideTiller(
 
 
   local trackBottomY =
-    cy + 48
+    cy + 47
 
 
   local tillerHalfHeight =
@@ -2028,10 +1994,6 @@ local function drawSideTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGE
-  -- ----------------------------------------------------------
-
   drawRotatedLine(
     cx + 64,
     cy - 7,
@@ -2057,10 +2019,6 @@ local function drawSideTiller(
     LINKAGE_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- TILLER HOUSING
-  -- ----------------------------------------------------------
 
   for i = -9, 9 do
 
@@ -2124,7 +2082,7 @@ local function drawSideTiller(
 
 
   -- ----------------------------------------------------------
-  -- COMB
+  -- YELLOW COMB
   -- ----------------------------------------------------------
 
   drawRotatedLine(
@@ -2197,9 +2155,9 @@ local function drawSideView(
 
   lcd.drawLine(
     x + 12,
-    cy + 48,
+    cy + 47,
     x + 379,
-    cy + 48,
+    cy + 47,
     DOTTED,
     CUSTOM_COLOR
   )
@@ -2298,10 +2256,6 @@ local function refresh(
   end
 
 
-  -- ----------------------------------------------------------
-  -- TIME
-  -- ----------------------------------------------------------
-
   local now =
     getTime()
 
@@ -2325,9 +2279,9 @@ local function refresh(
   end
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- TRACK SOURCES
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local leftTrack =
     norm(
@@ -2341,9 +2295,9 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- BLADE SOURCES
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local bladeLiftCmd =
     norm(
@@ -2375,9 +2329,9 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- TILLER SOURCES
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local tillerLiftCmd =
     norm(
@@ -2391,21 +2345,15 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
-  -- IMPORTANT:
-  --
-  -- Reverse visual swing direction.
-  -- ----------------------------------------------------------
-
   tillerSwingPos =
     -norm(
       getValue("ch9") or 0
     )
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- FINISHERS
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local finLCmd =
     norm(
@@ -2459,17 +2407,6 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
-  -- WINGS
-  --
-  -- Do NOT invert CH5/CH6 here.
-  --
-  -- Opening command must increase visual position toward 1.
-  --
-  -- 0 = 45° forward
-  -- 1 = in-line
-  -- ----------------------------------------------------------
-
   leftWingPos =
     integrateWing(
       leftWingPos,
@@ -2505,7 +2442,6 @@ local function refresh(
     )
 
 
-  -- Finisher output direction remains inverted.
   finLPos =
     integrateFinisher(
       finLPos,
