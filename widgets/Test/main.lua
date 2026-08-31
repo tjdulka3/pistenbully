@@ -7,6 +7,8 @@
 --   * Animated blade wings
 --   * Reversed tiller swing
 --   * Yellow finishers
+--   * Yellow tiller comb behind red tiller body
+--   * Black horizontal comb lines
 --
 -- SIDE VIEW
 --   * PB600-like proportions
@@ -148,6 +150,23 @@ local TILLER_TOP_H =
 
 
 -- ------------------------------------------------------------
+-- TOP-VIEW TILLER COMB
+-- ------------------------------------------------------------
+
+local TILLER_COMB_W =
+  14
+
+local TILLER_COMB_H =
+  108
+
+local TILLER_COMB_GAP =
+  3
+
+local TILLER_COMB_LINE_SPACING =
+  9
+
+
+-- ------------------------------------------------------------
 -- WINGS
 -- ------------------------------------------------------------
 
@@ -209,16 +228,10 @@ local SIDE_TRACK_HALF_LENGTH =
   76
 
 
--- Large road wheels.
---
--- Track interior height = 38 px.
--- Wheel diameter = 30 px, roughly 80% of full track height
--- and approximately 90% of the useful inner track space.
 local SIDE_ROAD_WHEEL_R =
   15
 
 
--- Thin black body/chassis rail.
 local SIDE_CHASSIS_H =
   14
 
@@ -1270,6 +1283,11 @@ end
 
 -- ============================================================
 -- TOP VIEW TILLER
+--
+-- Red tiller body
+-- Yellow comb immediately behind it
+-- Black horizontal lines across comb
+-- Yellow finishers above/below tiller
 -- ============================================================
 
 local function drawTopTiller(
@@ -1298,6 +1316,10 @@ local function drawTopTiller(
     )
 
 
+  -- ==========================================================
+  -- TILLER LINKAGE
+  -- ==========================================================
+
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1311,6 +1333,10 @@ local function drawTopTiller(
     LINKAGE_WIDTH
   )
 
+
+  -- ==========================================================
+  -- RED TILLER BODY
+  -- ==========================================================
 
   for xx =
     -TILLER_TOP_W / 2,
@@ -1333,6 +1359,87 @@ local function drawTopTiller(
 
   end
 
+
+  -- ==========================================================
+  -- YELLOW TILLER COMB
+  --
+  -- Front of cat is LEFT.
+  -- Comb sits immediately behind tiller toward screen RIGHT.
+  -- ==========================================================
+
+  local combLeft =
+    tillerX +
+    TILLER_TOP_W / 2 +
+    TILLER_COMB_GAP
+
+
+  local combRight =
+    combLeft +
+    TILLER_COMB_W
+
+
+  local combTop =
+    tillerY -
+    TILLER_COMB_H / 2
+
+
+  local combBottom =
+    tillerY +
+    TILLER_COMB_H / 2
+
+
+  -- Fill.
+  for xx =
+    combLeft,
+    combRight
+  do
+
+    drawRotatedLine(
+      xx,
+      combTop,
+      xx,
+      combBottom,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_YELLOW,
+      1
+    )
+
+  end
+
+
+  -- Black horizontal comb lines.
+  local combLineY =
+    combTop +
+    TILLER_COMB_LINE_SPACING
+
+
+  while combLineY < combBottom do
+
+    drawRotatedLine(
+      combLeft,
+      combLineY,
+      combRight,
+      combLineY,
+      hitchX,
+      hitchY,
+      swingAngle,
+      COL_BLACK,
+      2
+    )
+
+
+    combLineY =
+      combLineY +
+      TILLER_COMB_LINE_SPACING
+
+  end
+
+
+  -- ==========================================================
+  -- UPPER FINISHER
+  -- ==========================================================
 
   local finLH =
     FINISHER_UP_H +
@@ -1383,6 +1490,10 @@ local function drawTopTiller(
 
   end
 
+
+  -- ==========================================================
+  -- LOWER FINISHER
+  -- ==========================================================
 
   local finRH =
     FINISHER_UP_H +
@@ -1622,8 +1733,6 @@ local function drawSideBody(
 
   -- ==========================================================
   -- SIX LARGE BLACK ROAD WHEELS
-  --
-  -- Even spacing between the two rounded track ends.
   -- ==========================================================
 
   lcd.setColor(
@@ -1691,8 +1800,6 @@ local function drawSideBody(
 
   -- ==========================================================
   -- CAB
-  --
-  -- Main rectangular cab plus sloped triangular nose.
   -- ==========================================================
 
   local cabX =
@@ -1732,20 +1839,9 @@ local function drawSideBody(
   )
 
 
-  -- ----------------------------------------------------------
-  -- SLOPED FRONT NOSE
-  --
-  -- Narrow at top.
-  -- Wider at bottom.
-  --
-  --          |
-  --          |
-  --        / |
-  --      /   |
-  --    /_____|
-  --
-  -- Front of machine is LEFT on screen.
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- SLOPED CAB NOSE
+  -- ==========================================================
 
   local noseTopY =
     cabY + 6
@@ -1814,9 +1910,6 @@ local function drawSideBody(
 
   -- ==========================================================
   -- LARGE SLOPED WINDSHIELD
-  --
-  -- Rear edge vertical.
-  -- Front edge parallels cab nose.
   -- ==========================================================
 
   local glassTopY =
@@ -2144,7 +2237,10 @@ local function drawSideTiller(
   end
 
 
-  -- Motor indicator.
+  -- ==========================================================
+  -- MOTOR INDICATOR
+  -- ==========================================================
+
   local tillerMotor =
     getValue("ch14") or -1024
 
@@ -2185,7 +2281,10 @@ local function drawSideTiller(
   )
 
 
-  -- Yellow comb.
+  -- ==========================================================
+  -- YELLOW REAR COMB
+  -- ==========================================================
+
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -2380,7 +2479,10 @@ local function refresh(
   end
 
 
-  -- Track outputs.
+  -- ==========================================================
+  -- TRACK SOURCES
+  -- ==========================================================
+
   local leftTrack =
     norm(
       getValue("ch3") or 0
@@ -2393,7 +2495,10 @@ local function refresh(
     )
 
 
-  -- Blade.
+  -- ==========================================================
+  -- BLADE SOURCES
+  -- ==========================================================
+
   local bladeLiftCmd =
     norm(
       getValue("ch2") or 0
@@ -2424,7 +2529,10 @@ local function refresh(
     )
 
 
-  -- Tiller.
+  -- ==========================================================
+  -- TILLER SOURCES
+  -- ==========================================================
+
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
@@ -2443,7 +2551,10 @@ local function refresh(
     )
 
 
-  -- Finishers.
+  -- ==========================================================
+  -- FINISHERS
+  -- ==========================================================
+
   local finLCmd =
     norm(
       getValue("ch7") or 0
@@ -2464,9 +2575,9 @@ local function refresh(
     getLogicalSwitchValue(11)
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- POSITION INTEGRATION
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   bladeLiftPos =
     integrateLift(
@@ -2560,9 +2671,9 @@ local function refresh(
   )
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- DRAW
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   lcd.clear(
     COL_BACKGROUND
