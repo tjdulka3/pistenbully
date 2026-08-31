@@ -334,8 +334,10 @@ local SIDE_VIEW_CAT_Y_OFFSET =
 
 -- Gauges now live above the SIDE VIEW snowcat.
 -- The pair is centered in the 400 px right-hand view.
+-- Place the 142 px diameter gauges as high as possible
+-- within the side-view content area without clipping.
 local SIDE_GAUGE_CENTER_Y_OFFSET =
-  78
+  72
 
 -- Upper-right aligned within the 400 px SIDE VIEW panel.
 -- Gauge diameter is 142 px. Centers at 169 and 321 leave
@@ -355,23 +357,22 @@ local SIDE_GAUGE_SPACING =
 -- CH19 = Spotlights
 -- ------------------------------------------------------------
 
-local LIGHT_INDICATOR_Y_OFFSET =
-  72
-
+-- Stacked light telemetry in the upper-right corner
+-- of the TOP VIEW panel.
 local LIGHT_INDICATOR_RADIUS =
-  9
+  8
 
-local LIGHT_INDICATOR_LABEL_Y_OFFSET =
-  45
+local LIGHT_LIST_LABEL_X_OFFSET =
+  292
 
-local LIGHT_HEADLIGHT_X_OFFSET =
-  72
+local LIGHT_LIST_INDICATOR_X_OFFSET =
+  382
 
-local LIGHT_WARNING_X_OFFSET =
-  194
+local LIGHT_LIST_FIRST_Y_OFFSET =
+  18
 
-local LIGHT_SPOTLIGHT_X_OFFSET =
-  316
+local LIGHT_LIST_ROW_SPACING =
+  24
 
 local LIGHT_ON_THRESHOLD =
   0
@@ -2256,7 +2257,8 @@ end
 -- ============================================================
 
 local function drawLightIndicator(
-  cx,
+  labelX,
+  indicatorX,
   cy,
   label,
   channelName,
@@ -2283,6 +2285,24 @@ local function drawLightIndicator(
   end
 
 
+  -- Label first, indicator immediately to its right.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+
+  lcd.drawText(
+    labelX,
+    cy,
+    label,
+    SMLSIZE +
+    RIGHT +
+    VCENTER +
+    CUSTOM_COLOR
+  )
+
+
   lcd.setColor(
     CUSTOM_COLOR,
     fillColor
@@ -2290,7 +2310,7 @@ local function drawLightIndicator(
 
 
   lcd.drawFilledCircle(
-    cx,
+    indicatorX,
     cy,
     LIGHT_INDICATOR_RADIUS,
     CUSTOM_COLOR
@@ -2304,25 +2324,9 @@ local function drawLightIndicator(
 
 
   lcd.drawCircle(
-    cx,
+    indicatorX,
     cy,
     LIGHT_INDICATOR_RADIUS,
-    CUSTOM_COLOR
-  )
-
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_TEXT
-  )
-
-
-  lcd.drawText(
-    cx,
-    cy - 24,
-    label,
-    SMLSIZE +
-    CENTER +
     CUSTOM_COLOR
   )
 
@@ -2334,9 +2338,32 @@ local function drawTopLightTelemetry(
   y
 )
 
+  local labelX =
+    x + LIGHT_LIST_LABEL_X_OFFSET
+
+
+  local indicatorX =
+    x + LIGHT_LIST_INDICATOR_X_OFFSET
+
+
+  local row1Y =
+    y + LIGHT_LIST_FIRST_Y_OFFSET
+
+
+  local row2Y =
+    row1Y +
+    LIGHT_LIST_ROW_SPACING
+
+
+  local row3Y =
+    row2Y +
+    LIGHT_LIST_ROW_SPACING
+
+
   drawLightIndicator(
-    x + LIGHT_HEADLIGHT_X_OFFSET,
-    y + LIGHT_INDICATOR_Y_OFFSET,
+    labelX,
+    indicatorX,
+    row1Y,
     "HEADLIGHTS",
     "ch17",
     COL_WHITE
@@ -2344,8 +2371,9 @@ local function drawTopLightTelemetry(
 
 
   drawLightIndicator(
-    x + LIGHT_WARNING_X_OFFSET,
-    y + LIGHT_INDICATOR_Y_OFFSET,
+    labelX,
+    indicatorX,
+    row2Y,
     "WARNING",
     "ch18",
     COL_AMBER
@@ -2353,8 +2381,9 @@ local function drawTopLightTelemetry(
 
 
   drawLightIndicator(
-    x + LIGHT_SPOTLIGHT_X_OFFSET,
-    y + LIGHT_INDICATOR_Y_OFFSET,
+    labelX,
+    indicatorX,
+    row3Y,
     "SPOTLIGHTS",
     "ch19",
     COL_WHITE
