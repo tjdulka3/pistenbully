@@ -1797,7 +1797,7 @@ local function drawSideBody(
     6
 
     local wheelMargin =
-    8
+    4
 
     local wheelLeft =
     trackLeft +
