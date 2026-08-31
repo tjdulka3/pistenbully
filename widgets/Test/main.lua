@@ -10,10 +10,12 @@
 --
 -- SIDE VIEW
 --   * PB600-like proportions
---   * Large rounded gray track
+--   * Large rounded gray track body
 --   * Six large black road wheels
---   * Thin black chassis/body rail
---   * Larger cab riding close to tracks
+--   * Thin black chassis
+--   * Enlarged cab close to tracks
+--   * Sloped triangular cab nose
+--   * Large sloped windshield
 --   * Lower rear deck
 --   * Blade lift + subtle angle
 --   * Tiller lift + angle
@@ -32,19 +34,24 @@ local options = {}
 -- ============================================================
 
 local function create(zone, options)
+
   return {
     zone = zone,
     options = options
   }
+
 end
 
 
 local function update(wgt, options)
+
   wgt.options = options
+
 end
 
 
 local function background(wgt)
+
 end
 
 
@@ -142,9 +149,6 @@ local TILLER_TOP_H =
 
 -- ------------------------------------------------------------
 -- WINGS
---
--- 0 = Transport / folded 45 degrees forward
--- 1 = Groom / straight with blade
 -- ------------------------------------------------------------
 
 local WING_LENGTH =
@@ -194,21 +198,29 @@ local TRACK_ANIM_SPEED =
   55
 
 
--- PB600 side-view proportions.
+-- Larger PB600 track proportions.
 local SIDE_TRACK_H =
-  34
+  38
 
 local SIDE_TRACK_RADIUS =
-  17
+  19
 
 local SIDE_TRACK_HALF_LENGTH =
-  63
+  76
 
+
+-- Large road wheels.
+--
+-- Track interior height = 38 px.
+-- Wheel diameter = 30 px, roughly 80% of full track height
+-- and approximately 90% of the useful inner track space.
 local SIDE_ROAD_WHEEL_R =
-  10
+  15
 
+
+-- Thin black body/chassis rail.
 local SIDE_CHASSIS_H =
-  16
+  14
 
 
 -- ============================================================
@@ -1513,16 +1525,6 @@ end
 
 -- ============================================================
 -- SIDE VIEW BODY
---
--- Revised to resemble actual PB600 proportions:
---
---      ________
---     / CAB   |
---    |        |____ deck
---    |________|______
---      BLACK CHASSIS
---    ( ● ● ● ● ● ● )
---
 -- ============================================================
 
 local function drawSideBody(
@@ -1530,11 +1532,9 @@ local function drawSideBody(
   cy
 )
 
-  -- ----------------------------------------------------------
-  -- TRACK GEOMETRY
-  --
-  -- Larger and more dominant than previous version.
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- TRACK
+  -- ==========================================================
 
   local trackCenterY =
     cy + 30
@@ -1555,10 +1555,7 @@ local function drawSideBody(
     SIDE_TRACK_HALF_LENGTH
 
 
-  -- ----------------------------------------------------------
-  -- GRAY TRACK BODY
-  -- ----------------------------------------------------------
-
+  -- Gray track body.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
@@ -1574,7 +1571,7 @@ local function drawSideBody(
   )
 
 
-  -- Rounded track ends.
+  -- Rounded ends.
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
@@ -1591,10 +1588,7 @@ local function drawSideBody(
   )
 
 
-  -- ----------------------------------------------------------
-  -- TRACK OUTLINE
-  -- ----------------------------------------------------------
-
+  -- Track outline.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
@@ -1626,11 +1620,11 @@ local function drawSideBody(
   )
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- SIX LARGE BLACK ROAD WHEELS
   --
-  -- More closely matches the visible PB600 wheel proportion.
-  -- ----------------------------------------------------------
+  -- Even spacing between the two rounded track ends.
+  -- ==========================================================
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1638,20 +1632,23 @@ local function drawSideBody(
   )
 
 
-  local roadWheelSpacing =
-    20
+  local wheelLeft =
+    trackLeft + 16
 
 
-  local roadWheelStart =
-    -50
+  local wheelRight =
+    trackRight - 16
+
+
+  local wheelSpacing =
+    (wheelRight - wheelLeft) / 5
 
 
   for i = 0, 5 do
 
     local wheelX =
-      cx +
-      roadWheelStart +
-      i * roadWheelSpacing
+      wheelLeft +
+      wheelSpacing * i
 
 
     lcd.drawFilledCircle(
@@ -1664,20 +1661,9 @@ local function drawSideBody(
   end
 
 
-  -- ----------------------------------------------------------
-  -- THIN BLACK CHASSIS / BODY RAIL
-  --
-  -- Replaces previous tall rust-colored rectangle.
-  -- Approximately half the previous height.
-  --
-  -- It sits immediately above the track.
-  -- ----------------------------------------------------------
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_BLACK
-  )
-
+  -- ==========================================================
+  -- THIN BLACK CHASSIS
+  -- ==========================================================
 
   local chassisBottom =
     trackTop - 1
@@ -1688,28 +1674,33 @@ local function drawSideBody(
     SIDE_CHASSIS_H
 
 
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+
   lcd.drawFilledRectangle(
-    cx - 67,
+    cx - 72,
     chassisTop,
-    132,
+    142,
     SIDE_CHASSIS_H,
     CUSTOM_COLOR
   )
 
 
-  -- ----------------------------------------------------------
-  -- LARGE CAB
+  -- ==========================================================
+  -- CAB
   --
-  -- Bigger than previous version.
-  -- Bottom nearly sits directly on chassis/track assembly.
-  -- ----------------------------------------------------------
+  -- Main rectangular cab plus sloped triangular nose.
+  -- ==========================================================
 
   local cabX =
-    cx - 56
+    cx - 50
 
 
   local cabW =
-    53
+    49
 
 
   local cabBottom =
@@ -1717,7 +1708,7 @@ local function drawSideBody(
 
 
   local cabH =
-    64
+    68
 
 
   local cabY =
@@ -1725,6 +1716,7 @@ local function drawSideBody(
     cabH
 
 
+  -- Main red cab.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -1740,19 +1732,117 @@ local function drawSideBody(
   )
 
 
-  -- Slight roof overhang.
+  -- ----------------------------------------------------------
+  -- SLOPED FRONT NOSE
+  --
+  -- Narrow at top.
+  -- Wider at bottom.
+  --
+  --          |
+  --          |
+  --        / |
+  --      /   |
+  --    /_____|
+  --
+  -- Front of machine is LEFT on screen.
+  -- ----------------------------------------------------------
+
+  local noseTopY =
+    cabY + 6
+
+
+  local noseBottomY =
+    cabBottom
+
+
+  local noseTopX =
+    cabX
+
+
+  local noseBottomX =
+    cabX - 20
+
+
+  local noseHeight =
+    noseBottomY -
+    noseTopY
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_RED
+  )
+
+
+  for yy = 0, noseHeight do
+
+    local t =
+      yy /
+      noseHeight
+
+
+    local leftX =
+      noseTopX +
+      (
+        noseBottomX -
+        noseTopX
+      ) *
+      t
+
+
+    lcd.drawLine(
+      leftX,
+      noseTopY + yy,
+      cabX,
+      noseTopY + yy,
+      SOLID,
+      CUSTOM_COLOR
+    )
+
+  end
+
+
+  -- Roof overhang.
   lcd.drawFilledRectangle(
-    cabX - 4,
-    cabY - 7,
-    cabW + 8,
-    7,
+    cabX - 3,
+    cabY - 6,
+    cabW + 7,
+    6,
     CUSTOM_COLOR
   )
 
 
-  -- ----------------------------------------------------------
-  -- CAB GLASS
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- LARGE SLOPED WINDSHIELD
+  --
+  -- Rear edge vertical.
+  -- Front edge parallels cab nose.
+  -- ==========================================================
+
+  local glassTopY =
+    cabY + 10
+
+
+  local glassBottomY =
+    cabY + 46
+
+
+  local glassRearX =
+    cabX + 33
+
+
+  local glassFrontTopX =
+    cabX + 5
+
+
+  local glassFrontBottomX =
+    cabX - 7
+
+
+  local glassH =
+    glassBottomY -
+    glassTopY
+
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1760,20 +1850,37 @@ local function drawSideBody(
   )
 
 
-  lcd.drawFilledRectangle(
-    cabX + 8,
-    cabY + 10,
-    32,
-    30,
-    CUSTOM_COLOR
-  )
+  for yy = 0, glassH do
+
+    local t =
+      yy /
+      glassH
 
 
-  -- ----------------------------------------------------------
+    local glassFrontX =
+      glassFrontTopX +
+      (
+        glassFrontBottomX -
+        glassFrontTopX
+      ) *
+      t
+
+
+    lcd.drawLine(
+      glassFrontX,
+      glassTopY + yy,
+      glassRearX,
+      glassTopY + yy,
+      SOLID,
+      CUSTOM_COLOR
+    )
+
+  end
+
+
+  -- ==========================================================
   -- LOWER REAR DECK
-  --
-  -- Sits much closer to the black chassis than before.
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1786,14 +1893,14 @@ local function drawSideBody(
 
 
   local deckY =
-    chassisTop - 15
+    chassisTop - 13
 
 
   lcd.drawFilledRectangle(
     deckX,
     deckY,
-    61,
-    14,
+    67,
+    12,
     CUSTOM_COLOR
   )
 
@@ -1832,7 +1939,7 @@ local function drawSideBlade(
 
 
   local trackBottomY =
-    cy + 47
+    cy + 49
 
 
   local bladeHalfHeight =
@@ -1952,7 +2059,7 @@ local function drawSideTiller(
 
 
   local trackBottomY =
-    cy + 47
+    cy + 49
 
 
   local tillerHalfHeight =
@@ -2037,10 +2144,7 @@ local function drawSideTiller(
   end
 
 
-  -- ----------------------------------------------------------
-  -- MOTOR INDICATOR
-  -- ----------------------------------------------------------
-
+  -- Motor indicator.
   local tillerMotor =
     getValue("ch14") or -1024
 
@@ -2081,10 +2185,7 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- YELLOW COMB
-  -- ----------------------------------------------------------
-
+  -- Yellow comb.
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -2155,9 +2256,9 @@ local function drawSideView(
 
   lcd.drawLine(
     x + 12,
-    cy + 47,
+    cy + 49,
     x + 379,
-    cy + 47,
+    cy + 49,
     DOTTED,
     CUSTOM_COLOR
   )
@@ -2279,10 +2380,7 @@ local function refresh(
   end
 
 
-  -- ==========================================================
-  -- TRACK SOURCES
-  -- ==========================================================
-
+  -- Track outputs.
   local leftTrack =
     norm(
       getValue("ch3") or 0
@@ -2295,10 +2393,7 @@ local function refresh(
     )
 
 
-  -- ==========================================================
-  -- BLADE SOURCES
-  -- ==========================================================
-
+  -- Blade.
   local bladeLiftCmd =
     norm(
       getValue("ch2") or 0
@@ -2329,10 +2424,7 @@ local function refresh(
     )
 
 
-  -- ==========================================================
-  -- TILLER SOURCES
-  -- ==========================================================
-
+  -- Tiller.
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
@@ -2351,10 +2443,7 @@ local function refresh(
     )
 
 
-  -- ==========================================================
-  -- FINISHERS
-  -- ==========================================================
-
+  -- Finishers.
   local finLCmd =
     norm(
       getValue("ch7") or 0
@@ -2375,9 +2464,9 @@ local function refresh(
     getLogicalSwitchValue(11)
 
 
-  -- ==========================================================
+  -- ----------------------------------------------------------
   -- POSITION INTEGRATION
-  -- ==========================================================
+  -- ----------------------------------------------------------
 
   bladeLiftPos =
     integrateLift(
@@ -2471,9 +2560,9 @@ local function refresh(
   )
 
 
-  -- ==========================================================
+  -- ----------------------------------------------------------
   -- DRAW
-  -- ==========================================================
+  -- ----------------------------------------------------------
 
   lcd.clear(
     COL_BACKGROUND
