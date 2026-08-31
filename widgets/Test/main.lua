@@ -2040,6 +2040,121 @@ local function drawTopLightTelemetry(
 
 end
 
+-- STATUS BAR
+--
+-- Compact version of the machine-status logic from the
+-- previous operator panel. Kept visual-only here to avoid
+-- adding extra tone/CPU work to the optimized widget.
+
+local function getMachineStatus()
+
+  local sf =
+    getValue("sf") or 0
+
+  local sd =
+    getValue("sd") or 0
+
+  local thr =
+    getValue("thr") or 0
+
+  local bladeTransition =
+    getLogicalSwitchValue(10)
+
+  local tillerTransition =
+    getLogicalSwitchValue(11)
+
+  if sf > 0 then
+    return "E-STOP", COL_ALERT
+  end
+
+  if sd > 500
+    and thr < -50
+    and tillerTransition
+  then
+    return "REVERSE: TILLER LIFT", COL_AMBER
+  end
+
+  if bladeTransition
+    and tillerTransition
+  then
+    return "TRANSITION: BLADE + TILLER", COL_AMBER
+  end
+
+  if bladeTransition then
+    return "TRANSITION: BLADE", COL_AMBER
+  end
+
+  if tillerTransition then
+    return "TRANSITION: TILLER", COL_AMBER
+  end
+
+  if sd < -500 then
+    return "RUN: TRANSPORT", COL_FWD
+  end
+
+  if sd > 500 then
+    return "RUN: GROOM", COL_FWD
+  end
+
+  return "RUN: PLOW", COL_FWD
+
+end
+
+
+local function drawStatusBar(
+  x,
+  y
+)
+
+  local status, statusColor =
+    getMachineStatus()
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+  lcd.drawText(
+    x + 10,
+    y,
+    "STATUS:",
+    SMLSIZE + CUSTOM_COLOR
+  )
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    statusColor
+  )
+
+  lcd.drawText(
+    x + 72,
+    y,
+    status,
+    SMLSIZE + CUSTOM_COLOR
+  )
+
+  if homeActive then
+
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_ACTIVE
+    )
+
+    lcd.drawText(
+      x + 385,
+      y,
+      "HOME",
+      SMLSIZE +
+      RIGHT +
+      INVERS +
+      CUSTOM_COLOR
+    )
+
+  end
+
+end
+
+
 -- TOP VIEW
 
 local function drawTopView(
@@ -2119,6 +2234,12 @@ local function drawTopView(
       tillerSwingPos * 100
     ),
     SMLSIZE + CUSTOM_COLOR
+  )
+
+  -- Bottom status bar from the previous operator panel.
+  drawStatusBar(
+    x,
+    y + 318
   )
 
 end
@@ -2955,6 +3076,44 @@ local function drawSideView(
     SMLSIZE + CUSTOM_COLOR
   )
 
+
+  -- Third telemetry row.
+  --
+  -- Blade Tilt is a centered actuator output (-100..+100%).
+  local bladeTiltPct =
+    ((getValue("ch4") or 0) / 1024) * 100
+
+
+  -- Tiller motor CH14 uses -1024 as OFF and +1024 as full.
+  local tillerMotorPct =
+    clamp(
+      ((getValue("ch14") or -1024) + 1024) / 2048,
+      0,
+      1
+    ) * 100
+
+
+  lcd.drawText(
+    x + 10,
+    y + 318,
+    string.format(
+      "Blade Tilt %4.0f%%",
+      bladeTiltPct
+    ),
+    SMLSIZE + CUSTOM_COLOR
+  )
+
+
+  lcd.drawText(
+    x + 203,
+    y + 318,
+    string.format(
+      "Tiller Motor %3.0f%%",
+      tillerMotorPct
+    ),
+    SMLSIZE + CUSTOM_COLOR
+  )
+
 end
 
 -- REFRESH
@@ -3264,16 +3423,7 @@ local function refresh(
     400,
     50,
     400,
-    380,
-    SOLID,
-    CUSTOM_COLOR
-  )
-
-  lcd.drawLine(
-    0,
-    380,
-    800,
-    380,
+    400,
     SOLID,
     CUSTOM_COLOR
   )
