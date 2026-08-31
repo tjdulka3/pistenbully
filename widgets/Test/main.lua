@@ -331,11 +331,44 @@ local SIDE_VIEW_CAT_Y_OFFSET =
 local SIDE_GAUGE_CENTER_Y_OFFSET =
   78
 
+-- Upper-left aligned within the 400 px SIDE VIEW panel.
+-- Gauge diameter is 142 px, so centers at 79 and 231 keep
+-- the first gauge close to the left edge with a small gap.
 local SIDE_GAUGE_PAIR_CENTER_X_OFFSET =
-  200
+  155
 
 local SIDE_GAUGE_SPACING =
-  150
+  152
+
+
+-- ------------------------------------------------------------
+-- TOP-VIEW LIGHT TELEMETRY
+--
+-- CH17 = Headlights
+-- CH18 = Warning lights
+-- CH19 = Spotlights
+-- ------------------------------------------------------------
+
+local LIGHT_INDICATOR_Y_OFFSET =
+  72
+
+local LIGHT_INDICATOR_RADIUS =
+  9
+
+local LIGHT_INDICATOR_LABEL_Y_OFFSET =
+  45
+
+local LIGHT_HEADLIGHT_X_OFFSET =
+  72
+
+local LIGHT_WARNING_X_OFFSET =
+  194
+
+local LIGHT_SPOTLIGHT_X_OFFSET =
+  316
+
+local LIGHT_ON_THRESHOLD =
+  0
 
 
 -- ============================================================
@@ -2213,6 +2246,114 @@ end
 
 
 -- ============================================================
+-- LIGHT TELEMETRY
+-- ============================================================
+
+local function drawLightIndicator(
+  cx,
+  cy,
+  label,
+  channelName
+)
+
+  local output =
+    getValue(channelName) or -1024
+
+
+  local active =
+    output > LIGHT_ON_THRESHOLD
+
+
+  local fillColor =
+    COL_GRID
+
+
+  if active then
+
+    fillColor =
+      COL_YELLOW
+
+  end
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    fillColor
+  )
+
+
+  lcd.drawFilledCircle(
+    cx,
+    cy,
+    LIGHT_INDICATOR_RADIUS,
+    CUSTOM_COLOR
+  )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+
+  lcd.drawCircle(
+    cx,
+    cy,
+    LIGHT_INDICATOR_RADIUS,
+    CUSTOM_COLOR
+  )
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TEXT
+  )
+
+
+  lcd.drawText(
+    cx,
+    cy - 24,
+    label,
+    SMLSIZE +
+    CENTER +
+    CUSTOM_COLOR
+  )
+
+end
+
+
+local function drawTopLightTelemetry(
+  x,
+  y
+)
+
+  drawLightIndicator(
+    x + LIGHT_HEADLIGHT_X_OFFSET,
+    y + LIGHT_INDICATOR_Y_OFFSET,
+    "HEADLIGHTS",
+    "ch17"
+  )
+
+
+  drawLightIndicator(
+    x + LIGHT_WARNING_X_OFFSET,
+    y + LIGHT_INDICATOR_Y_OFFSET,
+    "WARNING",
+    "ch18"
+  )
+
+
+  drawLightIndicator(
+    x + LIGHT_SPOTLIGHT_X_OFFSET,
+    y + LIGHT_INDICATOR_Y_OFFSET,
+    "SPOTLIGHTS",
+    "ch19"
+  )
+
+end
+
+
+-- ============================================================
 -- TOP VIEW
 -- ============================================================
 
@@ -2234,6 +2375,16 @@ local function drawTopView(
   -- Snowcat moved lower to leave room for telemetry above.
   local cy =
     y + TOP_VIEW_CAT_Y_OFFSET
+
+
+  -- ==========================================================
+  -- LIGHT OUTPUT TELEMETRY
+  -- ==========================================================
+
+  drawTopLightTelemetry(
+    x,
+    y
+  )
 
 
 
