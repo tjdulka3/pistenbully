@@ -1926,12 +1926,12 @@ local function drawSideBody(
 
 
   local wheelLeft =
-    trackLeft +
+    trackLeft 
 
 
 
   local wheelRight =
-    trackRight -
+    trackRight 
 
 
 
