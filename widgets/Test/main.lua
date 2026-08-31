@@ -2146,20 +2146,15 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- CAB
+  -- CAB / ENGINE HOUSING
   --
-  -- The cab and rear deck now span the full track footprint.
-  -- The front is a long sloped nose, followed by the main cab,
-  -- then a low rear deck all the way to the back of the tracks.
+  -- The cab is moved forward so the lower leading edge of its
+  -- sloped nose aligns with the leading edge of the track.
+  --
+  -- Behind the cab is a red engine housing at half cab height,
+  -- followed by the gray rear deck.
   -- ==========================================================
 
-  local cabX =
-    cx - 34
-
-
-  -- Cab width reduced 25% from 56 px to 42 px.
-  -- Keeping the front of the rectangular cab in the same place
-  -- gives the recovered width to the rear deck.
   local cabW =
     42
 
@@ -2177,29 +2172,7 @@ local function drawSideBody(
     cabH
 
 
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_RED
-  )
-
-
-  lcd.drawFilledRectangle(
-    cabX,
-    cabY,
-    cabW,
-    cabH,
-    CUSTOM_COLOR
-  )
-
-
-  -- ==========================================================
-  -- SLOPED CAB FRONT
-  --
-  -- The cab front and windshield now use the SAME slope.
-  -- A common slope factor keeps the windshield parallel to
-  -- the red cab nose as the cab proportions change.
-  -- ==========================================================
-
+  -- Cab front and windshield share this slope.
   local cabFrontSlope =
     0.20
 
@@ -2212,19 +2185,25 @@ local function drawSideBody(
     cabBottom
 
 
-  local noseTopX =
-    cabX
-
-
   local noseHeight =
     noseBottomY -
     noseTopY
 
 
-  local noseBottomX =
-    noseTopX -
+  -- Position the rectangular part of the cab so the bottom
+  -- point of the sloped nose lands exactly at bodyFront.
+  local cabX =
+    bodyFront +
     noseHeight *
     cabFrontSlope
+
+
+  local noseTopX =
+    cabX
+
+
+  local noseBottomX =
+    bodyFront
 
 
   lcd.setColor(
@@ -2232,6 +2211,20 @@ local function drawSideBody(
     COL_RED
   )
 
+
+  -- Main rectangular cab.
+  lcd.drawFilledRectangle(
+    cabX,
+    cabY,
+    cabW,
+    cabH,
+    CUSTOM_COLOR
+  )
+
+
+  -- ==========================================================
+  -- SLOPED CAB FRONT
+  -- ==========================================================
 
   for yy = 0, noseHeight do
 
@@ -2253,8 +2246,7 @@ local function drawSideBody(
   end
 
 
-  -- Extend the lower red body forward so the sloped cab front
-  -- blends cleanly into the full-length black chassis.
+  -- Fill the lower nose area cleanly into the chassis.
   local noseBaseW =
     cabX -
     noseBottomX
@@ -2286,11 +2278,7 @@ local function drawSideBody(
   -- ==========================================================
   -- LARGE WINDSHIELD
   --
-  -- Scaled up to fill the reduced-width cab while keeping a
-  -- red border around it.
-  --
-  -- Its front edge uses exactly the same slope as the cab
-  -- front above.
+  -- Front edge uses exactly the same slope as the cab nose.
   -- ==========================================================
 
   local glassTopY =
@@ -2308,12 +2296,6 @@ local function drawSideBody(
 
   local glassFrontTopX =
     cabX + 3
-
-
-  local glassFrontBottomX =
-    glassFrontTopX -
-    glassH *
-    cabFrontSlope
 
 
   local glassRearX =
@@ -2349,6 +2331,89 @@ local function drawSideBody(
 
 
   -- ==========================================================
+  -- RED ENGINE HOUSING
+  --
+  -- Half the height of the cab and placed directly behind it.
+  -- ==========================================================
+
+  local engineX =
+    cabX +
+    cabW
+
+
+  local engineH =
+    math.floor(
+      cabH * 0.50
+    )
+
+
+  local engineY =
+    cabBottom -
+    engineH
+
+
+  -- Leave enough room at the rear for the gray deck.
+  local engineW =
+    54
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_RED
+  )
+
+
+  lcd.drawFilledRectangle(
+    engineX,
+    engineY,
+    engineW,
+    engineH,
+    CUSTOM_COLOR
+  )
+
+
+  -- ==========================================================
+  -- EXHAUST PIPE
+  --
+  -- Small gray rectangle centered on the engine housing.
+  -- ==========================================================
+
+  local exhaustW =
+    8
+
+
+  local exhaustH =
+    14
+
+
+  local exhaustX =
+    engineX +
+    math.floor(
+      (engineW - exhaustW) / 2
+    )
+
+
+  local exhaustY =
+    engineY -
+    exhaustH
+
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_METAL
+  )
+
+
+  lcd.drawFilledRectangle(
+    exhaustX,
+    exhaustY,
+    exhaustW,
+    exhaustH,
+    CUSTOM_COLOR
+  )
+
+
+  -- ==========================================================
   -- FULL-LENGTH REAR DECK
   -- ==========================================================
 
@@ -2359,8 +2424,8 @@ local function drawSideBody(
 
 
   local deckX =
-    cabX +
-    cabW
+    engineX +
+    engineW
 
 
   local deckY =
