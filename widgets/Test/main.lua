@@ -1783,52 +1783,50 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- SIX LARGE BLACK ROAD WHEELS
-  --
-  -- Wheels are distributed evenly from the front straight
-  -- section of the track to the rear straight section.
-  --
-  -- The same margin is used at both ends.
-  -- ==========================================================
+    -- SIX LARGE BLACK ROAD WHEELS
+    --
+    -- Evenly spaced front-to-back with equal end margins.
+    -- ==========================================================
 
-  lcd.setColor(
+   lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
-  )
-
-
-  local wheelLeft =
-    trackLeft +
-    SIDE_TRACK_RADIUS +
-    SIDE_ROAD_WHEEL_MARGIN
-
-
-  local wheelRight =
-    trackRight -
-    SIDE_TRACK_RADIUS -
-    SIDE_ROAD_WHEEL_MARGIN
-
-
-  local wheelSpacing =
-    (wheelRight - wheelLeft) /
-    (SIDE_ROAD_WHEEL_COUNT - 1)
-
-
-  for i = 0, SIDE_ROAD_WHEEL_COUNT - 1 do
-
-    local wheelX =
-      wheelLeft +
-      wheelSpacing * i
-
-
-    lcd.drawFilledCircle(
-      wheelX,
-      trackCenterY,
-      SIDE_ROAD_WHEEL_R,
-      CUSTOM_COLOR
     )
 
-  end
+    local wheelCount =
+    6
+
+    local wheelMargin =
+    8
+
+    local wheelLeft =
+    trackLeft +
+    SIDE_TRACK_RADIUS +
+    wheelMargin
+
+    local wheelRight =
+    trackRight -
+    SIDE_TRACK_RADIUS -
+    wheelMargin
+
+    local wheelSpacing =
+    (wheelRight - wheelLeft) /
+    (wheelCount - 1)
+
+    for i = 0, wheelCount - 1 do
+
+    local wheelX =
+        wheelLeft +
+        wheelSpacing * i
+
+    lcd.drawFilledCircle(
+        wheelX,
+        trackCenterY,
+        SIDE_ROAD_WHEEL_R,
+        CUSTOM_COLOR
+    )
+
+    end
 
 
   -- ==========================================================
