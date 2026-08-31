@@ -1801,12 +1801,12 @@ local function drawSideBody(
 
     local wheelLeft =
     trackLeft +
-    SIDE_TRACK_RADIUS +
+    SIDE_TRACK_RADIUS -
     wheelMargin
 
     local wheelRight =
     trackRight -
-    SIDE_TRACK_RADIUS -
+    SIDE_TRACK_RADIUS +
     wheelMargin
 
     local wheelSpacing =
