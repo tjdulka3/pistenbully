@@ -2155,8 +2155,10 @@ local function drawSideBody(
   -- followed by the gray rear deck.
   -- ==========================================================
 
+  -- Cab widened by the 27 px recovered from halving the
+  -- backpack/engine enclosure width.
   local cabW =
-    42
+    69
 
 
   local cabBottom =
@@ -2353,8 +2355,9 @@ local function drawSideBody(
 
 
   -- Leave enough room at the rear for the gray deck.
+  -- Backpack / engine enclosure is half its previous width.
   local engineW =
-    54
+    27
 
 
   lcd.setColor(
@@ -2378,12 +2381,13 @@ local function drawSideBody(
   -- Small gray rectangle centered on the engine housing.
   -- ==========================================================
 
+  -- Exhaust is 25% wider and 50% taller.
   local exhaustW =
-    8
+    10
 
 
   local exhaustH =
-    14
+    21
 
 
   local exhaustX =
