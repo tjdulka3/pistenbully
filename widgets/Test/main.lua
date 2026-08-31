@@ -27,9 +27,8 @@
 --   Visual range:
 --
 --      UP      = 45 degrees forward
---      DOWN    = 15 degrees rearward
---
---   Left actuator direction is reversed relative to right.
+--      STRAIGHT = 0 degrees
+--      FULL     = 15 degrees rearward
 --
 -- ============================================================
 
@@ -182,7 +181,7 @@ local TILLER_COMB_LINE_SPACING =
 -- wingPos = 1:
 --      15 degrees rearward
 --
--- Total displayed travel = 60 degrees.
+-- Straight is approximately 75% of travel.
 -- ------------------------------------------------------------
 
 local WING_LENGTH =
@@ -246,6 +245,16 @@ local SIDE_ROAD_WHEEL_R =
   15
 
 
+local SIDE_ROAD_WHEEL_COUNT =
+  6
+
+
+-- Margin measured inward from the start of the
+-- straight portion of the rounded track.
+local SIDE_ROAD_WHEEL_MARGIN =
+  8
+
+
 local SIDE_CHASSIS_H =
   14
 
@@ -275,7 +284,6 @@ local bladeSlewPos =
   0
 
 
--- Wing positions are 0..1.
 local leftWingPos =
   0
 
@@ -809,6 +817,7 @@ local function drawHeader(
       COL_ACTIVE
     )
 
+
     lcd.drawText(
       x + 570,
       y + 10,
@@ -824,6 +833,7 @@ local function drawHeader(
       COL_GRID
     )
 
+
     lcd.drawText(
       x + 570,
       y + 10,
@@ -838,6 +848,7 @@ local function drawHeader(
       CUSTOM_COLOR,
       COL_GRID
     )
+
 
     lcd.drawText(
       x + 570,
@@ -960,7 +971,9 @@ local function drawTopTrack(
 
   local p =
     -spacing +
-    math.floor(phase)
+    math.floor(
+      phase
+    )
 
 
   while p < w + spacing do
@@ -1218,17 +1231,7 @@ local function drawTopBlade(
 
 
   -- ----------------------------------------------------------
-  -- WING ANGLE MAPPING
-  --
-  -- pos 0 = +45 deg forward
-  -- pos 1 = -15 deg rearward
-  --
-  -- At pos = 0.75 the wing is exactly in line:
-  --
-  --   45 + (-15 - 45) * .75
-  --   = 0 degrees
-  --
-  -- This gives us useful travel slightly behind straight.
+  -- WING ANGLES
   -- ----------------------------------------------------------
 
   local leftRelativeDeg =
@@ -1361,7 +1364,10 @@ local function drawTopTiller(
     )
 
 
-  -- Linkage.
+  -- ----------------------------------------------------------
+  -- LINKAGE
+  -- ----------------------------------------------------------
+
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1376,7 +1382,10 @@ local function drawTopTiller(
   )
 
 
-  -- Red tiller body.
+  -- ----------------------------------------------------------
+  -- RED TILLER BODY
+  -- ----------------------------------------------------------
+
   for xx =
     -TILLER_TOP_W / 2,
     TILLER_TOP_W / 2
@@ -1424,6 +1433,7 @@ local function drawTopTiller(
     TILLER_COMB_H / 2
 
 
+  -- Yellow fill.
   for xx =
     combLeft,
     combRight
@@ -1444,6 +1454,7 @@ local function drawTopTiller(
   end
 
 
+  -- Horizontal black comb bars.
   local combLineY =
     combTop +
     TILLER_COMB_LINE_SPACING
@@ -1700,7 +1711,10 @@ local function drawSideBody(
     SIDE_TRACK_HALF_LENGTH
 
 
-  -- Gray track body.
+  -- ----------------------------------------------------------
+  -- GRAY TRACK BODY
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
@@ -1716,6 +1730,7 @@ local function drawSideBody(
   )
 
 
+  -- Rounded front and rear ends.
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
@@ -1732,7 +1747,10 @@ local function drawSideBody(
   )
 
 
-  -- Track outline.
+  -- ----------------------------------------------------------
+  -- TRACK OUTLINE
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
@@ -1767,13 +1785,10 @@ local function drawSideBody(
   -- ==========================================================
   -- SIX LARGE BLACK ROAD WHEELS
   --
-  -- First wheel center:
-  --   exactly one wheel radius inside front edge
+  -- Wheels are distributed evenly from the front straight
+  -- section of the track to the rear straight section.
   --
-  -- Last wheel center:
-  --   exactly one wheel radius inside rear edge
-  --
-  -- Remaining wheels evenly distributed between them.
+  -- The same margin is used at both ends.
   -- ==========================================================
 
   lcd.setColor(
@@ -1784,20 +1799,22 @@ local function drawSideBody(
 
   local wheelLeft =
     trackLeft +
-    SIDE_ROAD_WHEEL_R
+    SIDE_TRACK_RADIUS +
+    SIDE_ROAD_WHEEL_MARGIN
 
 
   local wheelRight =
     trackRight -
-    SIDE_ROAD_WHEEL_R
+    SIDE_TRACK_RADIUS -
+    SIDE_ROAD_WHEEL_MARGIN
 
 
   local wheelSpacing =
     (wheelRight - wheelLeft) /
-    5
+    (SIDE_ROAD_WHEEL_COUNT - 1)
 
 
-  for i = 0, 5 do
+  for i = 0, SIDE_ROAD_WHEEL_COUNT - 1 do
 
     local wheelX =
       wheelLeft +
@@ -2107,6 +2124,10 @@ local function drawSideBlade(
     )
 
 
+  -- ----------------------------------------------------------
+  -- LINKAGES
+  -- ----------------------------------------------------------
+
   drawRotatedLine(
     cx - 64,
     cy - 9,
@@ -2132,6 +2153,10 @@ local function drawSideBlade(
     LINKAGE_WIDTH
   )
 
+
+  -- ----------------------------------------------------------
+  -- BLADE
+  -- ----------------------------------------------------------
 
   for i = -7, 7 do
 
@@ -2237,7 +2262,10 @@ local function drawSideTiller(
     )
 
 
-  -- Linkages.
+  -- ----------------------------------------------------------
+  -- LINKAGES
+  -- ----------------------------------------------------------
+
   drawRotatedLine(
     cx + 64,
     cy - 7,
@@ -2264,7 +2292,10 @@ local function drawSideTiller(
   )
 
 
-  -- Tiller body.
+  -- ----------------------------------------------------------
+  -- TILLER BODY
+  -- ----------------------------------------------------------
+
   for i = -9, 9 do
 
     drawRotatedLine(
@@ -2282,7 +2313,10 @@ local function drawSideTiller(
   end
 
 
-  -- Motor indicator.
+  -- ----------------------------------------------------------
+  -- MOTOR INDICATOR
+  -- ----------------------------------------------------------
+
   local tillerMotor =
     getValue("ch14") or -1024
 
@@ -2323,7 +2357,10 @@ local function drawSideTiller(
   )
 
 
-  -- Yellow comb.
+  -- ----------------------------------------------------------
+  -- YELLOW SIDE-VIEW COMB
+  -- ----------------------------------------------------------
+
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -2495,6 +2532,10 @@ local function refresh(
   end
 
 
+  -- ==========================================================
+  -- TIME
+  -- ==========================================================
+
   local now =
     getTime()
 
@@ -2634,25 +2675,7 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
-  -- WINGS
-  --
-  -- IMPORTANT:
-  --
-  -- Physical CH5 and CH6 output directions are opposite.
-  --
-  -- Left wing:
-  --    reverse command
-  --
-  -- Right wing:
-  --    normal command
-  --
-  -- Both visual positions then increase:
-  --
-  --    0 -> 45 deg forward
-  --    1 -> 15 deg rearward
-  -- ----------------------------------------------------------
-
+  -- Left and right wing actuator directions are opposite.
   leftWingPos =
     integrateWing(
       leftWingPos,
