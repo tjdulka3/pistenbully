@@ -3,7 +3,7 @@
 --
 -- TOP VIEW
 --   * Animated tracks
---   * Black blade with angular slew
+--   * Black blade with ANGULAR slew
 --   * Animated blade wings
 --   * Tiller swing
 --   * Yellow finishers above/below tiller
@@ -16,10 +16,10 @@
 --
 -- BLADE SLEW
 --
---   CH11 is integrated as bladeSlewPos.
+--   CH11 controls angular blade rotation.
 --
---   Blade no longer slides closer/farther from the machine.
---   It rotates left/right in the top view.
+--   Blade center stays fixed.
+--   Blade rotates left/right around its center.
 --
 -- FINISHERS
 --
@@ -30,10 +30,9 @@
 --       short / flat
 --
 --   1 = DOWN
---       grows outward from fixed edge at tiller
+--       longer outward from fixed tiller-side edge
 --
---   CH7/CH8 visual integration is reversed to match the
---   observed physical direction.
+--   Visual command direction is inverted from CH7 / CH8.
 --
 -- BLADE WINGS
 --
@@ -44,9 +43,6 @@
 --
 --   CH14 == -1024  -> RED
 --   CH14 >  -1024  -> GREEN
---
--- SH:
---   Resets visual actuator positions to zero/home.
 --
 -- Designed for RadioMaster TX16S MK3
 -- Full screen: 800 x 400
@@ -173,6 +169,7 @@ local LINKAGE_WIDTH =
 -- TOP VIEW
 -- ------------------------------------------------------------
 
+-- Angular blade slew instead of lateral translation.
 local MAX_BLADE_SLEW_DEG =
   28
 
@@ -204,20 +201,20 @@ local MAX_WING_ANGLE_DEG =
 -- ------------------------------------------------------------
 -- FINISHERS
 --
--- Edge closest to tiller remains fixed.
+-- Inner edge remains fixed next to tiller.
 --
 -- UP:
---   shallow/flat
+--   shallow / flat
 --
 -- DOWN:
---   extends farther outward
+--   grows outward
 -- ------------------------------------------------------------
 
 local FINISHER_W =
   28
 
 local FINISHER_UP_H =
-  4
+  5
 
 local FINISHER_DOWN_H =
   22
@@ -264,10 +261,7 @@ local HOME_SLIDER_DEADBAND =
 -- PERSISTENT VISUAL STATE
 -- ============================================================
 
--- ------------------------------------------------------------
--- TOP VIEW
--- ------------------------------------------------------------
-
+-- Top view.
 local bladeSlewPos =
   0
 
@@ -287,8 +281,10 @@ local trackPhaseR =
   0
 
 
--- 0 = up
--- 1 = down
+-- Finishers.
+--
+-- 0 = UP
+-- 1 = DOWN
 local finLPos =
   0
 
@@ -296,10 +292,7 @@ local finRPos =
   0
 
 
--- ------------------------------------------------------------
--- SIDE VIEW
--- ------------------------------------------------------------
-
+-- Side view.
 local bladeLiftPos =
   0
 
@@ -357,12 +350,8 @@ end
 
 local function applyDeadband(v)
 
-  if math.abs(v) <=
-    OUTPUT_DEADBAND
-  then
-
+  if math.abs(v) <= OUTPUT_DEADBAND then
     return 0
-
   end
 
   return v
@@ -371,7 +360,7 @@ end
 
 
 -- ============================================================
--- ROTATION HELPERS
+-- ROTATION
 -- ============================================================
 
 local function rotatePoint(
@@ -669,13 +658,11 @@ local function updateHomeState(
 )
 
   local sh =
-    (getValue("sh") or 0)
-    > 500
+    (getValue("sh") or 0) > 500
 
 
   local homePressed =
-    sh
-    and not lastSh
+    sh and not lastSh
 
 
   lastSh =
@@ -690,11 +677,9 @@ local function updateHomeState(
 
 
   local wingsCentered =
-    math.abs(ls)
-      <= HOME_SLIDER_DEADBAND
+    math.abs(ls) <= HOME_SLIDER_DEADBAND
     and
-    math.abs(rs)
-      <= HOME_SLIDER_DEADBAND
+    math.abs(rs) <= HOME_SLIDER_DEADBAND
 
 
   local anyTransition =
@@ -715,17 +700,20 @@ local function updateHomeState(
     bladeSlewPos =
       0
 
+
     leftWingPos =
       0
 
     rightWingPos =
       0
 
+
     tillerLiftPos =
       0
 
     tillerAnglePos =
       0
+
 
     finLPos =
       0
@@ -750,6 +738,7 @@ local function updateHomeState(
 
     homeArmed =
       false
+
 
     homeActive =
       true
@@ -782,10 +771,6 @@ local function drawHeader(
   )
 
 
-  -- ----------------------------------------------------------
-  -- RIGHT STICK MODE
-  -- ----------------------------------------------------------
-
   local sc =
     getValue("sc") or 0
 
@@ -815,10 +800,6 @@ local function drawHeader(
     SMLSIZE + CUSTOM_COLOR
   )
 
-
-  -- ----------------------------------------------------------
-  -- SB MODE
-  -- ----------------------------------------------------------
 
   local sb =
     getValue("sb") or 0
@@ -873,10 +854,6 @@ local function drawHeader(
 
   end
 
-
-  -- ----------------------------------------------------------
-  -- MACHINE MODE
-  -- ----------------------------------------------------------
 
   local sd =
     getValue("sd") or 0
@@ -1171,9 +1148,12 @@ end
 -- ============================================================
 -- TOP VIEW BLADE
 --
--- Blade now rotates left/right around its own center for slew.
+-- Blade center remains stationary.
 --
--- Wings inherit blade slew.
+-- CH11 rotates blade around its center.
+--
+-- Wings inherit blade slew angle, then add their independent
+-- hinge angles.
 -- ============================================================
 
 local function drawTopBlade(
@@ -1181,7 +1161,6 @@ local function drawTopBlade(
   cy
 )
 
-  -- Blade remains at fixed distance from machine.
   local bladeX =
     cx - 124
 
@@ -1206,12 +1185,12 @@ local function drawTopBlade(
 
 
   -- ----------------------------------------------------------
-  -- ROTATED BLADE-SIDE LINKAGE ATTACHMENT POINTS
+  -- ROTATED BLADE ATTACHMENT POINTS
   -- ----------------------------------------------------------
 
   local attachTopX, attachTopY =
     rotatePoint(
-      bladeX + 17,
+      bladeX + 12,
       bladeY - 29,
       bladeX,
       bladeY,
@@ -1221,7 +1200,7 @@ local function drawTopBlade(
 
   local attachBottomX, attachBottomY =
     rotatePoint(
-      bladeX + 17,
+      bladeX + 12,
       bladeY + 29,
       bladeX,
       bladeY,
@@ -1230,7 +1209,7 @@ local function drawTopBlade(
 
 
   -- ----------------------------------------------------------
-  -- HEAVY BLACK LINKAGES
+  -- BLACK HEAVY LINKAGES
   -- ----------------------------------------------------------
 
   drawRotatedLine(
@@ -1284,79 +1263,66 @@ local function drawTopBlade(
 
 
   -- ----------------------------------------------------------
-  -- WINGS
-  --
-  -- First construct them in the blade's LOCAL coordinate
-  -- system, then rotate the whole geometry with blade slew.
+  -- BLADE TIP POSITIONS AFTER SLEW
   -- ----------------------------------------------------------
 
-  local maxWingAngle =
-    math.rad(
-      MAX_WING_ANGLE_DEG
+  local topTipX, topTipY =
+    rotatePoint(
+      bladeX,
+      bladeY - bladeHalfHeight,
+      bladeX,
+      bladeY,
+      bladeSlewAngle
+    )
+
+
+  local bottomTipX, bottomTipY =
+    rotatePoint(
+      bladeX,
+      bladeY + bladeHalfHeight,
+      bladeX,
+      bladeY,
+      bladeSlewAngle
     )
 
 
   -- ==========================================================
   -- LEFT / UPPER WING
+  --
+  -- First build wing direction in the blade's local frame.
+  -- Then add blade slew angle.
   -- ==========================================================
 
   local leftWingAngle =
+    bladeSlewAngle +
     leftWingPos *
-    maxWingAngle
+    math.rad(
+      MAX_WING_ANGLE_DEG
+    )
 
 
-  -- Local hinge point.
-  local leftBaseX =
-    bladeX
-
-  local leftBaseY =
-    bladeY -
-    bladeHalfHeight
-
-
-  -- Local wing tip before blade slew is applied.
-  local leftTipX =
-    leftBaseX -
+  -- Straight upper wing direction is -Y.
+  local leftEndX =
+    topTipX -
     math.sin(
       leftWingAngle
     ) *
     WING_LENGTH
 
 
-  local leftTipY =
-    leftBaseY -
+  local leftEndY =
+    topTipY -
     math.cos(
       leftWingAngle
     ) *
     WING_LENGTH
 
 
-  -- Rotate hinge and tip with the blade slew.
-  local leftBaseRX, leftBaseRY =
-    rotatePoint(
-      leftBaseX,
-      leftBaseY,
-      bladeX,
-      bladeY,
-      bladeSlewAngle
-    )
-
-
-  local leftTipRX, leftTipRY =
-    rotatePoint(
-      leftTipX,
-      leftTipY,
-      bladeX,
-      bladeY,
-      bladeSlewAngle
-    )
-
-
   drawRotatedLine(
-    leftBaseRX,
-    leftBaseRY,
-    leftTipRX,
-    leftTipRY,
+    topTipX,
+    topTipY,
+    leftEndX,
+    leftEndY,
     0,
     0,
     0,
@@ -1370,59 +1336,35 @@ local function drawTopBlade(
   -- ==========================================================
 
   local rightWingAngle =
+    bladeSlewAngle -
     rightWingPos *
-    maxWingAngle
+    math.rad(
+      MAX_WING_ANGLE_DEG
+    )
 
 
-  local rightBaseX =
-    bladeX
-
-  local rightBaseY =
-    bladeY +
-    bladeHalfHeight
-
-
-  local rightTipX =
-    rightBaseX -
+  -- Straight lower wing direction is +Y.
+  local rightEndX =
+    bottomTipX +
     math.sin(
       rightWingAngle
     ) *
     WING_LENGTH
 
 
-  local rightTipY =
-    rightBaseY +
+  local rightEndY =
+    bottomTipY +
     math.cos(
       rightWingAngle
     ) *
     WING_LENGTH
 
 
-  local rightBaseRX, rightBaseRY =
-    rotatePoint(
-      rightBaseX,
-      rightBaseY,
-      bladeX,
-      bladeY,
-      bladeSlewAngle
-    )
-
-
-  local rightTipRX, rightTipRY =
-    rotatePoint(
-      rightTipX,
-      rightTipY,
-      bladeX,
-      bladeY,
-      bladeSlewAngle
-    )
-
-
   drawRotatedLine(
-    rightBaseRX,
-    rightBaseRY,
-    rightTipRX,
-    rightTipRY,
+    bottomTipX,
+    bottomTipY,
+    rightEndX,
+    rightEndY,
     0,
     0,
     0,
@@ -1465,10 +1407,7 @@ local function drawTopTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- HEAVY BLACK HITCH
-  -- ----------------------------------------------------------
-
+  -- Black heavy hitch.
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1579,12 +1518,13 @@ local function drawTopTiller(
 
 
   -- ==========================================================
-  -- UPPER / LEFT FINISHER
+  -- UPPER FINISHER
   --
-  -- Fixed inner/bottom edge.
+  -- finLPos:
+  --   0 = short / UP
+  --   1 = long / DOWN
   --
-  -- UP   = short
-  -- DOWN = grows upward / outward
+  -- Bottom edge stays fixed.
   -- ==========================================================
 
   local finLH =
@@ -1617,10 +1557,7 @@ local function drawTopTiller(
     FINISHER_W / 2
 
 
-  for yy =
-    finLTop,
-    finLBottom
-  do
+  for yy = finLTop, finLBottom do
 
     drawRotatedLine(
       finLLeft,
@@ -1637,65 +1574,10 @@ local function drawTopTiller(
   end
 
 
-  drawRotatedLine(
-    finLLeft,
-    finLTop,
-    finLRight,
-    finLTop,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finLLeft,
-    finLBottom,
-    finLRight,
-    finLBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finLLeft,
-    finLTop,
-    finLLeft,
-    finLBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finLRight,
-    finLTop,
-    finLRight,
-    finLBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
   -- ==========================================================
-  -- LOWER / RIGHT FINISHER
+  -- LOWER FINISHER
   --
-  -- Fixed inner/top edge.
-  --
-  -- UP   = short
-  -- DOWN = grows downward / outward
+  -- Top edge stays fixed.
   -- ==========================================================
 
   local finRH =
@@ -1728,10 +1610,7 @@ local function drawTopTiller(
     FINISHER_W / 2
 
 
-  for yy =
-    finRTop,
-    finRBottom
-  do
+  for yy = finRTop, finRBottom do
 
     drawRotatedLine(
       finRLeft,
@@ -1746,58 +1625,6 @@ local function drawTopTiller(
     )
 
   end
-
-
-  drawRotatedLine(
-    finRLeft,
-    finRTop,
-    finRRight,
-    finRTop,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finRLeft,
-    finRBottom,
-    finRRight,
-    finRBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finRLeft,
-    finRTop,
-    finRLeft,
-    finRBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
-
-
-  drawRotatedLine(
-    finRRight,
-    finRTop,
-    finRRight,
-    finRBottom,
-    hitchX,
-    hitchY,
-    swingAngle,
-    COL_BLACK,
-    1
-  )
 
 end
 
@@ -2076,7 +1903,7 @@ local function drawSideBlade(
     )
 
 
-  -- Heavy black linkages.
+  -- Black heavy linkage.
   drawRotatedLine(
     cx - 64,
     cy - 9,
@@ -2103,7 +1930,7 @@ local function drawSideBlade(
   )
 
 
-  -- Black blade.
+  -- Black animated blade.
   for i = -7, 7 do
 
     drawRotatedLine(
@@ -2119,58 +1946,6 @@ local function drawSideBlade(
     )
 
   end
-
-
-  drawRotatedLine(
-    bladeX - 8,
-    bladeY - bladeHalfHeight,
-    bladeX - 8,
-    bladeY + bladeHalfHeight,
-    bladeX,
-    bladeY,
-    bladeAngle,
-    COL_BLACK,
-    3
-  )
-
-
-  drawRotatedLine(
-    bladeX + 8,
-    bladeY - bladeHalfHeight,
-    bladeX + 8,
-    bladeY + bladeHalfHeight,
-    bladeX,
-    bladeY,
-    bladeAngle,
-    COL_BLACK,
-    2
-  )
-
-
-  drawRotatedLine(
-    bladeX - 8,
-    bladeY - bladeHalfHeight,
-    bladeX + 8,
-    bladeY - bladeHalfHeight,
-    bladeX,
-    bladeY,
-    bladeAngle,
-    COL_BLACK,
-    2
-  )
-
-
-  drawRotatedLine(
-    bladeX - 8,
-    bladeY + bladeHalfHeight,
-    bladeX + 8,
-    bladeY + bladeHalfHeight,
-    bladeX,
-    bladeY,
-    bladeAngle,
-    COL_BLACK,
-    2
-  )
 
 end
 
@@ -2258,7 +2033,7 @@ local function drawSideTiller(
     )
 
 
-  -- Heavy black linkage.
+  -- Black heavy linkage.
   drawRotatedLine(
     cx + 64,
     cy - 7,
@@ -2338,7 +2113,10 @@ local function drawSideTiller(
 
 
   if motorActive then
-    motorColor = COL_FWD
+
+    motorColor =
+      COL_FWD
+
   end
 
 
@@ -2374,10 +2152,7 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- YELLOW REAR COMB
-  -- ----------------------------------------------------------
-
+  -- Yellow comb.
   drawRotatedLine(
     tillerX + 31,
     tillerY + 7,
@@ -2607,7 +2382,6 @@ local function refresh(
 
 
   -- Blade.
-
   local bladeLiftCmd =
     norm(
       getValue("ch2") or 0
@@ -2639,7 +2413,6 @@ local function refresh(
 
 
   -- Tiller.
-
   local tillerLiftCmd =
     norm(
       getValue("ch12") or 0
@@ -2659,7 +2432,6 @@ local function refresh(
 
 
   -- Finishers.
-
   local finLCmd =
     norm(
       getValue("ch7") or 0
@@ -2716,10 +2488,6 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
-  -- WINGS
-  -- ----------------------------------------------------------
-
   leftWingPos =
     integrateWing(
       leftWingPos,
@@ -2735,10 +2503,6 @@ local function refresh(
       dt
     )
 
-
-  -- ----------------------------------------------------------
-  -- TILLER
-  -- ----------------------------------------------------------
 
   tillerLiftPos =
     integrateLift(
@@ -2762,9 +2526,15 @@ local function refresh(
   -- ----------------------------------------------------------
   -- FINISHERS
   --
-  -- Reverse visual command direction so physical raise causes
-  -- visual position to move toward 0 (UP), and physical lower
-  -- causes visual position to move toward 1 (DOWN).
+  -- IMPORTANT:
+  --
+  -- CH7 / CH8 command direction is opposite the desired
+  -- display position convention.
+  --
+  -- Therefore command is inverted here.
+  --
+  -- pos = 0 -> UP / short
+  -- pos = 1 -> DOWN / long
   -- ----------------------------------------------------------
 
   finLPos =
@@ -2783,20 +2553,12 @@ local function refresh(
     )
 
 
-  -- ----------------------------------------------------------
-  -- TRACKS
-  -- ----------------------------------------------------------
-
   updateTrackAnimation(
     leftTrack,
     rightTrack,
     dt
   )
 
-
-  -- ----------------------------------------------------------
-  -- HOME
-  -- ----------------------------------------------------------
 
   updateHomeState(
     bladeTransition,
@@ -2836,7 +2598,10 @@ local function refresh(
 
 
     if movement then
-      homeActive = false
+
+      homeActive =
+        false
+
     end
 
   end
