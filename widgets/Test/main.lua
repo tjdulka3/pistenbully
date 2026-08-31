@@ -1786,7 +1786,7 @@ local function drawAnalogGauge(
 
     lcd.drawText(
       tx,
-      ty,
+      ty-20,
       string.format(
         "%d",
         tickValue
