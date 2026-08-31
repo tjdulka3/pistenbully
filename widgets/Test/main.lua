@@ -2157,8 +2157,11 @@ local function drawSideBody(
     cx - 34
 
 
+  -- Cab width reduced 25% from 56 px to 42 px.
+  -- Keeping the front of the rectangular cab in the same place
+  -- gives the recovered width to the rear deck.
   local cabW =
-    56
+    42
 
 
   local cabBottom =
@@ -2273,16 +2276,19 @@ local function drawSideBody(
     cabY + 46
 
 
+  -- Windshield narrowed to match the smaller cab.
   local glassRearX =
-    cabX + 40
+    cabX + 31
 
 
+  -- Steeper windshield:
+  -- only 7 px of forward sweep from top to bottom instead of 16.
   local glassFrontTopX =
-    cabX + 5
+    cabX + 4
 
 
   local glassFrontBottomX =
-    cabX - 11
+    cabX - 3
 
 
   local glassH =
