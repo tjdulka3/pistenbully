@@ -2424,10 +2424,17 @@ local function drawSideTiller(
   local tillerMotor =
     getValue("ch14") or -1024
 
+  local tillerMotorSpeed =
+    getValue("s1") or -1024
 
   local motorColor =
-    COL_ALERT
+    COL_GLASS
 
+  if tillerMotorSpeed > -1024 then
+    motorColor = COL_YELLOW
+  else
+    motorColor = COL_GLASS
+  end
 
   if tillerMotor > -1024 then
 
