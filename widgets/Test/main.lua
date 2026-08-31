@@ -217,6 +217,10 @@ local WING_UP_ANGLE_DEG =
 local WING_DOWN_ANGLE_DEG =
   -15
 
+local WING_STRAIGHT_POS =
+  WING_UP_ANGLE_DEG /
+  (WING_UP_ANGLE_DEG - WING_DOWN_ANGLE_DEG)
+
 
 -- ------------------------------------------------------------
 -- FINISHERS
@@ -304,6 +308,15 @@ local leftWingPos =
   0
 
 local rightWingPos =
+  0
+
+local lastWingMode =
+  nil
+
+local wingModeMoving =
+  false
+
+local wingModeTarget =
   0
 
 local tillerSwingPos =
@@ -609,6 +622,78 @@ local function integrateWing(
     dt /
     WING_FULL_TIME
 
+
+  return clamp(
+    position,
+    0,
+    1
+  )
+
+end
+
+
+-- ============================================================
+-- WING MODE ANIMATION
+-- ============================================================
+
+local function getWingMode()
+
+  local sd =
+    getValue("sd") or 0
+
+  if sd < -500 then
+    return "TRANSPORT"
+  end
+
+  if sd > 500 then
+    return "GROOM"
+  end
+
+  return "PLOW"
+
+end
+
+
+local function getWingModeTarget(mode)
+
+  if mode == "TRANSPORT" then
+    return 0
+  end
+
+  return WING_STRAIGHT_POS
+
+end
+
+
+local function moveWingToward(
+  position,
+  target,
+  dt
+)
+
+  local step =
+    dt /
+    WING_FULL_TIME
+
+  if position < target then
+
+    position =
+      position + step
+
+    if position > target then
+      position = target
+    end
+
+  elseif position > target then
+
+    position =
+      position - step
+
+    if position < target then
+      position = target
+    end
+
+  end
 
   return clamp(
     position,
@@ -1414,34 +1499,55 @@ local function drawTopBlade(
     rightWingPos
 
 
-  local leftAngle =
-    bladeSlewAngle +
+  -- Angles are relative to the main blade:
+  --   +45 = folded forward (toward screen-left)
+  --     0 = exactly in-line with blade
+  --   -15 = rearward
+  --
+  -- Build each wing endpoint in the blade's LOCAL coordinate
+  -- system first, then rotate that endpoint with blade slew.
+  -- This guarantees the Transport shape looks like a shallow
+  -- close-parenthesis: both wing tips are forward of the blade.
+
+  local leftRelativeRad =
     math.rad(
       leftRelativeDeg
     )
 
 
-  local rightAngle =
-    bladeSlewAngle +
+  local rightRelativeRad =
     math.rad(
       rightRelativeDeg
     )
 
 
-  local leftEndX =
-    topTipX +
-    math.cos(
-      leftAngle
-    ) *
-    WING_LENGTH
-
-
-  local leftEndY =
-    topTipY +
+  -- Upper / left wing local endpoint:
+  -- forward means LEFT + UP.
+  local leftLocalEndX =
+    bladeX -
     math.sin(
-      leftAngle
+      leftRelativeRad
     ) *
     WING_LENGTH
+
+
+  local leftLocalEndY =
+    bladeY -
+    bladeHalfHeight -
+    math.cos(
+      leftRelativeRad
+    ) *
+    WING_LENGTH
+
+
+  local leftEndX, leftEndY =
+    rotatePoint(
+      leftLocalEndX,
+      leftLocalEndY,
+      bladeX,
+      bladeY,
+      bladeSlewAngle
+    )
 
 
   drawRotatedLine(
@@ -1457,20 +1563,33 @@ local function drawTopBlade(
   )
 
 
-  local rightEndX =
-    bottomTipX +
-    math.cos(
-      rightAngle
-    ) *
-    WING_LENGTH
-
-
-  local rightEndY =
-    bottomTipY -
+  -- Lower / right wing local endpoint:
+  -- forward means LEFT + DOWN.
+  local rightLocalEndX =
+    bladeX -
     math.sin(
-      rightAngle
+      rightRelativeRad
     ) *
     WING_LENGTH
+
+
+  local rightLocalEndY =
+    bladeY +
+    bladeHalfHeight +
+    math.cos(
+      rightRelativeRad
+    ) *
+    WING_LENGTH
+
+
+  local rightEndX, rightEndY =
+    rotatePoint(
+      rightLocalEndX,
+      rightLocalEndY,
+      bladeX,
+      bladeY,
+      bladeSlewAngle
+    )
 
 
   drawRotatedLine(
@@ -2782,21 +2901,115 @@ local function refresh(
     )
 
 
-  -- Left and right wing actuator directions are opposite.
-  leftWingPos =
-    integrateWing(
-      leftWingPos,
-      -leftWingCmd,
-      dt
-    )
+  -- ==========================================================
+  -- WING POSITION
+  --
+  -- Automatic mode moves use SD directly so the display does
+  -- not depend on short CH5/CH6 output pulses.
+  --
+  -- TRANSPORT = 45 degrees forward
+  -- PLOW      = in-line with blade
+  -- GROOM     = in-line with blade
+  -- ==========================================================
+
+  local currentWingMode =
+    getWingMode()
 
 
-  rightWingPos =
-    integrateWing(
-      rightWingPos,
-      rightWingCmd,
-      dt
-    )
+  if lastWingMode == nil then
+
+    lastWingMode =
+      currentWingMode
+
+    wingModeTarget =
+      getWingModeTarget(
+        currentWingMode
+      )
+
+    leftWingPos =
+      wingModeTarget
+
+    rightWingPos =
+      wingModeTarget
+
+    wingModeMoving =
+      false
+
+
+  elseif currentWingMode ~= lastWingMode then
+
+    lastWingMode =
+      currentWingMode
+
+    wingModeTarget =
+      getWingModeTarget(
+        currentWingMode
+      )
+
+    wingModeMoving =
+      true
+
+  end
+
+
+  if wingModeMoving then
+
+    leftWingPos =
+      moveWingToward(
+        leftWingPos,
+        wingModeTarget,
+        dt
+      )
+
+
+    rightWingPos =
+      moveWingToward(
+        rightWingPos,
+        wingModeTarget,
+        dt
+      )
+
+
+    if math.abs(
+      leftWingPos -
+      wingModeTarget
+    ) < 0.001
+      and
+      math.abs(
+        rightWingPos -
+        wingModeTarget
+      ) < 0.001
+    then
+
+      leftWingPos =
+        wingModeTarget
+
+      rightWingPos =
+        wingModeTarget
+
+      wingModeMoving =
+        false
+
+    end
+
+  else
+
+    leftWingPos =
+      integrateWing(
+        leftWingPos,
+        -leftWingCmd,
+        dt
+      )
+
+
+    rightWingPos =
+      integrateWing(
+        rightWingPos,
+        rightWingCmd,
+        dt
+      )
+
+  end
 
 
   tillerLiftPos =
