@@ -2,7 +2,9 @@
 -- PB600 OPERATOR DASHBOARD
 --
 -- TOP VIEW
---   * Animated tracks
+--   * Animated PistenBully-style tracks
+--   * Vertical alternating 100% / 80% grousers
+--   * 80% grousers anchored at cat side
 --   * Black blade with angular slew
 --   * Animated blade wings
 --   * Reversed tiller swing
@@ -26,7 +28,7 @@
 --
 --   Visual range:
 --
---      UP      = 45 degrees forward
+--      UP       = 45 degrees forward
 --      STRAIGHT = 0 degrees
 --      FULL     = 15 degrees rearward
 --
@@ -156,6 +158,25 @@ local TILLER_TOP_H =
 
 
 -- ------------------------------------------------------------
+-- TOP-VIEW TRACKS
+-- ------------------------------------------------------------
+
+-- Original track width was 25 pixels.
+-- 38 pixels is approximately 50% wider.
+local TOP_TRACK_W =
+  38
+
+local TOP_TRACK_LENGTH =
+  148
+
+local TOP_TRACK_GROUSER_SPACING =
+  12
+
+local TOP_TRACK_SHORT_GROUSER =
+  0.80
+
+
+-- ------------------------------------------------------------
 -- TOP-VIEW TILLER COMB
 -- ------------------------------------------------------------
 
@@ -244,13 +265,9 @@ local SIDE_TRACK_HALF_LENGTH =
 local SIDE_ROAD_WHEEL_R =
   15
 
-
 local SIDE_ROAD_WHEEL_COUNT =
   6
 
-
--- Margin measured inward from the start of the
--- straight portion of the rounded track.
 local SIDE_ROAD_WHEEL_MARGIN =
   8
 
@@ -283,17 +300,14 @@ local HOME_SLIDER_DEADBAND =
 local bladeSlewPos =
   0
 
-
 local leftWingPos =
   0
 
 local rightWingPos =
   0
 
-
 local tillerSwingPos =
   0
-
 
 local trackPhaseL =
   0
@@ -301,13 +315,11 @@ local trackPhaseL =
 local trackPhaseR =
   0
 
-
 local finLPos =
   0
 
 local finRPos =
   0
-
 
 local bladeLiftPos =
   0
@@ -315,13 +327,11 @@ local bladeLiftPos =
 local bladeAnglePos =
   0
 
-
 local tillerLiftPos =
   0
 
 local tillerAnglePos =
   0
-
 
 local lastTime =
   getTime()
@@ -633,23 +643,31 @@ local function updateTrackAnimation(
     dt
 
 
-  while trackPhaseL >= 14 do
-    trackPhaseL = trackPhaseL - 14
+  while trackPhaseL >= TOP_TRACK_GROUSER_SPACING do
+    trackPhaseL =
+      trackPhaseL -
+      TOP_TRACK_GROUSER_SPACING
   end
 
 
   while trackPhaseL < 0 do
-    trackPhaseL = trackPhaseL + 14
+    trackPhaseL =
+      trackPhaseL +
+      TOP_TRACK_GROUSER_SPACING
   end
 
 
-  while trackPhaseR >= 14 do
-    trackPhaseR = trackPhaseR - 14
+  while trackPhaseR >= TOP_TRACK_GROUSER_SPACING do
+    trackPhaseR =
+      trackPhaseR -
+      TOP_TRACK_GROUSER_SPACING
   end
 
 
   while trackPhaseR < 0 do
-    trackPhaseR = trackPhaseR + 14
+    trackPhaseR =
+      trackPhaseR +
+      TOP_TRACK_GROUSER_SPACING
   end
 
 end
@@ -707,13 +725,11 @@ local function updateHomeState(
     bladeSlewPos =
       0
 
-
     leftWingPos =
       0
 
     rightWingPos =
       0
-
 
     tillerLiftPos =
       0
@@ -721,13 +737,11 @@ local function updateHomeState(
     tillerAnglePos =
       0
 
-
     finLPos =
       0
 
     finRPos =
       0
-
 
     homeArmed =
       true
@@ -817,7 +831,6 @@ local function drawHeader(
       COL_ACTIVE
     )
 
-
     lcd.drawText(
       x + 570,
       y + 10,
@@ -833,7 +846,6 @@ local function drawHeader(
       COL_GRID
     )
 
-
     lcd.drawText(
       x + 570,
       y + 10,
@@ -848,7 +860,6 @@ local function drawHeader(
       CUSTOM_COLOR,
       COL_GRID
     )
-
 
     lcd.drawText(
       x + 570,
@@ -932,8 +943,13 @@ local function drawTopTrack(
   y,
   w,
   h,
-  phase
+  phase,
+  innerEdgeBottom
 )
+
+  -- ----------------------------------------------------------
+  -- GRAY TRACK BED
+  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -950,6 +966,10 @@ local function drawTopTrack(
   )
 
 
+  -- ----------------------------------------------------------
+  -- TRACK OUTLINE / GROUSER COLOR
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
@@ -965,47 +985,155 @@ local function drawTopTrack(
   )
 
 
-  local spacing =
-    14
+  -- ----------------------------------------------------------
+  -- PISTENBULLY-STYLE GROUSERS
+  --
+  -- Every other grouser spans:
+  --
+  --      100% of track width
+  --       80% of track width
+  --
+  -- The short grouser is NOT centered.
+  --
+  -- It begins at the side of the track nearest the cat
+  -- and extends toward the outside.
+  --
+  -- UPPER TRACK:
+  --      cat is below the track
+  --      short grouser begins at bottom edge
+  --
+  -- LOWER TRACK:
+  --      cat is above the track
+  --      short grouser begins at top edge
+  -- ----------------------------------------------------------
+
+  local usableH =
+    h - 4
 
 
   local p =
-    -spacing +
+    -TOP_TRACK_GROUSER_SPACING +
     math.floor(
       phase
     )
 
 
-  while p < w + spacing do
+  local barIndex =
+    math.floor(
+      p /
+      TOP_TRACK_GROUSER_SPACING
+    )
 
-    local x1 =
+
+  while p <
+    w + TOP_TRACK_GROUSER_SPACING
+  do
+
+    local barX =
       x + p
 
-    local y1 =
-      y + h - 2
 
-
-    local x2 =
-      x + p + 8
-
-    local y2 =
-      y + 2
-
-
-    if x1 >= x + 1
+    if barX >= x + 2
       and
-      x1 <= x + w - 2
-      and
-      x2 >= x + 1
-      and
-      x2 <= x + w - 2
+      barX <= x + w - 3
     then
 
+      local barH
+
+
+      if math.abs(barIndex) % 2 == 0 then
+
+        -- -----------------------------------------------
+        -- 100% GROUSER
+        -- -----------------------------------------------
+
+        barH =
+          usableH
+
+      else
+
+        -- -----------------------------------------------
+        -- 80% GROUSER
+        -- -----------------------------------------------
+
+        barH =
+          math.floor(
+            usableH *
+            TOP_TRACK_SHORT_GROUSER
+          )
+
+      end
+
+
+      local barY
+
+
+      if barH == usableH then
+
+        -- -----------------------------------------------
+        -- FULL GROUSER
+        --
+        -- Runs from outside edge to inside edge.
+        -- -----------------------------------------------
+
+        barY =
+          y + 2
+
+
+      elseif innerEdgeBottom then
+
+        -- -----------------------------------------------
+        -- UPPER TRACK
+        --
+        -- Cat is BELOW the track.
+        --
+        -- Anchor the 80% grouser at the lower/inside
+        -- edge and let it extend upward/outward.
+        -- -----------------------------------------------
+
+        barY =
+          y +
+          h -
+          2 -
+          barH
+
+
+      else
+
+        -- -----------------------------------------------
+        -- LOWER TRACK
+        --
+        -- Cat is ABOVE the track.
+        --
+        -- Anchor the 80% grouser at the upper/inside
+        -- edge and let it extend downward/outward.
+        -- -----------------------------------------------
+
+        barY =
+          y + 2
+
+      end
+
+
+      -- -----------------------------------------------
+      -- TWO-PIXEL-THICK GROUSER
+      -- -----------------------------------------------
+
       lcd.drawLine(
-        x1,
-        y1,
-        x2,
-        y2,
+        barX,
+        barY,
+        barX,
+        barY + barH - 1,
+        SOLID,
+        CUSTOM_COLOR
+      )
+
+
+      lcd.drawLine(
+        barX + 1,
+        barY,
+        barX + 1,
+        barY + barH - 1,
         SOLID,
         CUSTOM_COLOR
       )
@@ -1014,7 +1142,12 @@ local function drawTopTrack(
 
 
     p =
-      p + spacing
+      p +
+      TOP_TRACK_GROUSER_SPACING
+
+
+    barIndex =
+      barIndex + 1
 
   end
 
@@ -1030,23 +1163,48 @@ local function drawTopBody(
   cy
 )
 
+  -- ----------------------------------------------------------
+  -- UPPER TRACK
+  --
+  -- 38 px wide versus the original 25 px.
+  --
+  -- The track center remains approximately where it was,
+  -- so the additional width sticks farther outside the cat.
+  --
+  -- TRUE tells drawTopTrack() that the cat-side edge
+  -- is the BOTTOM of this track.
+  -- ----------------------------------------------------------
+
   drawTopTrack(
     cx - 74,
-    cy - 49,
-    148,
-    25,
-    trackPhaseL
+    cy - 56,
+    TOP_TRACK_LENGTH,
+    TOP_TRACK_W,
+    trackPhaseL,
+    true
   )
 
 
+  -- ----------------------------------------------------------
+  -- LOWER TRACK
+  --
+  -- FALSE tells drawTopTrack() that the cat-side edge
+  -- is the TOP of this track.
+  -- ----------------------------------------------------------
+
   drawTopTrack(
     cx - 74,
-    cy + 24,
-    148,
-    25,
-    trackPhaseR
+    cy + 18,
+    TOP_TRACK_LENGTH,
+    TOP_TRACK_W,
+    trackPhaseR,
+    false
   )
 
+
+  -- ----------------------------------------------------------
+  -- MAIN BODY
+  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1063,6 +1221,10 @@ local function drawTopBody(
   )
 
 
+  -- ----------------------------------------------------------
+  -- REAR DECK
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_METAL
@@ -1078,6 +1240,10 @@ local function drawTopBody(
   )
 
 
+  -- ----------------------------------------------------------
+  -- CAB
+  -- ----------------------------------------------------------
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_RED
@@ -1092,6 +1258,10 @@ local function drawTopBody(
     CUSTOM_COLOR
   )
 
+
+  -- ----------------------------------------------------------
+  -- WINDSHIELD
+  -- ----------------------------------------------------------
 
   lcd.setColor(
     CUSTOM_COLOR,
@@ -1206,10 +1376,6 @@ local function drawTopBlade(
   end
 
 
-  -- ----------------------------------------------------------
-  -- ROTATED BLADE TIPS
-  -- ----------------------------------------------------------
-
   local topTipX, topTipY =
     rotatePoint(
       bladeX,
@@ -1229,10 +1395,6 @@ local function drawTopBlade(
       bladeSlewAngle
     )
 
-
-  -- ----------------------------------------------------------
-  -- WING ANGLES
-  -- ----------------------------------------------------------
 
   local leftRelativeDeg =
     WING_UP_ANGLE_DEG +
@@ -1266,10 +1428,6 @@ local function drawTopBlade(
     )
 
 
-  -- ----------------------------------------------------------
-  -- UPPER / LEFT WING
-  -- ----------------------------------------------------------
-
   local leftEndX =
     topTipX -
     math.sin(
@@ -1298,10 +1456,6 @@ local function drawTopBlade(
     WING_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- LOWER / RIGHT WING
-  -- ----------------------------------------------------------
 
   local rightEndX =
     bottomTipX -
@@ -1364,10 +1518,6 @@ local function drawTopTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGE
-  -- ----------------------------------------------------------
-
   drawRotatedLine(
     hitchX,
     hitchY,
@@ -1381,10 +1531,6 @@ local function drawTopTiller(
     LINKAGE_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- RED TILLER BODY
-  -- ----------------------------------------------------------
 
   for xx =
     -TILLER_TOP_W / 2,
@@ -1433,7 +1579,6 @@ local function drawTopTiller(
     TILLER_COMB_H / 2
 
 
-  -- Yellow fill.
   for xx =
     combLeft,
     combRight
@@ -1454,7 +1599,6 @@ local function drawTopTiller(
   end
 
 
-  -- Horizontal black comb bars.
   local combLineY =
     combTop +
     TILLER_COMB_LINE_SPACING
@@ -1688,10 +1832,6 @@ local function drawSideBody(
   cy
 )
 
-  -- ==========================================================
-  -- TRACK
-  -- ==========================================================
-
   local trackCenterY =
     cy + 30
 
@@ -1711,10 +1851,7 @@ local function drawSideBody(
     SIDE_TRACK_HALF_LENGTH
 
 
-  -- ----------------------------------------------------------
-  -- GRAY TRACK BODY
-  -- ----------------------------------------------------------
-
+  -- Gray track body.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
@@ -1730,7 +1867,6 @@ local function drawSideBody(
   )
 
 
-  -- Rounded front and rear ends.
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
@@ -1747,10 +1883,7 @@ local function drawSideBody(
   )
 
 
-  -- ----------------------------------------------------------
-  -- TRACK OUTLINE
-  -- ----------------------------------------------------------
-
+  -- Track outline.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK_BAR
@@ -1783,54 +1916,51 @@ local function drawSideBody(
 
 
   -- ==========================================================
-    -- SIX LARGE BLACK ROAD WHEELS
-    --
-    -- Evenly spaced front-to-back with equal end margins.
-    -- ==========================================================
+  -- SIX EVENLY-SPACED ROAD WHEELS
+  -- ==========================================================
 
-   lcd.setColor(
+  lcd.setColor(
     CUSTOM_COLOR,
     COL_BLACK
-    )
+  )
 
-    local wheelCount =
-    6
 
-    local wheelMargin =
-    4
-
-    local wheelLeft =
+  local wheelLeft =
     trackLeft +
-    SIDE_TRACK_RADIUS -
-    wheelMargin
-
-    local wheelRight =
-    trackRight -
     SIDE_TRACK_RADIUS +
-    wheelMargin
+    SIDE_ROAD_WHEEL_MARGIN
 
-    local wheelSpacing =
+
+  local wheelRight =
+    trackRight -
+    SIDE_TRACK_RADIUS -
+    SIDE_ROAD_WHEEL_MARGIN
+
+
+  local wheelSpacing =
     (wheelRight - wheelLeft) /
-    (wheelCount - 1)
+    (SIDE_ROAD_WHEEL_COUNT - 1)
 
-    for i = 0, wheelCount - 1 do
+
+  for i = 0, SIDE_ROAD_WHEEL_COUNT - 1 do
 
     local wheelX =
-        wheelLeft +
-        wheelSpacing * i
+      wheelLeft +
+      wheelSpacing * i
+
 
     lcd.drawFilledCircle(
-        wheelX,
-        trackCenterY,
-        SIDE_ROAD_WHEEL_R,
-        CUSTOM_COLOR
+      wheelX,
+      trackCenterY,
+      SIDE_ROAD_WHEEL_R,
+      CUSTOM_COLOR
     )
 
-    end
+  end
 
 
   -- ==========================================================
-  -- THIN BLACK CHASSIS
+  -- CHASSIS
   -- ==========================================================
 
   local chassisBottom =
@@ -1864,18 +1994,14 @@ local function drawSideBody(
   local cabX =
     cx - 50
 
-
   local cabW =
     49
-
 
   local cabBottom =
     chassisTop + 1
 
-
   local cabH =
     68
-
 
   local cabY =
     cabBottom -
@@ -1904,18 +2030,14 @@ local function drawSideBody(
   local noseTopY =
     cabY + 6
 
-
   local noseBottomY =
     cabBottom
-
 
   local noseTopX =
     cabX
 
-
   local noseBottomX =
     cabX - 20
-
 
   local noseHeight =
     noseBottomY -
@@ -1967,28 +2089,23 @@ local function drawSideBody(
 
 
   -- ==========================================================
-  -- SLOPED WINDSHIELD
+  -- WINDSHIELD
   -- ==========================================================
 
   local glassTopY =
     cabY + 10
 
-
   local glassBottomY =
     cabY + 46
-
 
   local glassRearX =
     cabX + 33
 
-
   local glassFrontTopX =
     cabX + 5
 
-
   local glassFrontBottomX =
     cabX - 7
-
 
   local glassH =
     glassBottomY -
@@ -2041,7 +2158,6 @@ local function drawSideBody(
 
   local deckX =
     cx - 1
-
 
   local deckY =
     chassisTop - 13
@@ -2122,10 +2238,6 @@ local function drawSideBlade(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGES
-  -- ----------------------------------------------------------
-
   drawRotatedLine(
     cx - 64,
     cy - 9,
@@ -2151,10 +2263,6 @@ local function drawSideBlade(
     LINKAGE_WIDTH
   )
 
-
-  -- ----------------------------------------------------------
-  -- BLADE
-  -- ----------------------------------------------------------
 
   for i = -7, 7 do
 
@@ -2260,10 +2368,6 @@ local function drawSideTiller(
     )
 
 
-  -- ----------------------------------------------------------
-  -- LINKAGES
-  -- ----------------------------------------------------------
-
   drawRotatedLine(
     cx + 64,
     cy - 7,
@@ -2290,10 +2394,7 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- TILLER BODY
-  -- ----------------------------------------------------------
-
+  -- Tiller body.
   for i = -9, 9 do
 
     drawRotatedLine(
@@ -2311,9 +2412,9 @@ local function drawSideTiller(
   end
 
 
-  -- ----------------------------------------------------------
+  -- ==========================================================
   -- MOTOR INDICATOR
-  -- ----------------------------------------------------------
+  -- ==========================================================
 
   local tillerMotor =
     getValue("ch14") or -1024
@@ -2355,9 +2456,9 @@ local function drawSideTiller(
   )
 
 
-  -- ----------------------------------------------------------
-  -- YELLOW SIDE-VIEW COMB
-  -- ----------------------------------------------------------
+  -- ==========================================================
+  -- SIDE-VIEW COMB
+  -- ==========================================================
 
   drawRotatedLine(
     tillerX + 31,
@@ -2415,7 +2516,6 @@ local function drawSideView(
 
   local cx =
     x + 194
-
 
   local cy =
     y + 157
