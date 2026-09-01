@@ -192,7 +192,7 @@ local WING_WIDTH =
 -- Wings are drawn heavier when the blade is in PLOW mode so
 -- the straight/open blade reads as one substantial cutting edge.
 local WING_WIDTH_PLOW =
-  14
+  8
 
 local WING_UP_ANGLE_DEG =
   45
