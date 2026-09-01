@@ -2350,15 +2350,18 @@ local function drawSideBody(
     SIDE_TRACK_RADIUS -
     trackInset
 
+  -- Force a true background-colored inner capsule over the gray
+  -- track body. The center rectangle spans the full inside area,
+  -- and the two inset circles form the rounded ends.
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BACKGROUND
   )
 
   lcd.drawFilledRectangle(
-    trackLeft,
+    trackLeft - innerTrackRadius,
     innerTrackTop,
-    SIDE_TRACK_HALF_LENGTH * 2,
+    (trackRight - trackLeft) + innerTrackRadius * 2,
     innerTrackH,
     CUSTOM_COLOR
   )
