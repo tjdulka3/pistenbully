@@ -2398,6 +2398,138 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
+  --- draw again but with a inset background color to create track effect
+  -- Gray track body.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BACKGROUND)
+
+  lcd.drawFilledRectangle(
+    trackLeft,
+    trackTop,
+    SIDE_TRACK_HALF_LENGTH * 2,
+    SIDE_TRACK_H-4,
+    CUSTOM_COLOR
+  )
+
+  lcd.drawFilledCircle(
+    trackLeft,
+    trackCenterY,
+    SIDE_TRACK_RADIUS-2,
+    CUSTOM_COLOR
+  )
+
+  lcd.drawFilledCircle(
+    trackRight,
+    trackCenterY,
+    SIDE_TRACK_RADIUS,
+    CUSTOM_COLOR
+  )
+
+  -- Track outline.
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_TRACK_BAR
+  )
+
+  lcd.drawRectangle(
+    trackLeft,
+    trackTop,
+    SIDE_TRACK_HALF_LENGTH * 2,
+    SIDE_TRACK_H,
+    CUSTOM_COLOR
+  )
+
+  lcd.drawCircle(
+    trackLeft,
+    trackCenterY,
+    SIDE_TRACK_RADIUS,
+    CUSTOM_COLOR
+  )
+
+  lcd.drawCircle(
+    trackRight,
+    trackCenterY,
+    SIDE_TRACK_RADIUS,
+    CUSTOM_COLOR
+  )
+
+  -- SIX EVENLY-SPACED ROAD WHEELS
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+  local wheelLeft =
+    trackLeft
+
+  local wheelRight =
+    trackRight
+
+  local wheelSpacing =
+    (wheelRight - wheelLeft) /
+    (SIDE_ROAD_WHEEL_COUNT - 1)
+
+  for i = 0, SIDE_ROAD_WHEEL_COUNT - 1 do
+
+    local wheelX =
+      wheelLeft +
+      wheelSpacing * i
+
+    lcd.drawFilledCircle(
+      wheelX,
+      trackCenterY,
+      SIDE_ROAD_WHEEL_R,
+      COL_BLACK
+    )
+
+        lcd.drawFilledCircle(
+      wheelX,
+      trackCenterY,
+      SIDE_ROAD_WHEEL_R*.1,
+      COL_METAL
+    )
+
+  end
+
+  -- FULL-LENGTH UPPER BODY / CHASSIS
+  --
+  -- Stretch the bodywork to the complete visual length of the
+  -- rounded track assembly underneath.
+
+  local bodyFront =
+    trackLeft -
+    SIDE_TRACK_RADIUS
+
+  local bodyRear =
+    trackRight +
+    SIDE_TRACK_RADIUS
+
+  local bodyLength =
+    bodyRear -
+    bodyFront
+
+  local chassisBottom =
+    trackTop - 1
+
+  local chassisTop =
+    chassisBottom -
+    SIDE_CHASSIS_H
+
+  lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+  lcd.drawFilledRectangle(
+    bodyFront,
+    chassisTop,
+    bodyLength,
+    SIDE_CHASSIS_H,
+    CUSTOM_COLOR
+  )
+
   -- CAB / ENGINE HOUSING
   --
   -- The cab is moved forward so the lower leading edge of its
