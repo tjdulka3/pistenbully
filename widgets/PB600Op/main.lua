@@ -242,7 +242,7 @@ local SIDE_TRACK_HALF_LENGTH =
   76
 
 local SIDE_ROAD_WHEEL_R =
-  15
+  13
 
 local SIDE_ROAD_WHEEL_COUNT =
   6
