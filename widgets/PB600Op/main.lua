@@ -241,8 +241,10 @@ local SIDE_TRACK_RADIUS =
 local SIDE_TRACK_HALF_LENGTH =
   76
 
+-- Reduced so the background-colored track interior is
+-- visibly exposed between adjacent road wheels.
 local SIDE_ROAD_WHEEL_R =
-  13
+  12
 
 local SIDE_ROAD_WHEEL_COUNT =
   6
@@ -2376,11 +2378,10 @@ local function drawSideBody(
   )
 
   -- SIX EVENLY-SPACED ROAD WHEELS
-
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_BLACK
-  )
+  --
+  -- The inner track capsule above is already filled with
+  -- COL_BACKGROUND. These smaller black wheels are then drawn
+  -- over it, leaving visible background-color gaps between them.
 
   local wheelLeft =
     trackLeft
@@ -2398,18 +2399,28 @@ local function drawSideBody(
       wheelLeft +
       wheelSpacing * i
 
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_BLACK
+    )
+
     lcd.drawFilledCircle(
       wheelX,
       trackCenterY,
       SIDE_ROAD_WHEEL_R,
-      COL_BLACK
+      CUSTOM_COLOR
     )
 
-        lcd.drawFilledCircle(
+    lcd.setColor(
+      CUSTOM_COLOR,
+      COL_METAL
+    )
+
+    lcd.drawFilledCircle(
       wheelX,
       trackCenterY,
-      SIDE_ROAD_WHEEL_R*.1,
-      COL_METAL
+      math.max(1, SIDE_ROAD_WHEEL_R * 0.10),
+      CUSTOM_COLOR
     )
 
   end
