@@ -2325,7 +2325,7 @@ local function drawSideBody(
   -- Track outline.
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_BACKGROUND
+    COL_GLASS
   )
 
   lcd.drawRectangle(
