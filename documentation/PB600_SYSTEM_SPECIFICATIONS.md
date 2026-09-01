@@ -88,13 +88,14 @@ PistenBully 600 RC control system.
         CH9 Tiller Swing Servo      S2 / standard EdgeTX mix
        CH10 Blade Angle             `LUA:Blade:Angle`
        CH11 Blade Slew              `LUA:Blade:Slew`
-       CH12 Debug / Reserved        ---
+       CH12 Tiller Lift             `LUA:Tiller:TLift`
        CH13 Tiller Angle            `LUA:Tiller:TAng`
        CH14 Tiller Rotor Motor      S1 gated by `LUA:System:TMotor`
        CH15 TBS Prop1 / Engine      `LUA:System:EngOut`
        CH16 TBS Prop2 / Aux Sound   SA + L08/L09
        CH17 Headlights              Lighting control
        CH18 Warning Lights          Lighting control
+       CH19 Spot Lights             Lighting control
 
 ## 4. Lua Output Allocation
 
