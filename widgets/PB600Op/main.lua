@@ -2322,31 +2322,56 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-  -- Track outline.
+  -- ==========================================================
+  -- TRACK INSET
+  --
+  -- The outer track is already a filled gray capsule made from
+  -- one rectangle plus two circles.
+  --
+  -- Draw the same capsule again in the screen background color,
+  -- inset by 2 px on every outside edge. This leaves a clean
+  -- 2 px gray track outline around the black road wheels.
+  -- ==========================================================
+
+  local trackInset =
+    2
+
+  local innerTrackTop =
+    trackTop +
+    trackInset
+
+  local innerTrackH =
+    SIDE_TRACK_H -
+    trackInset * 2
+
+  local innerTrackRadius =
+    SIDE_TRACK_RADIUS -
+    trackInset
+
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_GLASS
+    COL_BACKGROUND
   )
 
-  lcd.drawRectangle(
+  lcd.drawFilledRectangle(
     trackLeft,
-    trackTop,
+    innerTrackTop,
     SIDE_TRACK_HALF_LENGTH * 2,
-    SIDE_TRACK_H-4,
+    innerTrackH,
     CUSTOM_COLOR
   )
 
-  lcd.drawCircle(
+  lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
-    SIDE_TRACK_RADIUS-2,
+    innerTrackRadius,
     CUSTOM_COLOR
   )
 
-  lcd.drawCircle(
+  lcd.drawFilledCircle(
     trackRight,
     trackCenterY,
-    SIDE_TRACK_RADIUS-2,
+    innerTrackRadius,
     CUSTOM_COLOR
   )
 
