@@ -2278,11 +2278,11 @@ local function drawSideBody(
   local trackInset =
     4
 
-  -- OUTER BLACK CAPSULE
+  -- OUTER TRACK CAPSULE
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_BLACK
+    COL_TRACK
   )
 
   lcd.drawFilledRectangle(
