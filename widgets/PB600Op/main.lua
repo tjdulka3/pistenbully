@@ -2326,7 +2326,7 @@ local function drawSideBody(
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_BLACK
+    COL_BACKGROUND
   )
 
   lcd.drawFilledRectangle(
