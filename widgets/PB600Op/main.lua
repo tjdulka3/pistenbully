@@ -1208,7 +1208,7 @@ local function drawTopBody(
   )
 
   lcd.drawFilledRectangle(
-    cx - 41,
+    cx - 81,
     cy - 21,
     122,
     42,
