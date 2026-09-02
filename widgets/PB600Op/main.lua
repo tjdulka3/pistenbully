@@ -2276,7 +2276,7 @@ local function drawSideBody(
   -- ==========================================================
 
   local trackInset =
-    2
+    4
 
   -- OUTER GRAY CAPSULE
 
@@ -2326,7 +2326,7 @@ local function drawSideBody(
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_BACKGROUND
+    COL_BLACK
   )
 
   lcd.drawFilledRectangle(
