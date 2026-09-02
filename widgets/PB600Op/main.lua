@@ -2271,18 +2271,18 @@ local function drawSideBody(
   -- ==========================================================
   -- SIDE TRACK CAPSULE
   --
-  -- Draw a gray outer capsule, then overlay a background-color
+  -- Draw a black outer capsule, then overlay a background-color
   -- inner capsule inset by 2 px. Wheels are drawn afterward.
   -- ==========================================================
 
   local trackInset =
     4
 
-  -- OUTER GRAY CAPSULE
+  -- OUTER BLACK CAPSULE
 
   lcd.setColor(
     CUSTOM_COLOR,
-    COL_TRACK
+    COL_BLACK
   )
 
   lcd.drawFilledRectangle(
@@ -2598,7 +2598,7 @@ local function drawSideBody(
 
   -- RED ENGINE HOUSING
   --
-  -- Half the height of the cab and placed directly behind it.
+  -- Half the height of the cab and placed directly behind it. with one half its height red/top and black/bottom
 
   local engineX =
     cabX +
@@ -2631,13 +2631,26 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
+    lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+  lcd.drawFilledRectangle(
+    engineX,
+    engineY+(engineH/2),
+    engineW,
+    engineH/2,
+    CUSTOM_COLOR
+  )
+
   -- EXHAUST PIPE
   --
   -- Small gray rectangle centered on the engine housing.
 
   -- Exhaust is 25% wider and 50% taller.
   local exhaustW =
-    10
+    20
 
   local exhaustH =
     21
@@ -2661,6 +2674,14 @@ local function drawSideBody(
     exhaustX,
     exhaustY,
     exhaustW,
+    exhaustH,
+    CUSTOM_COLOR
+  )
+
+    lcd.drawFilledRectangle(
+    exhaustX,
+    exhaustY-exhaustH,
+    exhaustW/2,
     exhaustH,
     CUSTOM_COLOR
   )
