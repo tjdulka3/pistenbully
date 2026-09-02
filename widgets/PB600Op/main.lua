@@ -253,7 +253,7 @@ local SIDE_ROAD_WHEEL_MARGIN =
   8
 
 local SIDE_CHASSIS_H =
-  28
+  14
 
 -- ANALOG GAUGES
 
@@ -2267,6 +2267,7 @@ local function drawSideBody(
   local trackRight =
     cx +
     SIDE_TRACK_HALF_LENGTH
+
 
   -- ==========================================================
   -- SIDE TRACK CAPSULE
