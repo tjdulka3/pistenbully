@@ -2358,6 +2358,8 @@ local function drawSideBody(
   -- COL_BACKGROUND. These smaller black wheels are then drawn
   -- over it, leaving visible background-color gaps between them.
 
+  if 1 >2 then
+    
   local wheelLeft =
     trackLeft
 
@@ -2400,6 +2402,7 @@ local function drawSideBody(
 
   end
 
+  end
   -- FULL-LENGTH UPPER BODY / CHASSIS
   --
   -- Stretch the bodywork to the complete visual length of the
