@@ -244,7 +244,7 @@ local SIDE_TRACK_HALF_LENGTH =
 -- Reduced so the background-colored track interior is
 -- visibly exposed between adjacent road wheels.
 local SIDE_ROAD_WHEEL_R =
-  12
+  14
 
 local SIDE_ROAD_WHEEL_COUNT =
   6
@@ -2268,7 +2268,18 @@ local function drawSideBody(
     cx +
     SIDE_TRACK_HALF_LENGTH
 
-  -- Gray track body.
+  -- ==========================================================
+  -- SIDE TRACK CAPSULE
+  --
+  -- Draw a gray outer capsule, then overlay a background-color
+  -- inner capsule inset by 2 px. Wheels are drawn afterward.
+  -- ==========================================================
+
+  local trackInset =
+    2
+
+  -- OUTER GRAY CAPSULE
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_TRACK
@@ -2277,7 +2288,7 @@ local function drawSideBody(
   lcd.drawFilledRectangle(
     trackLeft,
     trackTop,
-    SIDE_TRACK_HALF_LENGTH * 2,
+    trackRight - trackLeft,
     SIDE_TRACK_H,
     CUSTOM_COLOR
   )
@@ -2296,89 +2307,50 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
-  -- Track outline.
-  lcd.setColor(
-    CUSTOM_COLOR,
-    COL_TRACK_BAR
-  )
-
-  lcd.drawRectangle(
-    trackLeft,
-    trackTop,
-    SIDE_TRACK_HALF_LENGTH * 2,
-    SIDE_TRACK_H,
-    CUSTOM_COLOR
-  )
-
-  lcd.drawCircle(
-    trackLeft,
-    trackCenterY,
-    SIDE_TRACK_RADIUS,
-    CUSTOM_COLOR
-  )
-
-  lcd.drawCircle(
-    trackRight,
-    trackCenterY,
-    SIDE_TRACK_RADIUS,
-    CUSTOM_COLOR
-  )
-
-  -- ==========================================================
-  -- TRACK INSET
+  -- INNER BACKGROUND-COLOR CAPSULE
   --
-  -- The outer track is already a filled gray capsule made from
-  -- one rectangle plus two circles.
-  --
-  -- Draw the same capsule again in the screen background color,
-  -- inset by 2 px on every outside edge. This leaves a clean
-  -- 2 px gray track outline around the black road wheels.
-  -- ==========================================================
+  -- Circle centers stay unchanged.
+  -- Radius shrinks by 2 px.
+  -- Rectangle spans only between the circle centers.
 
-  local trackInset =
-    2
-
-  local innerTrackTop =
-    trackTop +
-    trackInset
-
-  local innerTrackH =
-    SIDE_TRACK_H -
-    trackInset * 2
-
-  local innerTrackRadius =
+  local innerRadius =
     SIDE_TRACK_RADIUS -
     trackInset
 
-  -- Force a true background-colored inner capsule over the gray
-  -- track body. The center rectangle spans the full inside area,
-  -- and the two inset circles form the rounded ends.
+  local innerTop =
+    trackCenterY -
+    innerRadius
+
+  local innerHeight =
+    innerRadius * 2
+
   lcd.setColor(
     CUSTOM_COLOR,
     COL_BACKGROUND
   )
 
   lcd.drawFilledRectangle(
-    trackLeft - innerTrackRadius,
-    innerTrackTop,
-    (trackRight - trackLeft) + innerTrackRadius * 2,
-    innerTrackH,
+    trackLeft,
+    innerTop,
+    trackRight - trackLeft,
+    innerHeight,
     CUSTOM_COLOR
   )
 
   lcd.drawFilledCircle(
     trackLeft,
     trackCenterY,
-    innerTrackRadius,
+    innerRadius,
     CUSTOM_COLOR
   )
 
   lcd.drawFilledCircle(
     trackRight,
     trackCenterY,
-    innerTrackRadius,
+    innerRadius,
     CUSTOM_COLOR
   )
+
 
   -- SIX EVENLY-SPACED ROAD WHEELS
   --
