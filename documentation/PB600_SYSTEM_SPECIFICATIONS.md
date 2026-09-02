@@ -3,6 +3,9 @@
 Quick-reference specification for the RadioMaster TX16S MK3 / EdgeTX
 PistenBully 600 RC control system.
 
+![Transport](image.png)
+![Groom with Coordinated Tiller](image-1.png)
+
 ## Table of Contents
 
 -   [1. Platform](#1-platform)
