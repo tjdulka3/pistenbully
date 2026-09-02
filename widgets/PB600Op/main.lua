@@ -2650,12 +2650,12 @@ local function drawSideBody(
   )
 
   lcd.drawFilledTriangle(
-    engineX-20,
+    engineX-40,
     engineY+engineH,
     engineX,
     engineY+engineH,
     engineX,
-    engineY+engineH-10,
+    engineY+engineH-(engineH/2),
     CUSTOM_COLOR
   )
 
