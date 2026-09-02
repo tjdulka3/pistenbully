@@ -253,7 +253,7 @@ local SIDE_ROAD_WHEEL_MARGIN =
   8
 
 local SIDE_CHASSIS_H =
-  14
+  28
 
 -- ANALOG GAUGES
 
