@@ -93,10 +93,10 @@ local COL_METAL =
   lcd.RGB(125, 130, 135)
 
 local COL_TRACK =
-  COL_METAL
+  lcd.RGB(70, 70, 75)
 
 local COL_TRACK_BAR =
-  lcd.RGB(70, 70, 75)
+  COL_METAL
 
 local COL_GLASS =
   lcd.RGB(30, 75, 100)
@@ -999,7 +999,7 @@ local function drawTopTrack(
   innerEdgeBottom
 )
 
-  -- GRAY TRACK BED
+  -- BLACK TRACK BED
 
   lcd.setColor(
     CUSTOM_COLOR,
