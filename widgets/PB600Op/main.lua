@@ -2644,6 +2644,21 @@ local function drawSideBody(
     CUSTOM_COLOR
   )
 
+      lcd.setColor(
+    CUSTOM_COLOR,
+    COL_BLACK
+  )
+
+  lcd.drawFilledTriangle(
+    engineX-20,
+    engineY-engineH,
+    engineX,
+    engineY-engineH,
+    engineX,
+    engineY-engineH+10,
+    CUSTOM_COLOR
+  )
+
   -- EXHAUST PIPE
   --
   -- Small gray rectangle centered on the engine housing.
@@ -2679,7 +2694,7 @@ local function drawSideBody(
   )
 
     lcd.drawFilledRectangle(
-    exhaustX,
+    exhaustX+(exhaustW/4),
     exhaustY-exhaustH,
     exhaustW/2,
     exhaustH,
