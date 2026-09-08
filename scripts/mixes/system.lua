@@ -21,8 +21,9 @@
 --  -1024 = motor locked out
 --
 -- HYDROSTATIC TARGETS:
---   0 -> full power   ~5.0 sec
---   full -> zero      ~2.0 sec
+--   Throttle -> speed uses a smooth S-curve
+--   0 -> full power   ~5.0 sec, S-shaped acceleration
+--   full -> zero      ~2.0 sec, linear hydrostatic braking
 -- ============================================================
 
 
@@ -87,12 +88,26 @@ local PIVOT_BLEND_END =
   0.80
 
 
--- Time-based output rates in channel units per second.
+-- Time-based hydrostatic output rates.
 --
--- 1024 / 205 ~= 5.0 sec
--- 1024 / 512 = 2.0 sec
+-- Acceleration now uses an S-shaped rate profile:
+--
+--   start of acceleration -> 60% of base rate
+--   middle              -> 140% of base rate
+--   end                 -> 60% of base rate
+--
+-- ACCEL_RATE is calibrated so a 0 -> 100% straight-line
+-- acceleration still takes approximately 5 seconds overall.
+--
+-- Deceleration remains intentionally faster and linear.
 local ACCEL_RATE =
-  205
+  191
+
+local ACCEL_MIN_MULT =
+  0.60
+
+local ACCEL_MID_BOOST =
+  0.80
 
 local DECEL_RATE =
   512
@@ -217,6 +232,63 @@ end
 
 
 -- ============================================================
+-- THROTTLE -> VEHICLE SPEED DEMAND CURVE
+--
+-- Real hydrostatic travel control is not modeled as a simple
+-- linear throttle-to-track-speed relationship.
+--
+-- Use a smoothstep curve:
+--
+--   y = 3x^2 - 2x^3
+--
+-- Approximate demand points:
+--
+--    0% throttle ->   0% speed demand
+--   20% throttle ->  10% speed demand
+--   40% throttle ->  35% speed demand
+--   50% throttle ->  50% speed demand
+--   60% throttle ->  65% speed demand
+--   80% throttle ->  90% speed demand
+--  100% throttle -> 100% speed demand
+--
+-- This gives finer low-speed control, stronger mid-range
+-- response, and a gentle taper toward maximum travel speed.
+--
+-- Sign is preserved for reverse.
+-- ============================================================
+
+local function throttleToSpeedDemand(throttle)
+
+  local sign =
+    throttle < 0
+      and -1
+      or 1
+
+
+  local x =
+    clamp(
+      math.abs(throttle),
+      0,
+      1
+    )
+
+
+  local shaped =
+    x * x *
+    (
+      3 -
+      2 * x
+    )
+
+
+  return
+    shaped *
+    sign
+
+end
+
+
+-- ============================================================
 -- TIME-BASED HYDROSTATIC SMOOTHING
 --
 -- accelRate / decelRate / reverseBoost are channel units/sec.
@@ -292,8 +364,59 @@ local function smoothDirectional(
 
   elseif accelerating then
 
+    -- --------------------------------------------------------
+    -- HYDROSTATIC ACCELERATION S-CURVE
+    --
+    -- Rate starts softly, builds through the middle of the
+    -- acceleration event, then tapers as the requested track
+    -- speed is approached.
+    --
+    -- For a 0 -> full-power command:
+    --
+    --   start  ~= 115 units/sec
+    --   middle ~= 267 units/sec
+    --   finish ~= 115 units/sec
+    --
+    -- Total full-range acceleration remains about 5 seconds.
+    -- --------------------------------------------------------
+
+    local targetMagnitude =
+      math.abs(target)
+
+
+    local progress =
+      0
+
+
+    if targetMagnitude > 1 then
+
+      progress =
+        clamp(
+          math.abs(prev) /
+          targetMagnitude,
+          0,
+          1
+        )
+
+    end
+
+
+    -- 4p(1-p) is 0 at both ends and 1 at the midpoint.
+    local middleShape =
+      4 *
+      progress *
+      (1 - progress)
+
+
+    local accelMultiplier =
+      ACCEL_MIN_MULT +
+      ACCEL_MID_BOOST *
+      middleShape
+
+
     rate =
-      accelRate
+      accelRate *
+      accelMultiplier
 
 
   -- ----------------------------------------------------------
@@ -1026,10 +1149,22 @@ local function run()
 
   -- ----------------------------------------------------------
   -- MOVING DIFFERENTIAL DRIVE
+  --
+  -- Convert raw throttle demand to a PB600-like hydrostatic
+  -- travel-speed demand before applying differential steering.
+  --
+  -- Pivot blending still uses RAW throttle above, so low-speed
+  -- pivot behavior remains independent of this speed curve.
   -- ----------------------------------------------------------
 
+  local driveThrottle =
+    throttleToSpeedDemand(
+      thr
+    )
+
+
   local driveLeft =
-    thr *
+    driveThrottle *
     (
       1 +
       turn * 0.7
@@ -1037,7 +1172,7 @@ local function run()
 
 
   local driveRight =
-    thr *
+    driveThrottle *
     (
       1 -
       turn * 0.4
