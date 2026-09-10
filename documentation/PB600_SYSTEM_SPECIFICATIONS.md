@@ -3,8 +3,7 @@
 Quick-reference specification for the RadioMaster TX16S MK3 / EdgeTX
 PistenBully 600 RC control system.
 
-![Transport](image.png)
-![Groom with Coordinated Tiller](image-1.png)
+
 
 ## Table of Contents
 
@@ -75,6 +74,8 @@ PistenBully 600 RC control system.
   SA Up       Reverse beep
   SA Middle   No auxiliary sound
   SA Down     Horn
+
+  ![Radiomaster Input Assignments](<Radiomaster Input Assignments.jpg>)
 
 ## 3. Physical Channel Map
 

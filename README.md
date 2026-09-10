@@ -10,56 +10,136 @@ behaviors of the full-size PistenBully.
 The control system is designed for a RadioMaster TX16S MK3 running
 EdgeTX.
 
+```mermaid
+flowchart LR
+    subgraph Model["EdgeTX Model / Radio Configuration"]
+        IN["Transmitter inputs\nsticks, trims, switches"]
+        MIX["Model mixes / channel routing\nCH1..CH18"]
+        GV["Global Variables\nGVs for tuning"]
+        LS["Logical switches\nmode and safety state"]
+        OUT["Physical outputs\nservos / sound / lighting / tracks"]
+    end
+
+    subgraph Lua["Lua control scripts"]
+        SYS["system.lua\ntracks, safety, transitions, reverse, engine"]
+        BLADE["blade.lua\nblade lift / tilt / angle / wings"]
+        TILL["tiller.lua\ntiller lift / angle / finishers"]
+    end
+
+    subgraph UI["Widgets"]
+        OP["PB600Op\noperator panel"]
+        DBG["PB600Dbg\ndebug / diagnostic panel"]
+    end
+
+    IN --> MIX
+    MIX --> SYS
+    MIX --> BLADE
+    MIX --> TILL
+
+    GV --> SYS
+    GV --> BLADE
+    GV --> TILL
+
+    LS --> SYS
+    LS --> BLADE
+    LS --> TILL
+
+    SYS --> OUT
+    BLADE --> OUT
+    TILL --> OUT
+
+    SYS --> OP
+    BLADE --> OP
+    TILL --> OP
+
+    SYS --> DBG
+    BLADE --> DBG
+    TILL --> DBG
+
+    OUT --> OP
+    OUT --> DBG
+
+    SYS -. "state + timing" .-> LS
+    BLADE -. "mode + position" .-> LS
+    TILL -. "mode + position" .-> LS
+```
+
+At a high level, the radio model collects pilot inputs and routes them
+through the configured mixes. Those values feed the Lua scripts, which use
+Global Variables and logical switches to compute the machine state and output
+commands. The resulting Lua outputs go to the physical channels and also feed
+the operator and debug widgets, which visualize the same underlying state
+without creating a second control path.
+
 ------------------------------------------------------------------------
 
 ## Table of Contents
 
--   [Overview](#overview)
--   [Operating Modes](#operating-modes)
-    -   [Automatic Blade Transition](#automatic-blade-transition)
--   [Track Control](#track-control)
--   [Hydrostatic Drive Simulation](#hydrostatic-drive-simulation)
--   [DasMikro TBS Mini Sound System](#dasmikro-tbs-mini-sound-system)
-    -   [Prop1 - Engine / Drivetrain
-        Sound](#prop1-engine-drivetrain-sound)
-    -   [Prop2 - Horn / Reverse Warning](#prop2-horn-reverse-warning)
-    -   [Automatic Reverse Beeper](#automatic-reverse-beeper)
-    -   [Prop3 - Engine Autostart](#prop3-engine-autostart)
-    -   [Sound-System Signal
-        Architecture](#sound-system-signal-architecture)
--   [Automatic Reverse / Blade / Tiller Lift](#automatic-reverse-tiller-lift)
--   [Tiller Motor Safety](#tiller-motor-safety)
--   [Emergency Stop](#emergency-stop)
--   [Blade Control](#blade-control)
--   [Manual Blade Controls](#manual-blade-controls)
--   [Automatic Blade Positioning](#automatic-blade-positioning)
--   [Blade Coordination](#blade-coordination)
-    -   [Coordination Rudder Deadband](#coordination-rudder-deadband)
--   [Tiller Control](#tiller-control)
--   [Tiller Coordination](#tiller-coordination)
--   [Global Variables](#global-variables)
--   [Lua Output Allocation](#lua-output-allocation)
-    -   [`blade.lua`](#bladelua)
-    -   [`tiller.lua`](#tillerlua)
-    -   [`system.lua`](#systemlua)
--   [Transition States](#transition-states)
-    -   [Reading Logical Switches from
-        Lua](#reading-logical-switches-from-lua)
--   [Logical Switch Philosophy](#logical-switch-philosophy)
--   [Repository Structure](#repository-structure)
--   [Development and Deployment](#development-and-deployment)
--   [Actuator Calibration](#actuator-calibration)
-    -   [Asymmetric Lift Timing](#asymmetric-lift-timing)
-    -   [Blade Timing](#blade-timing)
-    -   [Tiller Timing](#tiller-timing)
-    -   [Reverse Lift Timing](#reverse-lift-timing)
-    -   [Position Model
-        Synchronization](#position-model-synchronization)
-    -   [Transmitter Calibration](#transmitter-calibration)
-    -   [Receiver Failsafe](#receiver-failsafe)
--   [Design Principles](#design-principles)
--   [Current Development Status](#current-development-status)
-    -   [Safety](#safety)
+- [Overview](#overview)
+- [Operator and Debug Panels](#operator-and-debug-panels)
+  - [Operator Panel](#operator-panel)
+  - [Debug Panel](#debug-panel)
+  - [Current Model Channel Map](#current-model-channel-map)
+- [Operating Modes](#operating-modes)
+  - [Automatic Blade Transition](#automatic-blade-transition)
+- [Track Control](#track-control)
+  - [Features](#features)
+- [Hydrostatic Drive Simulation](#hydrostatic-drive-simulation)
+  - [Acceleration](#acceleration)
+  - [Hydrostatic braking](#hydrostatic-braking)
+  - [Direction changes](#direction-changes)
+  - [Steering](#steering)
+  - [Hydrostatic Acceleration Curve](#hydrostatic-acceleration-curve)
+    - [RPM / Speed Curve](#rpm--speed-curve)
+    - [Operating Characteristics](#operating-characteristics)
+- [DasMikro TBS Mini Sound System](#dasmikro-tbs-mini-sound-system)
+  - [Prop1 - Engine / Drivetrain Sound](#prop1---engine--drivetrain-sound)
+  - [Prop2 - Horn / Reverse Warning](#prop2---horn--reverse-warning)
+  - [Automatic Reverse Beeper](#automatic-reverse-beeper)
+    - [L08 - Reverse Detection](#l08---reverse-detection)
+    - [L09 - Reverse Beeper Timer](#l09---reverse-beeper-timer)
+  - [Prop3 - Engine Autostart](#prop3---engine-autostart)
+  - [Sound-System Signal Architecture](#sound-system-signal-architecture)
+    - [Receiver Connections](#receiver-connections)
+- [Automatic Reverse / Blade and Tiller Lift](#automatic-reverse--blade-and-tiller-lift)
+- [Tiller Motor Safety](#tiller-motor-safety)
+- [Emergency Stop](#emergency-stop)
+- [Blade Control](#blade-control)
+  - [Blade Reverse Clearance](#blade-reverse-clearance)
+- [Manual Blade Controls](#manual-blade-controls)
+- [Automatic Blade Positioning](#automatic-blade-positioning)
+- [Blade Coordination](#blade-coordination)
+  - [Coordination Rudder Deadband](#coordination-rudder-deadband)
+- [Tiller Control](#tiller-control)
+- [Tiller Coordination](#tiller-coordination)
+- [Global Variables](#global-variables)
+  - [Reverse Lift Scaling](#reverse-lift-scaling)
+- [Lua Output Allocation](#lua-output-allocation)
+  - [`blade.lua`](#bladelua)
+  - [`tiller.lua`](#tillerlua)
+  - [`system.lua`](#systemlua)
+- [Transition States](#transition-states)
+  - [Reading Logical Switches from Lua](#reading-logical-switches-from-lua)
+- [Logical Switch Philosophy](#logical-switch-philosophy)
+- [Actuator Calibration](#actuator-calibration)
+  - [Asymmetric Lift Timing](#asymmetric-lift-timing)
+  - [Blade Timing](#blade-timing)
+  - [Tiller Timing](#tiller-timing)
+  - [Reverse Clearance Timing](#reverse-clearance-timing)
+  - [Position Model Synchronization](#position-model-synchronization)
+  - [Transmitter Calibration](#transmitter-calibration)
+  - [Receiver Failsafe](#receiver-failsafe)
+- [Design Principles](#design-principles)
+  - [One owner for each physical function](#one-owner-for-each-physical-function)
+  - [Hardware outputs are valuable](#hardware-outputs-are-valuable)
+  - [GVs are for live tuning](#gvs-are-for-live-tuning)
+  - [Safety logic stays simple](#safety-logic-stays-simple)
+  - [Automatic behavior has one authority](#automatic-behavior-has-one-authority)
+  - [Preserve spare capacity](#preserve-spare-capacity)
+- [Repository Structure](#repository-structure)
+- [Development and Deployment](#development-and-deployment)
+- [Current Development Status](#current-development-status)
+  - [Safety](#safety)
 
 ------------------------------------------------------------------------
 
@@ -99,7 +179,127 @@ The scripts intentionally separate responsibilities:
 
 ------------------------------------------------------------------------
 
-# Operating Modes
+## Operator and Debug Panels
+
+The project includes two EdgeTX widgets in the `widgets/` directory:
+
+-   `PB600Op/main.lua` builds the operator display panel.
+-   `PB600Dbg/main.lua` builds the diagnostic debug panel.
+
+Both widgets are intentionally simple EdgeTX Lua widgets: they draw to the
+radio screen using `lcd.drawText()`, `lcd.drawLine()`, and geometry-based
+vector drawing rather than a complicated UI framework. The widgets are
+not independent controllers; they are visualization layers over the same
+low-level Lua output values, Global Variables, and transmitter inputs that
+`system.lua`, `blade.lua`, and `tiller.lua` already compute.
+
+### Operator Panel
+
+The operator panel is designed to look like a simplified machine display
+for a snowcat operator rather than a raw telemetry dump. It draws a stylized
+PB600-like top view and side view with animated track grousers, blade wings,
+rear tiller, finishers, and a machine body silhouette. The widget uses a set
+of calibration constants to model mechanical travel and animation timing,
+including blade lift angle, tiller angle, wing travel, and track animation
+speed.
+
+The operator widget is built around several visual layers:
+
+-   Top view: animated tracks, blade wings, tiller comb, finishers, and
+    blade/slew motion.
+-   Side view: chassis, wheels, cab, blade lift and angle, tiller lift and
+    angle, and the tiller motor state.
+-   Gauges: tachometer and speedometer style readouts for the simulated
+    drivetrain.
+-   State overlays: warnings or mode indicators showing when the machine is
+    in a transition, reverse, or emergency-stop state.
+
+The widget reads actuator and machine values from the Lua mixer outputs and
+translates them into a visual machine posture. In other words, it is a real-
+time representation of the modeled PB600 state rather than a separate logic
+system.
+
+![Groom](documentation/Operator%20Panel%20Groom.png)
+
+*Example of Operator Panel in Groom Auto Mode*
+
+![Transport](documentation/Operator%20Panel%20Transport.png)
+
+*Example of Operator Panel in Transport Mode*
+
+### Debug Panel
+
+The debug panel is the engineering view. It is built as a compact, readout-
+style dashboard that presents the primary control inputs, logical switch
+states, output values, blade/tiller state, and the active Global Variables.
+
+The layout is organized into columns for:
+
+-   Inputs: throttle, rudder, elevator, aileron, trim and other stick values.
+-   Switches: SA, SB, SC, SD, and emergency-stop status.
+-   Logic: relevant logical-switch values such as the reverse and
+    transition states.
+-   System outputs: TrackL, TrackR, TMotor, TranB, TranT, and Engine.
+-   Blade outputs: Lift, Tilt, Angle, Slew, LW, RW.
+-   Tiller outputs: TAng, TLift, FinL, FinR.
+-   Channel values and Global Variables for live tuning and diagnosis.
+
+This panel is designed for setup, calibration, and troubleshooting. It lets
+an operator or tuner confirm that the correct Lua outputs are moving, the
+switch logic is evaluating as expected, and the commanded actuator values
+match the physical machine state during testing.
+
+In practice, the operator widget is the user-facing machine display, while the
+debug widget is the system-level diagnostic surface used during tuning and
+fault isolation.
+
+### Current Model Channel Map
+
+The actual EdgeTX model, defined in `models/model5.yml`, routes the Lua output
+values onto the physical transmitter channels. The model is the live
+configuration source for the radio, while the Lua scripts define what each
+output is computing.
+
+The following list is the readable version of the live model wiring:
+
+| CH | Source in model | Lua Output | Used for / returned value |
+|---|---|---|---|
+| CH1 | `lua(2,1)` | `System:TrackL` | Left track drive command. Returns the hydrostatically smoothed left-track output for acceleration, braking, and steering. |
+| CH2 | `lua(0,0)` | `Blade:Lift` | Blade lift actuator. Returns the modeled blade lift target, including transport/plow/groom target tracking and reverse-clearance motion. |
+| CH3 | `lua(2,0)` | `System:TrackR` | Right track drive command. Returns the smoothed right-track output with the physical right-side inversion applied. |
+| CH4 | `lua(0,1)` | `Blade:Tilt` | Blade tilt actuator. Returns the current blade tilt command for manual or coordinated tilt movement. |
+| CH5 | `lua(0,4)` | `Blade:LW` | Left blade wing actuator. Returns the left wing position with the physical direction corrected by the model. |
+| CH6 | `!lua(0,5)` | `Blade:RW` | Right blade wing actuator. Returns the right wing position, but inverted so the physical wing moves in the correct direction. |
+| CH7 | `lua(1,2)` | `Tiller:FinL` | Left finisher output. Returns the left finisher position and timing during manual or automatic movement. |
+| CH8 | `P2` + `lua(1,4)` | `Tiller:Swing` / auxiliary mixer | Tiller swing or auxiliary output. This channel is mixed from the radio swing source and a Lua override depending on SB state. |
+| CH9 | `lua(0,2)` | `Blade:Angle` | Blade angle actuator. Returns the commanded blade angle target for mode transitions and manual positioning. |
+| CH10 | `lua(0,3)` | `Blade:Slew` | Blade slew actuator. Returns the lateral blade slew command for manual or coordinated slew behavior. |
+| CH11 | `lua(1,1)` | `Tiller:TAng` | Tiller angle actuator. Returns the current tiller angle target, including coordination effects. |
+| CH12 | `lua(1,0)` | `Tiller:TLift` | Tiller lift actuator. Returns the modeled tiller lift target for transport, groom, and reverse-clearance positions. |
+| CH13 | `I9` + `L10` override | `S2 / swing servo` | Tiller swing servo input channel. This is not a direct Lua output; it is the physical swing channel driven by the radio input with logic override. |
+| CH14 | `lua(2,5)` | `System:EngOut` | Engine / drivetrain sound output. Returns the effective engine signal derived from actual track output, weighted toward the most loaded side. |
+| CH15 | `SA` + `L9` override | `Sound Aux` | Auxiliary sound channel. Used for horn and reverse warning logic via SA and the reverse timer state. |
+| CH16 | `SW1` | `Lighting:Headlights` | Headlight output. |
+| CH17 | `SW2` | `Lighting:Warning` | Warning-light output. |
+| CH18 | `SW3` | `Lighting:Spots` | Spot-light output. |
+
+A few outputs are internal machine-state signals rather than physical actuator
+channels:
+
+-   `System:TMotor` is the tiller motor safety interlock and is used to permit
+    or lock out rotor operation.
+-   `System:TranB` and `System:TranT` are transition-state outputs that report
+    whether the blade or tiller is in an automatic movement cycle.
+-   `System:EngOut` is the signal that drives the sound module rather than raw
+    throttle-stick position.
+
+The practical reading is: the Lua scripts generate the machine behavior, and the
+model file maps those outputs to the actual physical transmitter channels and
+auxiliary logic.
+
+------------------------------------------------------------------------
+
+## Operating Modes
 
 The `SD` three-position switch selects the primary operating mode.
 
@@ -141,14 +341,14 @@ because of the mode change.
 
 ------------------------------------------------------------------------
 
-# Track Control
+## Track Control
 
 Track drive is generated entirely by `system.lua`.
 
 The script accepts throttle and rudder inputs and generates independent
 left and right track outputs.
 
-### Features
+## Features
 
 -   Differential track steering
 -   Pivot/drive blending
@@ -178,7 +378,7 @@ The Lua track outputs are the sole authority for the track ESCs.
 
 ------------------------------------------------------------------------
 
-# Hydrostatic Drive Simulation
+## Hydrostatic Drive Simulation
 
 The track control attempts to reproduce the heavy, progressive feel of
 the PB600 hydrostatic drivetrain rather than directly mapping stick
@@ -227,9 +427,192 @@ increases with rudder input.
 
 Steering authority is also reduced as vehicle speed increases.
 
+Hydrostatic Throttle and Track-Speed Model
+
+The PB600 track controller models the behavior of a hydrostatic
+drivetrain rather than mapping throttle position directly to track
+speed. The controller separates three concepts:
+
+Throttle demand → requested track speed → hydrostatically smoothed
+actual track output.
+
+This provides finer low-speed maneuvering, stronger response through the
+middle of the throttle range, and a progressive approach to maximum
+track speed.
+
+Throttle-to-Speed Curve
+
+Raw throttle is normalized to a range of -1.0 to +1.0. The magnitude
+is converted to requested track speed using a smoothstep function:
+
+S(x) = 3x² - 2x³
+
+where:
+
+x = absolute throttle position from 0.0--1.0
+
+S(x) = requested track-speed fraction
+
+throttle direction is reapplied after calculating the curve
+
+The implementation is:
+
+local function throttleToSpeedDemand(throttle)
+
+  local sign =
+    throttle < 0
+      and -1
+      or 1
+
+  local x =
+    clamp(
+      math.abs(throttle),
+      0,
+      1
+    )
+
+  local shaped =
+    x * x *
+    (
+      3 -
+      2 * x
+    )
+
+  return
+    shaped *
+    sign
+
+end
+
+Throttle   Track-speed demand
+
+      0%                 0.0%
+     10%                 2.8%
+     20%                10.4%
+     30%                21.6%
+     40%                35.2%
+     50%                50.0%
+     60%                64.8%
+     70%                78.4%
+     80%                89.6%
+     90%                97.2%
+    100%               100.0%
+
+The result is intentionally nonlinear. Below 50% throttle, track-speed
+demand is lower than stick position, providing finer control for
+grooming and maneuvering. Above 50%, the curve becomes progressively
+stronger before tapering as maximum speed is approached.
+
+### Hydrostatic Acceleration Curve
+
+Requested track speed is not sent directly to the track ESCs. Actual
+track output is time-smoothed to simulate the progressive response of a
+hydrostatic drivetrain.
+
+The acceleration-rate multiplier is:
+
+M(p) = 0.60 + 0.80[4p(1-p)]
+
+where p is progress toward the requested track output.
+
+With the base acceleration rate:
+
+local ACCEL_RATE =
+  191
+
+the approximate acceleration rates are:
+
+Acceleration phase      Effective rate
+
+Initial launch         ~115 units/sec
+25% progress           ~230 units/sec
+50% progress           ~267 units/sec
+75% progress           ~230 units/sec
+Near full speed        ~115 units/sec
+
+This produces an S-shaped acceleration response: gentle initial
+movement, stronger acceleration through the middle of the range, and a
+progressive taper as requested track speed is approached.
+
+A full 0 → 100% track acceleration remains approximately 5
+seconds.
+
+Hydrostatic braking remains deliberately faster:
+
+local DECEL_RATE =
+  512
+
+local REVERSE_BOOST =
+  250
+
+Reducing throttle therefore produces faster track deceleration than
+applying power. A direction reversal adds an additional pressure-dump
+effect while crossing zero.
+
+RPM and Speed Relationship
+
+The drivetrain model separates engine demand from vehicle speed. Vehicle
+movement is based on the actual hydrostatically smoothed left and right
+track outputs rather than directly on throttle position.
+
+Conceptually:
+
+```
+Throttle
+   │
+   ▼
+Engine / hydraulic demand
+   │
+   ▼
+Throttle-to-speed S-curve
+   │
+   ▼
+Requested track speed
+   │
+   ▼
+Hydrostatic acceleration S-curve
+   │
+   ▼
+Actual L/R track outputs
+   │
+   ├────► Vehicle speed estimate
+   │
+   └────► Engine/load output
+```
+
+The EngOut signal is derived from actual track outputs and is weighted
+toward the most heavily driven track so steering-induced reduction of
+one track does not unrealistically collapse the modeled engine/load
+signal.
+
 ------------------------------------------------------------------------
 
-# DasMikro TBS Mini Sound System
+### RPM / Speed Curve
+
+The solid curve below is the implemented throttle-to-track-speed
+relationship. The dashed RPM line illustrates the intended PB600-like
+engine behavior, moving from approximately 700 RPM idle toward a roughly
+1,300 RPM working region. The RPM line is illustrative documentation and
+is not itself the current EngOut calculation.
+
+![PB600 RC Hydrostatic Throttle and Speed Curve](documentation/pb600_throttle_speed_rpm_curve.png)
+
+*PB600 RC Hydrostatic Throttle and Speed Curve*
+
+### Operating Characteristics
+
+The important characteristic is that 50% throttle corresponds to 50%
+requested track speed, while both ends of the throttle range are
+softened.
+
+At 20% throttle, the controller requests only about 10% track speed. At
+80% throttle, it requests about 90%. This gives the RC PB600 precise
+low-speed grooming control while retaining strong response in the upper
+half of the throttle range.
+
+------------------------------------------------------------------------
+
+## DasMikro TBS Mini Sound System
 
 The PB600 uses a DasMikro TBS Mini sound module for engine, drivetrain,
 horn, and reverse-warning sounds.
@@ -451,7 +834,7 @@ The complete control path is:
 
 ------------------------------------------------------------------------
 
-# Automatic Reverse / Blade and Tiller Lift
+## Automatic Reverse / Blade and Tiller Lift
 
 When operating in Groom mode, reverse is integrated with both the front
 blade and rear tiller rather than simply being blocked.
@@ -523,7 +906,7 @@ therefore not required for normal reverse operation.
 
 ------------------------------------------------------------------------
 
-# Tiller Motor Safety
+## Tiller Motor Safety
 
 `system.lua` provides a dedicated `TMotor` safety-interlock output.
 
@@ -578,7 +961,7 @@ Receiver `Hold` should **not** be used for the tiller motor channel.
 
 ------------------------------------------------------------------------
 
-# Emergency Stop
+## Emergency Stop
 
 `SF` is the machine emergency-stop switch.
 
@@ -606,7 +989,7 @@ This provides a simple and redundant safety architecture.
 
 ------------------------------------------------------------------------
 
-# Blade Control
+## Blade Control
 
 `blade.lua` directly controls all six blade functions.
 
@@ -653,7 +1036,7 @@ completes.
 
 ------------------------------------------------------------------------
 
-# Manual Blade Controls
+## Manual Blade Controls
 
 The right stick changes function according to the `SC` switch.
 
@@ -668,7 +1051,7 @@ sliders.
 
 ------------------------------------------------------------------------
 
-# Automatic Blade Positioning
+## Automatic Blade Positioning
 
 Automatic Transport / working-position transitions operate:
 
@@ -700,7 +1083,7 @@ automatic movement.
 
 ------------------------------------------------------------------------
 
-# Blade Coordination
+## Blade Coordination
 
 In Groom mode, rudder input can automatically coordinate blade movement
 with vehicle turns.
@@ -759,7 +1142,7 @@ does not reduce normal track-steering responsiveness.
 
 ------------------------------------------------------------------------
 
-# Tiller Control
+## Tiller Control
 
 `tiller.lua` controls four rear implement functions.
 
@@ -779,7 +1162,7 @@ When leaving Groom, the tiller returns to its raised position.
 
 ------------------------------------------------------------------------
 
-# Tiller Coordination
+## Tiller Coordination
 
 When coordination is enabled in Groom mode, rudder input can
 automatically adjust tiller angle to follow the vehicle through a turn.
@@ -792,7 +1175,7 @@ operator adjustment.
 
 ------------------------------------------------------------------------
 
-# Global Variables
+## Global Variables
 
 Global Variables are reserved for settings that are useful to adjust
 live from the transmitter.
@@ -847,7 +1230,7 @@ in the Lua source.
 
 ------------------------------------------------------------------------
 
-# Lua Output Allocation
+## Lua Output Allocation
 
 EdgeTX custom Lua mixer scripts are limited to six outputs per script.
 
@@ -903,7 +1286,7 @@ Two Lua output slots remain available across the system, both in
 
 ------------------------------------------------------------------------
 
-# Transition States
+## Transition States
 
 `system.lua` exposes two transition-state outputs:
 
@@ -965,7 +1348,7 @@ Do not compare `getLogicalSwitchValue()` to `1024`.
 
 ------------------------------------------------------------------------
 
-# Logical Switch Philosophy
+## Logical Switch Philosophy
 
 Machine-control logic is kept primarily in Lua.
 
@@ -1003,86 +1386,7 @@ information.
 
 ------------------------------------------------------------------------
 
-# Repository Structure
-
-A suggested repository structure is:
-
-``` text
-pb600-edgetx/
-|
-+-- README.md
-|
-+-- lua/
-|   +-- blade.lua
-|   +-- tiller.lua
-|   +-- system.lua
-|
-+-- widgets/
-|   +-- operator/
-|   +-- debug/
-|
-+-- docs/
-|   +-- channel-map.md
-|   +-- gv-reference.md
-|   +-- calibration.md
-|
-+-- deploy/
-|   +-- deploy-test.ps1
-|   +-- deploy-production.ps1
-|
-+-- .gitignore
-```
-
-The Git repository is the authoritative source for Lua scripts and
-widget code.
-
-Files should be edited and committed in the repository rather than
-directly on the radio SD card.
-
-------------------------------------------------------------------------
-
-# Development and Deployment
-
-Two deployment targets are used:
-
-``` text
-Test:
-C:\radio
-
-Production / Radio SD Card:
-D:\
-```
-
-The intended workflow is:
-
-``` text
-Edit in VS Code
-      |
-      v
-Test / Review
-      |
-      v
-Commit to Git
-      |
-      v
-Deploy to C:\radio
-      |
-      v
-Test
-      |
-      v
-Deploy approved version to D:\
-```
-
-Production deployment should copy only the files managed by the
-repository into their appropriate EdgeTX SD-card directories rather than
-treating the entire SD card as the Git working directory.
-
-This keeps source control independent of the removable radio storage.
-
-------------------------------------------------------------------------
-
-# Actuator Calibration
+## Actuator Calibration
 
 Mechanical characteristics that normally remain constant are stored near
 the beginning of each Lua script.
@@ -1215,7 +1519,7 @@ Track channels should likewise be configured to their stopped values.
 
 ------------------------------------------------------------------------
 
-# Design Principles
+## Design Principles
 
 The project follows several rules intended to keep the radio
 configuration maintainable.
@@ -1273,7 +1577,7 @@ The two remaining Lua output slots are in `tiller.lua`.
 
 ------------------------------------------------------------------------
 
-# Current Development Status
+## Current Development Status
 
 The control system is undergoing a consolidation from several
 generations of working PB600 scripts.
@@ -1312,6 +1616,85 @@ The current architecture is intended to become the new baseline:
 
 New functionality should be evaluated against this architecture before
 additional GVs, logical switches, or Lua outputs are allocated.
+
+------------------------------------------------------------------------
+
+## Repository Structure
+
+A suggested repository structure is:
+
+``` text
+pb600-edgetx/
+|
++-- README.md
+|
++-- lua/
+|   +-- blade.lua
+|   +-- tiller.lua
+|   +-- system.lua
+|
++-- widgets/
+|   +-- operator/
+|   +-- debug/
+|
++-- docs/
+|   +-- channel-map.md
+|   +-- gv-reference.md
+|   +-- calibration.md
+|
++-- deploy/
+|   +-- deploy-test.ps1
+|   +-- deploy-production.ps1
+|
++-- .gitignore
+```
+
+The Git repository is the authoritative source for Lua scripts and
+widget code.
+
+Files should be edited and committed in the repository rather than
+directly on the radio SD card.
+
+------------------------------------------------------------------------
+
+## Development and Deployment
+
+Two deployment targets are used:
+
+``` text
+Test:
+C:\radio
+
+Production / Radio SD Card:
+D:\
+```
+
+The intended workflow is:
+
+``` text
+Edit in VS Code
+      |
+      v
+Test / Review
+      |
+      v
+Commit to Git
+      |
+      v
+Deploy to C:\radio
+      |
+      v
+Test
+      |
+      v
+Deploy approved version to D:\
+```
+
+Production deployment should copy only the files managed by the
+repository into their appropriate EdgeTX SD-card directories rather than
+treating the entire SD card as the Git working directory.
+
+This keeps source control independent of the removable radio storage.
 
 ------------------------------------------------------------------------
 
