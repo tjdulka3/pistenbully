@@ -1,15 +1,15 @@
-# PistenBully 600 RC Control System
+# Pistenbully 600 RC Control System
 
 ![PB600](images/pb600.jpg)
 
 *Pistenbully 600 1:7 Scale RC* 
 
 Custom EdgeTX Lua mixer scripts and radio configuration for a scale RC
-PistenBully 600 snowcat.
+Pistenbully 600 snowcat.
 
 The project provides coordinated control of the tracks, front blade,
 rear tiller, finishers, and tiller rotor while reproducing several
-behaviors of the full-size PistenBully.
+behaviors of the full-size Pistenbully.
 
 The control system is designed for a RadioMaster TX16S MK3 running
 EdgeTX.
@@ -1768,7 +1768,7 @@ calibration constants.
   ---------------------------------------------------------------------
   Item                               Specification
   ---------------------------------- ----------------------------------
-  Model                              PistenBully 600 scale snowcat
+  Model                              Pistenbully 600 scale snowcat
 
   Transmitter                        RadioMaster TX16S MK3
 
