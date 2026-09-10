@@ -1666,33 +1666,11 @@ additional GVs, logical switches, or Lua outputs are allocated.
 
 ## Repository Structure
 
-A suggested repository structure is:
+The repository structure is:
 
-``` text
-pb600-edgetx/
-|
-+-- README.md
-|
-+-- lua/
-|   +-- blade.lua
-|   +-- tiller.lua
-|   +-- system.lua
-|
-+-- widgets/
-|   +-- operator/
-|   +-- debug/
-|
-+-- docs/
-|   +-- channel-map.md
-|   +-- gv-reference.md
-|   +-- calibration.md
-|
-+-- deploy/
-|   +-- deploy-test.ps1
-|   +-- deploy-production.ps1
-|
-+-- .gitignore
-```
+![github](github.png)
+
+*Current github respository at tjdulka3/pistenbully*
 
 The Git repository is the authoritative source for Lua scripts and
 widget code.
