@@ -1668,7 +1668,7 @@ additional GVs, logical switches, or Lua outputs are allocated.
 
 The repository structure is:
 
-![github](github.png)
+![github](images/github.png)
 
 *Current github respository at tjdulka3/pistenbully*
 
