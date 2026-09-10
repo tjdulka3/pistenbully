@@ -17,7 +17,11 @@ flowchart LR
         MIX["Model mixes / channel routing\nCH1..CH18"]
         GV["Global Variables\nGVs for tuning"]
         LS["Logical switches\nmode and safety state"]
-        OUT["Physical outputs\nservos / sound / lighting / tracks"]
+        OUT["Physical outputs\nchannels mapped to hardware"]
+    end
+
+    subgraph RC["RC Vehicle"]
+        ACT["Actuators\nblade and tiller actuators\ntiller servo\ntiller motors\ntrack motors\nlights\nsound"]
     end
 
     subgraph Lua["Lua control scripts"]
@@ -32,6 +36,7 @@ flowchart LR
     end
 
     IN --> MIX
+
     MIX --> SYS
     MIX --> BLADE
     MIX --> TILL
@@ -44,9 +49,12 @@ flowchart LR
     LS --> BLADE
     LS --> TILL
 
-    SYS --> OUT
-    BLADE --> OUT
-    TILL --> OUT
+    SYS -->|Lua outputs| MIX
+    BLADE -->|Lua outputs| MIX
+    TILL -->|Lua outputs| MIX
+
+    MIX --> OUT
+    OUT --> ACT
 
     SYS --> OP
     BLADE --> OP
@@ -58,6 +66,8 @@ flowchart LR
 
     OUT --> OP
     OUT --> DBG
+    ACT --> OP
+    ACT --> DBG
 
     SYS -. "state + timing" .-> LS
     BLADE -. "mode + position" .-> LS
@@ -67,9 +77,10 @@ flowchart LR
 At a high level, the radio model collects pilot inputs and routes them
 through the configured mixes. Those values feed the Lua scripts, which use
 Global Variables and logical switches to compute the machine state and output
-commands. The resulting Lua outputs go to the physical channels and also feed
-the operator and debug widgets, which visualize the same underlying state
-without creating a second control path.
+commands. The Lua scripts then write their computed outputs back into the
+model mixes, where those values are assigned to the physical channels. The
+related actuators then move the hardware, and the operator/debug widgets read
+that same state to visualize the machine without creating a second control path.
 
 ------------------------------------------------------------------------
 
