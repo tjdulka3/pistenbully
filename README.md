@@ -1,5 +1,9 @@
 # PistenBully 600 RC Control System
 
+![Pistenbully 600 1:7 Scale RC](images/pb600.jpeg)
+
+*Pistenbully 600 1:7 Scale RC* 
+
 Custom EdgeTX Lua mixer scripts and radio configuration for a scale RC
 PistenBully 600 snowcat.
 
