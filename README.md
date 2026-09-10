@@ -219,11 +219,11 @@ translates them into a visual machine posture. In other words, it is a real-
 time representation of the modeled PB600 state rather than a separate logic
 system.
 
-![Groom](documentation/Operator%20Panel%20Groom.png)
+![Groom](documentation/operator-panel-groom.png)
 
 *Example of Operator Panel in Groom Auto Mode*
 
-![Transport](documentation/Operator%20Panel%20Transport.png)
+![Transport](documentation/operator-panel-transport.png)
 
 *Example of Operator Panel in Transport Mode*
 
