@@ -1,6 +1,6 @@
 # PistenBully 600 RC Control System
 
-![Pistenbully 600 1:7 Scale RC](images/pb600.jpeg)
+![PB600](images/pb600.jpg)
 
 *Pistenbully 600 1:7 Scale RC* 
 
