@@ -258,11 +258,11 @@ translates them into a visual machine posture. In other words, it is a real-
 time representation of the modeled PB600 state rather than a separate logic
 system.
 
-![Groom](documentation/operator-panel-groom.png)
+![Groom](images/operator-panel-groom.png)
 
 *Example of Operator Panel in Groom Auto Mode*
 
-![Transport](documentation/operator-panel-transport.png)
+![Transport](images/operator-panel-transport.png)
 
 *Example of Operator Panel in Transport Mode*
 
@@ -635,7 +635,7 @@ engine behavior, moving from approximately 700 RPM idle toward a roughly
 1,300 RPM working region. The RPM line is illustrative documentation and
 is not itself the current EngOut calculation.
 
-![PB600 RC Hydrostatic Throttle and Speed Curve](documentation/pb600_throttle_speed_rpm_curve.png)
+![PB600 RC Hydrostatic Throttle and Speed Curve](images/pb600_throttle_speed_rpm_curve.png)
 
 *PB600 RC Hydrostatic Throttle and Speed Curve*
 
@@ -1807,7 +1807,7 @@ calibration constants.
   SA Middle   No auxiliary sound
   SA Down     Horn
 
-  ![Radiomaster Input Assignments](documentation/radiomaster-input-assignments.jpg)
+  ![Radiomaster Input Assignments](images/radiomaster-input-assignments.jpg)
 
 ### 3. Physical Channel Map
 
