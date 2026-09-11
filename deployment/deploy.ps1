@@ -55,11 +55,10 @@ $NewVersion = $CurrentVersion
 
 if ($Environment -eq "Production") {
     $NewVersion = "$Major.$Minor.$([int]$Patch + 1)"
-    Set-Content -Path $VersionFile -Value ("return """ + $NewVersion + """)") -NoNewline
 }
-else {
-    Set-Content -Path $VersionFile -Value ("return """ + $CurrentVersion + """)") -NoNewline
-}
+
+$versionLua = 'return "' + $NewVersion + '"'
+Set-Content -Path $VersionFile -Value $versionLua -NoNewline
 
 Write-Host ""
 Write-Host "============================================"

@@ -1,6 +1,30 @@
 local widget = {}
 
-local APP_VERSION = "1.1.3"
+local function readAppVersion()
+  local candidates = {"/RADIO/version.lua", "/version.lua", "/SCRIPTS/version.lua"}
+
+  for _, path in ipairs(candidates) do
+    local file = io.open(path, "r")
+    if file then
+      local raw = file:read("*a") or "return \"1.1.5\""
+      file:close()
+
+      local version = raw:match('return%s+"([^"]+)"')
+      if version then
+        return version
+      end
+
+      version = raw:match('([0-9]+%.[0-9]+%.[0-9]+)')
+      if version then
+        return version
+      end
+    end
+  end
+
+  return "1.1.5"
+end
+
+local APP_VERSION = readAppVersion()
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
