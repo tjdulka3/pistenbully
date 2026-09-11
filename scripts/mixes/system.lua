@@ -237,8 +237,21 @@ local function normStick(v)
   end
 
 
-  -- EdgeTX sources may appear as +/-1024 or +/-100.
+  -- EdgeTX sources may appear as either:
+  --
+  --   signed:   -1024 .. 1024
+  --   unsigned: 0 .. 1024 with center around 512
+  --
+  -- Normalize both forms into a signed -1.0 .. 1.0 range.
   if math.abs(v) > 100 then
+
+    -- Unsigned center-based sticks often sit near 512 at neutral.
+    if v >= 0 and v <= 1024 then
+
+      return
+        (v - 512) / 512
+
+    end
 
     return
       v / 1024
