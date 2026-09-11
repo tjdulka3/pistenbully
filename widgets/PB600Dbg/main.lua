@@ -1,24 +1,6 @@
 local widget = {}
 
-local function readAppVersion()
-  local candidates = {"/RADIO/version.txt", "/version.txt", "/SCRIPTS/version.txt"}
-
-  for _, path in ipairs(candidates) do
-    local file = io.open(path, "r")
-    if file then
-      local version = file:read("*a") or "1.1.1"
-      file:close()
-      version = string.gsub(version, "%s+", "")
-      if version ~= "" then
-        return version
-      end
-    end
-  end
-
-  return "1.1.1"
-end
-
-local APP_VERSION = readAppVersion()
+local APP_VERSION = "1.1.3"
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
@@ -314,7 +296,7 @@ function widget.refresh(widget)
 end
 
 return {
-  name = "PB600 DEBUG FINAL",
+  name = "PB600Dbg",
   options = {},
   create = widget.create,
   update = widget.update,

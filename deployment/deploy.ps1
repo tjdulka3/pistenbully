@@ -26,26 +26,39 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Version file is the source of truth for the application version shown in the debug panel.
 # Only production deployments increment the patch number.
-$VersionFile = Join-Path $RepoRoot "radio\version.txt"
+$VersionFile = Join-Path $RepoRoot 'radio\version.lua'
 
 if (!(Test-Path $VersionFile)) {
-    "1.1.1" | Set-Content -Path $VersionFile -NoNewline
+    Set-Content -Path $VersionFile -Value 'return "1.1.1"' -NoNewline
 }
 
 $VersionText = (Get-Content -Path $VersionFile -Raw).Trim()
 
-if ($VersionText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
-    throw "Version file must contain a semantic version in the form X.Y.Z: $VersionFile"
+if ($VersionText -match 'return\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+    $CurrentVersion = $Matches[1]
+    $parts = $CurrentVersion.Split('.')
+    $Major = [int]$parts[0]
+    $Minor = [int]$parts[1]
+    $Patch = [int]$parts[2]
 }
-
-$NewVersion = $VersionText
-
-if ($Environment -eq "Production") {
+elseif ($VersionText -match '^([0-9]+)\.([0-9]+)\.([0-9]+)$') {
     $Major = [int]$Matches[1]
     $Minor = [int]$Matches[2]
-    $Patch = [int]$Matches[3] + 1
-    $NewVersion = "$Major.$Minor.$Patch"
-    $NewVersion | Set-Content -Path $VersionFile -NoNewline
+    $Patch = [int]$Matches[3]
+    $CurrentVersion = "$Major.$Minor.$Patch"
+}
+else {
+    throw ('Version file must contain a Lua return statement such as return "1.1.3": ' + $VersionFile)
+}
+
+$NewVersion = $CurrentVersion
+
+if ($Environment -eq "Production") {
+    $NewVersion = "$Major.$Minor.$([int]$Patch + 1)"
+    Set-Content -Path $VersionFile -Value ("return """ + $NewVersion + """)") -NoNewline
+}
+else {
+    Set-Content -Path $VersionFile -Value ("return """ + $CurrentVersion + """)") -NoNewline
 }
 
 Write-Host ""
@@ -175,6 +188,15 @@ $SourceWidgets = Join-Path `
     $RepoRoot `
     "widgets"
 
+# Clear stale widget folders so the radio sees the freshly deployed version.
+$WidgetNames = @("PB600Dbg", "PB600Op")
+foreach ($WidgetName in $WidgetNames) {
+    $WidgetTarget = Join-Path $TargetWidgets $WidgetName
+    if (Test-Path $WidgetTarget) {
+        Remove-Item -Path $WidgetTarget -Recurse -Force
+    }
+}
+
 Write-Host "Deploying widgets..."
 
 Copy-Item `
@@ -216,7 +238,11 @@ Copy-Item `
     -Force
 
 # Version file is deployed to the radio root so the debug widget can read it there.
-$VersionTarget = Join-Path $TargetRadio "version.txt"
+$VersionTarget = Join-Path $TargetRadio "version.lua"
+$LegacyVersionTarget = Join-Path $TargetRadio "version.txt"
+if (Test-Path $LegacyVersionTarget) {
+    Remove-Item -Path $LegacyVersionTarget -Force
+}
 Copy-Item -Path $VersionFile -Destination $VersionTarget -Force
 
 # ============================================================
