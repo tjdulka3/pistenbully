@@ -56,22 +56,26 @@ local TURN_GAIN =
   0.40
 
 
--- Amount of steering authority removed at maximum
--- actual vehicle speed.
---
--- 0.30 means:
+-- Steering authority stays at 100% through half speed,
+-- then tapers linearly to 50% at maximum actual vehicle speed.
 --
 --   speed 0%   -> 100% steering retained
---   speed 25%  ->  92.5%
---   speed 50%  ->  85%
---   speed 75%  ->  77.5%
---   speed 100% ->  70%
+--   speed 25%  -> 100%
+--   speed 50%  -> 100%
+--   speed 60%  ->  90%
+--   speed 70%  ->  80%
+--   speed 80%  ->  70%
+--   speed 90%  ->  60%
+--   speed 100% ->  50%
 --
 -- IMPORTANT:
--- This is now based on estimated ACTUAL vehicle speed,
+-- This is based on estimated ACTUAL vehicle speed,
 -- not throttle-stick position.
-local SPEED_FACTOR =
-  0.30
+local STEER_TAPER_START =
+  0.50
+
+local STEER_MIN_SCALE =
+  0.50
 
 
 -- Throttle point at which the low-speed pivot component
@@ -158,7 +162,10 @@ local tillerTransitionRemaining =
   0
 
 
--- Current hydrostatically smoothed INTERNAL track outputs.
+-- Current INTERNAL track outputs.
+--
+-- Longitudinal motion is hydrostatically smoothed while the
+-- steering differential is applied immediately.
 --
 -- These are maintained before the physical Right-track
 -- direction inversion at the final return statement.
@@ -1079,24 +1086,45 @@ local function run()
   -- ----------------------------------------------------------
   -- SPEED-BASED STEERING REDUCTION
   --
-  -- Steering authority now follows actual vehicle movement
-  -- rather than throttle-stick position.
+  -- Keep full steering authority through 50% actual speed.
+  -- Above 50%, taper linearly to 50% steering at full speed.
   --
-  -- SPEED_FACTOR = 0.30:
-  --
-  --   0% actual speed   = 100% steering
-  --  25% actual speed   =  92.5%
-  --  50% actual speed   =  85%
-  --  75% actual speed   =  77.5%
-  -- 100% actual speed   =  70%
+  -- This protects against abrupt full-speed turns without
+  -- weakening steering through the normal working-speed range.
   -- ----------------------------------------------------------
 
   local speedScale =
-    1 -
-    (
-      vehicleSpeed *
-      SPEED_FACTOR
-    )
+    1.0
+
+
+  if vehicleSpeed > STEER_TAPER_START then
+
+    local highSpeedProgress =
+      clamp(
+        (
+          vehicleSpeed -
+          STEER_TAPER_START
+        ) /
+        (
+          1.0 -
+          STEER_TAPER_START
+        ),
+        0,
+        1
+      )
+
+
+    speedScale =
+      1.0 -
+      (
+        highSpeedProgress *
+        (
+          1.0 -
+          STEER_MIN_SCALE
+        )
+      )
+
+  end
 
 
   -- ----------------------------------------------------------
@@ -1346,13 +1374,48 @@ local function run()
 
 
   -- ==========================================================
-  -- TIME-BASED HYDROSTATIC OUTPUT SMOOTHING
+  -- HYDROSTATIC DRIVE + IMMEDIATE STEERING DIFFERENTIAL
+  --
+  -- Longitudinal vehicle speed remains hydrostatically smoothed,
+  -- but steering differential is applied immediately.
+  --
+  -- This separates:
+  --
+  --   center/drive component  -> hydrostatic acceleration/braking
+  --   steering differential  -> immediate track response
+  --
+  -- The result is a heavy, progressive straight-line response
+  -- without making turn input feel delayed.
   -- ==========================================================
 
-  local leftOut =
+  local targetCenter =
+    (
+      targetL +
+      targetR
+    ) /
+    2
+
+
+  local targetDifferential =
+    (
+      targetL -
+      targetR
+    ) /
+    2
+
+
+  local previousCenter =
+    (
+      lastL +
+      lastR
+    ) /
+    2
+
+
+  local centerOut =
     smoothDirectional(
-      lastL,
-      targetL,
+      previousCenter,
+      targetCenter,
       ACCEL_RATE,
       DECEL_RATE,
       REVERSE_BOOST,
@@ -1360,14 +1423,29 @@ local function run()
     )
 
 
+  local leftOut =
+    centerOut +
+    targetDifferential
+
+
   local rightOut =
-    smoothDirectional(
-      lastR,
-      targetR,
-      ACCEL_RATE,
-      DECEL_RATE,
-      REVERSE_BOOST,
-      dt
+    centerOut -
+    targetDifferential
+
+
+  leftOut =
+    clamp(
+      leftOut,
+      -1024,
+      1024
+    )
+
+
+  rightOut =
+    clamp(
+      rightOut,
+      -1024,
+      1024
     )
 
 
