@@ -114,7 +114,6 @@ local function draw(zone)
   lcd.drawText(x+120,y,"SD "..fmtSD(getValue("sd")),SMLSIZE)
   lcd.drawText(x+200,y,"SC "..fmtSC(getValue("sc")),SMLSIZE)
   lcd.drawText(x+280,y,"SB "..fmtSB(getValue("sb")),SMLSIZE)
-  lcd.drawText(x+610,y,"ver. " .. APP_VERSION,SMLSIZE+INVERS)
 
   local revRequest = (getValue("sd") or 0) > 500 and (getValue("thr") or 0) < -50
   local bladeTran = luaValue(SYSTEM_SLOT, 4) > 0
@@ -267,6 +266,7 @@ local function draw(zone)
   -- =========================
   lcd.drawLine(0, y+320, 800, y+320, SOLID)
   lcd.drawText(10, y+325, "GLOBAL VARIABLES", SMLSIZE)
+  lcd.drawText(x+610, y+325, "ver. " .. APP_VERSION, SMLSIZE + INVERS)
 
   local gy = y + 345
   local colW = 155
