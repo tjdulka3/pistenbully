@@ -25,7 +25,7 @@ elseif ($Environment -eq "Production") {
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Version file is the source of truth for the application version shown in the debug panel.
-# Only production deployments increment the patch number.
+# Only production deployments increment the patch number after a successful radio deploy.
 $VersionFile = Join-Path $RepoRoot 'radio\version.lua'
 
 if (!(Test-Path $VersionFile)) {
@@ -51,14 +51,12 @@ else {
     throw ('Version file must contain an assignment such as APP_VERSION = "1.1.3": ' + $VersionFile)
 }
 
-$NewVersion = $CurrentVersion
+$CurrentVersionDisplay = $CurrentVersion
+$PendingVersion = $CurrentVersion
 
 if ($Environment -eq "Production") {
-    $NewVersion = "$Major.$Minor.$([int]$Patch + 1)"
+    $PendingVersion = "$Major.$Minor.$([int]$Patch + 1)"
 }
-
-$versionLua = 'APP_VERSION = "' + $NewVersion + '"'
-Set-Content -Path $VersionFile -Value $versionLua -NoNewline
 
 Write-Host ""
 Write-Host "============================================"
@@ -67,7 +65,7 @@ Write-Host "============================================"
 Write-Host ""
 Write-Host " Environment : $Environment"
 Write-Host " Target      : $TargetRoot"
-Write-Host " Version     : $NewVersion"
+Write-Host " Version     : $CurrentVersionDisplay"
 Write-Host ""
 
 
@@ -247,6 +245,12 @@ if (Test-Path $LegacyVersionTarget) {
 Copy-Item -Path $VersionFile -Destination $RootVersionTarget -Force
 Copy-Item -Path $VersionFile -Destination $VersionTarget -Force
 
+# Only increment the stored version after all radio writes succeed.
+if ($Environment -eq "Production") {
+    $versionLua = 'APP_VERSION = "' + $PendingVersion + '"'
+    Set-Content -Path $VersionFile -Value $versionLua -NoNewline
+}
+
 # ============================================================
 # Finished
 # ============================================================
@@ -258,4 +262,5 @@ Write-Host "============================================"
 Write-Host ""
 Write-Host " Environment : $Environment"
 Write-Host " Target      : $TargetRoot"
+Write-Host " Version     : $PendingVersion"
 Write-Host ""

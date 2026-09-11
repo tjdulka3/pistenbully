@@ -471,7 +471,9 @@ while passing through zero.
 Steering is modeled as a squared rudder response with actual-speed
 authority scaling. The effective steering contribution is:
 
-turn = rudder² × TURN_GAIN × speedScale
+$$
+\text{turn} = \text{rudder}^2 \times \text{TURN\_GAIN} \times \text{speedScale}
+$$
 
 where the squared rudder input preserves fine center-stick control while
 retaining strong steering near full stick travel.
@@ -492,20 +494,36 @@ $$
 $$
 
 $$
-\text{steeringAuthority} = 1.00 - (0.50 \times \text{smooth})
+\text{speedScale} = 1.00 - \left(0.50 \times \text{smooth}\right)
 $$
 
-This means steering remains at 100% through 50% actual speed, and then it
-smoothly transitions to 50% steering at maximum speed. This keeps the
-machine highly maneuverable at low speed while reducing abrupt high-speed
-turning behavior.
+This keeps steering at full authority through 50% actual speed, then
+smoothly transitions to 50% steering at maximum speed. This preserves
+low-speed agility while reducing abrupt high-speed turning behavior.
 
-The steering differential remains immediate, even while the steering
-authority is speed-damped. At zero throttle, the vehicle behaves like a
-pure counter-rotating pivot. As throttle increases, the steering mix
-progressively blends into normal differential track drive using a
-throttle-based pivot blend. This preserves low-speed agility without
-allowing excessive full-speed steering response.
+The steering effect is then applied as a differential around the shared
+hydrostatic drive baseline, not as a raw stand-alone left/right command.
+The actual wheel/track outputs are built as:
+
+$$
+\text{leftTrack} = \text{driveThrottle} \times (1 + \text{turn})
+$$
+
+$$
+\text{rightTrack} = \text{driveThrottle} \times (1 - \text{turn})
+$$
+
+This makes the steering differential more visible at higher throttle,
+while still allowing the speed taper to reduce steering authority as the
+vehicle approaches full travel speed. The large forward-drive term is
+shared by both tracks, and the visible steering response is the difference
+between them. The differential remains immediate even while the steering
+authority is speed-damped.
+
+At zero throttle, the vehicle behaves like a pure counter-rotating pivot.
+As throttle increases, the steering mix progressively blends into normal
+differential track drive using a throttle-based pivot blend. This keeps
+low-speed agility without allowing excessive full-speed steering response.
 
 ![PB600 RC Steering Authority vs Speed Curve](images/pb600_steering_linear_vs_smooth.png)
 
@@ -514,6 +532,15 @@ allowing excessive full-speed steering response.
 The implemented curve stays flat at 100% steering authority through
 roughly 50% actual speed, then follows the smoothstep taper to 50%
 steering at maximum speed.
+
+For direct comparison of full-rudder turn contribution at representative
+throttle points, the model is plotted at 50%, 75%, and 100% throttle.
+This shows how the steering differential remains strong near mid-speed and
+then tapers as speed demand rises.
+
+![PB600 Full-Rudder Steering Contribution at Representative Throttle Points](images/steering_contribution_test.svg)
+
+*PB600 full-rudder steering contribution at representative throttle points*
 
 Hydrostatic Throttle and Track-Speed Model
 

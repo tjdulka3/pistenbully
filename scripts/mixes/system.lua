@@ -1150,6 +1150,11 @@ local function run()
   --
   -- Squared rudder response gives fine center-stick control
   -- while preserving strong steering near full stick.
+  --
+  -- IMPORTANT:
+  -- This is the steering DIFFERENTIAL contribution, not the raw
+  -- left/right track command. It is applied around the shared
+  -- hydrostatic drive baseline.
   -- ----------------------------------------------------------
 
   local rudCurve =
@@ -1209,11 +1214,16 @@ local function run()
     )
 
 
+  -- Steering is a differential applied around the drive baseline,
+  -- not a stand-alone left/right command. Increase the differential
+  -- bias so the turn remains visible even at higher track speed,
+  -- while the speed taper still reduces steering authority as the
+  -- vehicle approaches full travel speed.
   local driveLeft =
     driveThrottle *
     (
       1 +
-      turn * 0.7
+      turn
     )
 
 
@@ -1221,7 +1231,7 @@ local function run()
     driveThrottle *
     (
       1 -
-      turn * 0.4
+      turn
     )
 
 
