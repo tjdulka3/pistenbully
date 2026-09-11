@@ -266,7 +266,7 @@ local function draw(zone)
   -- =========================
   lcd.drawLine(0, y+320, 800, y+320, SOLID)
   lcd.drawText(10, y+325, "GLOBAL VARIABLES", SMLSIZE)
-  lcd.drawText(x+610, y+325, "ver. " .. APP_VERSION, SMLSIZE + INVERS)
+  lcd.drawText(x+650, y+325 + (3 * ROW), "ver. " .. APP_VERSION, SMLSIZE)
 
   local gy = y + 345
   local colW = 155
