@@ -20,8 +20,10 @@ except Exception:  # pragma: no cover
 
 TURN_GAIN = 0.40
 STEER_TAPER_START = 0.50
-STEER_MIN_SCALE = 0.50
+STEER_MIN_SCALE = 0.25
 PIVOT_BLEND_END = 0.80
+THROTTLE_DEADBAND_MIN = 0.005
+THROTTLE_DEADBAND_MAX = 0.050
 
 
 def clamp(v: float, lo: float, hi: float) -> float:
@@ -53,7 +55,13 @@ def simulate_turn(rudder: float, throttle: float) -> tuple[float, float, float, 
     sscale = speed_scale(vehicle_speed)
 
     rud_curve = rud * abs(rud)
-    turn = rud_curve * TURN_GAIN * sscale
+
+    throttle_norm = clamp(abs(thr), 0.0, 1.0)
+    throttle_deadband = THROTTLE_DEADBAND_MIN + (THROTTLE_DEADBAND_MAX - THROTTLE_DEADBAND_MIN) * throttle_norm
+    throttle_outside_deadband = clamp((throttle_norm - throttle_deadband) / max(1.0 - throttle_deadband, 0.001), 0.0, 1.0)
+    throttle_response_scale = 0.25 + (0.75 * throttle_outside_deadband)
+
+    turn = rud_curve * TURN_GAIN * sscale * throttle_response_scale
 
     pivot_blend = clamp(abs(thr) / PIVOT_BLEND_END, 0.0, 1.0)
     drive_throttle = throttle_to_speed_demand(thr)

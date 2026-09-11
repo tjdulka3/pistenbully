@@ -57,7 +57,7 @@ local TURN_GAIN =
 
 
 -- Steering authority stays at 100% through half speed,
--- then follows a smooth S-curve taper to 50% at maximum
+-- then follows a smooth S-curve taper to 25% at maximum
 -- actual vehicle speed.
 --
 --   speed 0%   -> 100% steering retained
@@ -65,9 +65,9 @@ local TURN_GAIN =
 --   speed 50%  -> 100%
 --   speed 60%  ->  90%
 --   speed 70%  ->  80%
---   speed 80%  ->  70%
---   speed 90%  ->  60%
---   speed 100% ->  50%
+--   speed 80%  ->  65%
+--   speed 90%  ->  50%
+--   speed 100% ->  25%
 --
 -- IMPORTANT:
 -- This is based on estimated ACTUAL vehicle speed,
@@ -76,7 +76,24 @@ local STEER_TAPER_START =
   0.50
 
 local STEER_MIN_SCALE =
-  0.50
+  0.25
+
+
+-- As throttle rises, the steering deadband widens from
+-- 2.0% to 10.0% of full stick travel so tiny corrections at
+-- high throttle do not create a visible steering response.
+--
+-- In raw EdgeTX units, this corresponds to:
+--   0% throttle -> 0.020 * 1024 = 20.48
+-- 100% throttle -> 0.100 * 1024 = 102.40
+--
+-- Once the rudder sits outside the deadband, the steering
+-- contribution ramps up to the normal full response.
+local THROTTLE_DEADBAND_MIN =
+  0.020
+
+local THROTTLE_DEADBAND_MAX =
+  0.100
 
 
 -- Throttle point at which the low-speed pivot component
@@ -1162,10 +1179,49 @@ local function run()
     math.abs(rud)
 
 
+  local throttleNorm =
+    clamp(
+      math.abs(thr),
+      0,
+      1
+    )
+
+
+  local throttleDeadband =
+    THROTTLE_DEADBAND_MIN +
+    (
+      THROTTLE_DEADBAND_MAX -
+      THROTTLE_DEADBAND_MIN
+    ) *
+    throttleNorm
+
+
+  local throttleOutsideDeadband =
+    clamp(
+      (
+        throttleNorm -
+        throttleDeadband
+      ) /
+      math.max(
+        1.0 -
+        throttleDeadband,
+        0.001
+      ),
+      0,
+      1
+    )
+
+
+  local throttleResponseScale =
+    0.25 +
+    (0.75 * throttleOutsideDeadband)
+
+
   local turn =
     rudCurve *
     TURN_GAIN *
-    speedScale
+    speedScale *
+    throttleResponseScale
 
 
   -- ==========================================================

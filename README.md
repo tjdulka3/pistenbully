@@ -480,7 +480,9 @@ retaining strong steering near full stick travel.
 
 The controller estimates actual vehicle speed from the hydrostatically
 smoothed track outputs and applies a smoothstep speed taper to steering
-authority.
+authority. The steering input also carries a throttle-dependent deadband
+so tiny corrections at high throttle do not create a visible steering
+response.
 
 For a normalized vehicle speed s in the range [0, 1], the steering
 authority taper is defined as:
@@ -494,12 +496,38 @@ $$
 $$
 
 $$
-\text{speedScale} = 1.00 - \left(0.50 \times \text{smooth}\right)
+\text{speedScale} = 1.00 - \left(0.75 \times \text{smooth}\right)
 $$
 
-This keeps steering at full authority through 50% actual speed, then
-smoothly transitions to 50% steering at maximum speed. This preserves
-low-speed agility while reducing abrupt high-speed turning behavior.
+The throttle-dependent rudder deadband varies from 2.0% to 10.0% of full
+stick travel across the throttle range, which corresponds to raw values of:
+
+$$
+0.020 \times 1024 = 20.48
+$$
+
+and
+
+$$
+0.100 \times 1024 = 102.40
+$$
+
+at the low and high ends of throttle demand. In normalized form:
+
+$$
+\text{deadband}(throttle) = 0.020 + (0.100 - 0.020) \times |throttle|
+$$
+
+and the steering response outside that deadband is scaled with:
+
+$$
+\text{throttleResponseScale} = 0.25 + 0.75 \times \text{outsideDeadband}
+$$
+
+So the full-speed steering floor remains at 25% while the response ramps
+up aggressively once the stick sits outside the throttle-dependent
+deadband. This preserves low-speed agility while reducing abrupt
+high-speed turning behavior.
 
 The steering effect is then applied as a differential around the shared
 hydrostatic drive baseline, not as a raw stand-alone left/right command.
