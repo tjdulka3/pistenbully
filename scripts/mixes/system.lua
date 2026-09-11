@@ -57,7 +57,8 @@ local TURN_GAIN =
 
 
 -- Steering authority stays at 100% through half speed,
--- then tapers linearly to 50% at maximum actual vehicle speed.
+-- then follows a smooth S-curve taper to 50% at maximum
+-- actual vehicle speed.
 --
 --   speed 0%   -> 100% steering retained
 --   speed 25%  -> 100%
@@ -1087,7 +1088,7 @@ local function run()
   -- SPEED-BASED STEERING REDUCTION
   --
   -- Keep full steering authority through 50% actual speed.
-  -- Above 50%, taper linearly to 50% steering at full speed.
+  -- Above 50%, use a smoothstep taper to 50% at full speed.
   --
   -- This protects against abrupt full-speed turns without
   -- weakening steering through the normal working-speed range.
@@ -1114,10 +1115,27 @@ local function run()
       )
 
 
+    -- Smoothstep taper:
+    --
+    --   s = t^2 * (3 - 2t)
+    --
+    -- This starts the steering reduction gently above 50%
+    -- vehicle speed, becomes progressively stronger through
+    -- the middle of the high-speed range, and flattens again
+    -- as maximum speed is approached.
+    local smoothProgress =
+      highSpeedProgress *
+      highSpeedProgress *
+      (
+        3 -
+        2 * highSpeedProgress
+      )
+
+
     speedScale =
       1.0 -
       (
-        highSpeedProgress *
+        smoothProgress *
         (
           1.0 -
           STEER_MIN_SCALE

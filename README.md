@@ -431,12 +431,14 @@ position to ESC output.
 The primary tuning constants are maintained in `system.lua`:
 
 ``` lua
-local TURN_GAIN     = 0.25
-local SPEED_FACTOR  = 0.60
+local TURN_GAIN         = 0.40
+local STEER_TAPER_START = 0.50
+local STEER_MIN_SCALE   = 0.50
+local PIVOT_BLEND_END   = 0.80
 
-local ACCEL_RATE    = 205
-local DECEL_RATE    = 512
-local REVERSE_BOOST = 250
+local ACCEL_RATE        = 191
+local DECEL_RATE        = 512
+local REVERSE_BOOST     = 250
 ```
 
 These values are intentionally stored in code rather than Global
@@ -466,10 +468,52 @@ while passing through zero.
 
 ### Steering
 
-Steering response is nonlinear near stick center and progressively
-increases with rudder input.
+Steering is modeled as a squared rudder response with actual-speed
+authority scaling. The effective steering contribution is:
 
-Steering authority is also reduced as vehicle speed increases.
+turn = rudder² × TURN_GAIN × speedScale
+
+where the squared rudder input preserves fine center-stick control while
+retaining strong steering near full stick travel.
+
+The controller estimates actual vehicle speed from the hydrostatically
+smoothed track outputs and applies a smoothstep speed taper to steering
+authority.
+
+For a normalized vehicle speed s in the range [0, 1], the steering
+authority taper is defined as:
+
+$$
+t = \frac{s - 0.50}{0.50}
+$$
+
+$$
+\text{smooth} = t^2 (3 - 2t)
+$$
+
+$$
+\text{steeringAuthority} = 1.00 - (0.50 \times \text{smooth})
+$$
+
+This means steering remains at 100% through 50% actual speed, and then it
+smoothly transitions to 50% steering at maximum speed. This keeps the
+machine highly maneuverable at low speed while reducing abrupt high-speed
+turning behavior.
+
+The steering differential remains immediate, even while the steering
+authority is speed-damped. At zero throttle, the vehicle behaves like a
+pure counter-rotating pivot. As throttle increases, the steering mix
+progressively blends into normal differential track drive using a
+throttle-based pivot blend. This preserves low-speed agility without
+allowing excessive full-speed steering response.
+
+![PB600 RC Steering Authority vs Speed Curve](images/pb600_steering_linear_vs_smooth.png)
+
+*PB600 RC Steering Authority vs Speed Curve*
+
+The implemented curve stays flat at 100% steering authority through
+roughly 50% actual speed, then follows the smoothstep taper to 50%
+steering at maximum speed.
 
 Hydrostatic Throttle and Track-Speed Model
 
@@ -653,6 +697,11 @@ At 20% throttle, the controller requests only about 10% track speed. At
 80% throttle, it requests about 90%. This gives the RC PB600 precise
 low-speed grooming control while retaining strong response in the upper
 half of the throttle range.
+
+------------------------------------------------------------------------
+
+The steering authority curve is documented in the preceding section and
+is the authoritative description for the live vehicle behavior.
 
 ------------------------------------------------------------------------
 
