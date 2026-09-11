@@ -4,19 +4,12 @@ local function readAppVersion()
   local candidates = {"/RADIO/version.lua", "/version.lua", "/SCRIPTS/version.lua"}
 
   for _, path in ipairs(candidates) do
-    local file = io.open(path, "r")
-    if file then
-      local raw = file:read("*a") or "return \"1.1.5\""
-      file:close()
-
-      local version = raw:match('return%s+"([^"]+)"')
-      if version then
-        return version
-      end
-
-      version = raw:match('([0-9]+%.[0-9]+%.[0-9]+)')
-      if version then
-        return version
+    local ok, script = pcall(loadScript, path)
+    if ok and type(script) == "function" then
+      _G.APP_VERSION = nil
+      local ok2 = pcall(script)
+      if ok2 and type(_G.APP_VERSION) == "string" then
+        return _G.APP_VERSION
       end
     end
   end

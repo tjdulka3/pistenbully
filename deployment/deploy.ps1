@@ -29,12 +29,12 @@ $RepoRoot = Split-Path -Parent $PSScriptRoot
 $VersionFile = Join-Path $RepoRoot 'radio\version.lua'
 
 if (!(Test-Path $VersionFile)) {
-    Set-Content -Path $VersionFile -Value 'return "1.1.1"' -NoNewline
+    Set-Content -Path $VersionFile -Value 'APP_VERSION = "1.1.1"' -NoNewline
 }
 
 $VersionText = (Get-Content -Path $VersionFile -Raw).Trim()
 
-if ($VersionText -match 'return\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+if ($VersionText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $CurrentVersion = $Matches[1]
     $parts = $CurrentVersion.Split('.')
     $Major = [int]$parts[0]
@@ -48,7 +48,7 @@ elseif ($VersionText -match '^([0-9]+)\.([0-9]+)\.([0-9]+)$') {
     $CurrentVersion = "$Major.$Minor.$Patch"
 }
 else {
-    throw ('Version file must contain a Lua return statement such as return "1.1.3": ' + $VersionFile)
+    throw ('Version file must contain an assignment such as APP_VERSION = "1.1.3": ' + $VersionFile)
 }
 
 $NewVersion = $CurrentVersion
@@ -57,7 +57,7 @@ if ($Environment -eq "Production") {
     $NewVersion = "$Major.$Minor.$([int]$Patch + 1)"
 }
 
-$versionLua = 'return "' + $NewVersion + '"'
+$versionLua = 'APP_VERSION = "' + $NewVersion + '"'
 Set-Content -Path $VersionFile -Value $versionLua -NoNewline
 
 Write-Host ""
