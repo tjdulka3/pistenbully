@@ -236,12 +236,15 @@ Copy-Item `
     -Recurse `
     -Force
 
-# Version file is deployed to the radio root so the debug widget can read it there.
+# Deploy version.lua in both the root and RADIO folder for compatibility.
+# EdgeTX widgets commonly read /RADIO/version.lua, but some layouts also expect /version.lua.
+$RootVersionTarget = Join-Path $TargetRoot "version.lua"
 $VersionTarget = Join-Path $TargetRadio "version.lua"
 $LegacyVersionTarget = Join-Path $TargetRadio "version.txt"
 if (Test-Path $LegacyVersionTarget) {
     Remove-Item -Path $LegacyVersionTarget -Force
 }
+Copy-Item -Path $VersionFile -Destination $RootVersionTarget -Force
 Copy-Item -Path $VersionFile -Destination $VersionTarget -Force
 
 # ============================================================
