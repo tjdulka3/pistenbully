@@ -24,6 +24,25 @@ elseif ($Environment -eq "Production") {
 # Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
+# Version file is the source of truth for the application version shown in the debug panel.
+# It increments the patch number on every deployment.
+$VersionFile = Join-Path $RepoRoot "radio\version.txt"
+
+if (!(Test-Path $VersionFile)) {
+    "1.1.1" | Set-Content -Path $VersionFile -NoNewline
+}
+
+$VersionText = (Get-Content -Path $VersionFile -Raw).Trim()
+
+if ($VersionText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
+    throw "Version file must contain a semantic version in the form X.Y.Z: $VersionFile"
+}
+
+$Major = [int]$Matches[1]
+$Minor = [int]$Matches[2]
+$Patch = [int]$Matches[3] + 1
+$NewVersion = "$Major.$Minor.$Patch"
+$NewVersion | Set-Content -Path $VersionFile -NoNewline
 
 Write-Host ""
 Write-Host "============================================"
@@ -32,6 +51,7 @@ Write-Host "============================================"
 Write-Host ""
 Write-Host " Environment : $Environment"
 Write-Host " Target      : $TargetRoot"
+Write-Host " Version     : $NewVersion"
 Write-Host ""
 
 
@@ -190,7 +210,11 @@ Copy-Item `
     $TargetRadio `
     -Recurse `
     -Force
-    
+
+# Version file is deployed to the radio root so the debug widget can read it there.
+$VersionTarget = Join-Path $TargetRadio "version.txt"
+Copy-Item -Path $VersionFile -Destination $VersionTarget -Force
+
 # ============================================================
 # Finished
 # ============================================================

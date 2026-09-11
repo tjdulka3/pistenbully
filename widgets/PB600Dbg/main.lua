@@ -1,5 +1,25 @@
 local widget = {}
 
+local function readAppVersion()
+  local candidates = {"/RADIO/version.txt", "/version.txt", "/SCRIPTS/version.txt"}
+
+  for _, path in ipairs(candidates) do
+    local file = io.open(path, "r")
+    if file then
+      local version = file:read("*a") or "1.1.1"
+      file:close()
+      version = string.gsub(version, "%s+", "")
+      if version ~= "" then
+        return version
+      end
+    end
+  end
+
+  return "1.1.1"
+end
+
+local APP_VERSION = readAppVersion()
+
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
 --------------------------------------------------
@@ -258,6 +278,8 @@ local function draw(zone)
     {3,"Reverse Lift","%"},
     {4,"Tiller Angle","%"}
   }
+
+  lcd.drawText(x + 690, y + 325, "ver. " .. APP_VERSION, SMLSIZE + INVERS)
 
   local gx = 10
   local gy_row = gy
