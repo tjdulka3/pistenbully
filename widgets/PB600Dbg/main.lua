@@ -279,7 +279,7 @@ local function draw(zone)
     {4,"Tiller Angle","%"}
   }
 
-  lcd.drawText(x + 690, y + 325, "ver. " .. APP_VERSION, SMLSIZE + INVERS)
+  lcd.drawText(x + 690, y + 325 + (ROW * 2), "ver. " .. APP_VERSION, SMLSIZE + INVERS)
 
   local gx = 10
   local gy_row = gy

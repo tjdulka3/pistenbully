@@ -25,7 +25,7 @@ elseif ($Environment -eq "Production") {
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
 # Version file is the source of truth for the application version shown in the debug panel.
-# It increments the patch number on every deployment.
+# Only production deployments increment the patch number.
 $VersionFile = Join-Path $RepoRoot "radio\version.txt"
 
 if (!(Test-Path $VersionFile)) {
@@ -38,11 +38,15 @@ if ($VersionText -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
     throw "Version file must contain a semantic version in the form X.Y.Z: $VersionFile"
 }
 
-$Major = [int]$Matches[1]
-$Minor = [int]$Matches[2]
-$Patch = [int]$Matches[3] + 1
-$NewVersion = "$Major.$Minor.$Patch"
-$NewVersion | Set-Content -Path $VersionFile -NoNewline
+$NewVersion = $VersionText
+
+if ($Environment -eq "Production") {
+    $Major = [int]$Matches[1]
+    $Minor = [int]$Matches[2]
+    $Patch = [int]$Matches[3] + 1
+    $NewVersion = "$Major.$Minor.$Patch"
+    $NewVersion | Set-Content -Path $VersionFile -NoNewline
+}
 
 Write-Host ""
 Write-Host "============================================"
