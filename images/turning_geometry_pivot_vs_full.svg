@@ -1,0 +1,47 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='430' viewBox='0 0 1000 430'>
+  <defs>
+    <style>
+      .title { font: 700 20px sans-serif; fill: #1f2937; }
+      .label { font: 600 15px sans-serif; fill: #1f2937; }
+      .small { font: 12px sans-serif; fill: #374151; }
+      .circleSmall { stroke: #3b82f6; stroke-width: 2; fill: none; stroke-dasharray: 8 6; }
+      .circleLarge { stroke: #2563eb; stroke-width: 2; fill: none; stroke-dasharray: 8 6; }
+      .track { fill: #4b5563; stroke: #111827; stroke-width: 1.5; }
+      .body { fill: #111827; stroke: #111827; stroke-width: 1.5; }
+      .pivotDot { fill: #2563eb; }
+      .note { stroke: #6b7280; stroke-dasharray: 5 6; stroke-width: 1.5; fill: none; }
+    </style>
+  </defs>
+
+  <rect width='1000' height='430' fill='white'/>
+  <text class='title' x='500' y='30' text-anchor='middle'>Snowcat turning radius comparison</text>
+
+  <!-- Snowcat body and tracks drawn as simple silhouettes matching the reference photos -->
+  <g>
+    <rect x='482' y='190' width='36' height='80' class='body'/>
+    <rect x='466' y='202' width='12' height='56' class='track'/>
+    <rect x='522' y='202' width='12' height='56' class='track'/>
+    <circle cx='500' cy='230' r='5' class='pivotDot'/>
+  </g>
+
+  <!-- Small pivot circle left of cat, tangent to the large circle at the cat center -->
+  <g>
+    <circle cx='470' cy='230' r='30' class='circleSmall'/>
+    <circle cx='470' cy='230' r='5' class='pivotDot'/>
+    <line x1='430' y1='250' x2='470' y2='230' class='note'/>
+    <text class='small' x='410' y='272' text-anchor='middle'>turning center</text>
+    <text class='label' x='330' y='355' text-anchor='middle'>0% throttle turn</text>
+    <text class='small' x='330' y='372' text-anchor='middle'>R = 1.5 ft</text>
+    <line x1='330' y1='340' x2='430' y2='300' class='note'/>
+  </g>
+
+  <!-- Large pivot circle right of cat, tangent to the small circle at the cat center -->
+  <g>
+    <circle cx='700' cy='230' r='200' class='circleLarge'/>
+    <circle cx='700' cy='230' r='5' class='pivotDot'/>
+    <text class='small' x='700' y='214' text-anchor='middle'>turning center</text>
+    <text class='label' x='700' y='358' text-anchor='middle'>100% throttle turn</text>
+    <text class='small' x='700' y='375' text-anchor='middle'>R = 10.0 ft</text>
+    <line x1='500' y1='230' x2='700' y2='230' class='note'/>
+  </g>
+</svg>

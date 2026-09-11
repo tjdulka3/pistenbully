@@ -1,9 +1,7 @@
-$TURN_GAIN = 0.40
-$STEER_TAPER_START = 0.50
-$STEER_MIN_SCALE = 0.25
-$PIVOT_BLEND_END = 0.80
-$THROTTLE_DEADBAND_MIN = 0.020
-$THROTTLE_DEADBAND_MAX = 0.100
+$TRACK_CENTER_SPACING_FT = 3.0
+$PIVOT_RADIUS_FT = $TRACK_CENTER_SPACING_FT / 2.0
+$FULL_TURN_RADIUS_FT = 10.0
+$TURN_GAIN = 1.0
 
 function ClampValue([double]$value, [double]$min, [double]$max) {
     if ($value -lt $min) { return $min }
@@ -11,68 +9,44 @@ function ClampValue([double]$value, [double]$min, [double]$max) {
     return $value
 }
 
-function ThrottleToSpeedDemand([double]$throttle) {
-    $sign = 1.0
-    if ($throttle -lt 0) { $sign = -1.0 }
-
-    $x = ClampValue ([math]::Abs($throttle)) 0.0 1.0
-    $shaped = $x * $x * (3.0 - (2.0 * $x))
-    return $shaped * $sign
-}
-
-function SpeedScale([double]$vehicleSpeed) {
-    $s = ClampValue $vehicleSpeed 0.0 1.0
-    if ($s -le $STEER_TAPER_START) { return 1.0 }
-
-    $t = ClampValue (($s - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START)) 0.0 1.0
-    $smooth = $t * $t * (3.0 - (2.0 * $t))
-    return 1.0 - ($smooth * (1.0 - $STEER_MIN_SCALE))
-}
-
 function SimulateTurn([double]$rudder, [double]$throttle) {
     $rud = ClampValue $rudder -1.0 1.0
     $thr = ClampValue $throttle -1.0 1.0
 
-    $speedDemand = ThrottleToSpeedDemand $thr
-    $vehicleSpeed = [math]::Abs($speedDemand)
-    $speedFactor = SpeedScale $vehicleSpeed
-
+    $rudderNorm = ClampValue ([math]::Abs($rud)) 0.0 1.0
     $throttleNorm = ClampValue ([math]::Abs($thr)) 0.0 1.0
-    $throttleDeadband = $THROTTLE_DEADBAND_MIN + (($THROTTLE_DEADBAND_MAX - $THROTTLE_DEADBAND_MIN) * $throttleNorm)
-    $throttleOutsideDeadband = ClampValue ((($throttleNorm - $throttleDeadband) / [math]::Max((1.0 - $throttleDeadband), 0.001))) 0.0 1.0
-    $throttleResponseScale = 0.25 + (0.75 * $throttleOutsideDeadband)
 
-    $rudderAbs = [math]::Abs($rud)
-    $rudderDeadband = $throttleDeadband
-
-    if ($rudderAbs -le $rudderDeadband) {
-        $effectiveRudder = 0.0
-    }
-    else {
-        $effectiveRudder = $rudderAbs - $rudderDeadband
-        if ($rud -lt 0) { $effectiveRudder = -$effectiveRudder }
+    if ($rudderNorm -lt 0.001) {
+        return [pscustomobject]@{
+            Throttle = $throttle
+            Rudder = $rudder
+            Turn = 0.0
+            TurnRatio = 0.0
+            RadiusFt = $PIVOT_RADIUS_FT
+        }
     }
 
-    $rudCurve = $effectiveRudder * [math]::Abs($effectiveRudder)
-    $turn = $rudCurve * $TURN_GAIN * $speedFactor * $throttleResponseScale
+    $targetRadiusFt = $PIVOT_RADIUS_FT + (($FULL_TURN_RADIUS_FT - $PIVOT_RADIUS_FT) * $throttleNorm * ($rudderNorm * $rudderNorm))
+    $turnRatio = ($PIVOT_RADIUS_FT / [math]::Max($targetRadiusFt, 0.001)) * ([math]::Sign($rud))
+    $turn = ClampValue ($turnRatio * $TURN_GAIN) -1.0 1.0
 
     [pscustomobject]@{
         Throttle = $throttle
         Rudder = $rudder
-        SpeedScale = $speedFactor
         Turn = $turn
-        Deadband = $rudderDeadband
+        TurnRatio = $turnRatio
+        RadiusFt = $targetRadiusFt
     }
 }
 
-$throttles = @(0.50, 0.75, 1.00)
+$throttles = @(0.0, 0.25, 0.50, 0.75, 1.00)
 $rudders = @(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
 
-Write-Host "Representative full-rudder steering curves"
-Write-Host "Throttle  SpeedScale  Turn"
+Write-Host "Geometric steering model"
+Write-Host "Throttle  RadiusFt  TurnRatio"
 foreach ($thr in $throttles) {
     $result = SimulateTurn 1.0 $thr
-    Write-Host ("{0:F2}       {1:F3}      {2:F3}" -f $result.Throttle, $result.SpeedScale, $result.Turn)
+    Write-Host ("{0:F2}       {1:F2}     {2:F3}" -f $result.Throttle, $result.RadiusFt, $result.TurnRatio)
 }
 
 $plotWidth = 760

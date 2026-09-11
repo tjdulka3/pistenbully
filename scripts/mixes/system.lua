@@ -51,44 +51,40 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Overall steering authority.
+-- Geometric turning model for the PB600 track system.
+--
+-- The stationary pivot condition is defined by rotating about a point
+-- on the outside edge of the inside track.
+--
+-- For a track center spacing B, the pivot radius is B / 2.
+-- The full-throttle / full-rudder turning radius is 10 ft, which gives
+-- a 20 ft turning diameter.
+--
+-- The target turn ratio is therefore:
+--
+--   R_pivot = B / 2
+--   R_target = R_pivot + (R_full - R_pivot) * |thr| * rud^2
+--   turnRatio = (R_pivot / R_target) * sign(rud)
+--
+-- This gives a true pivot at 0 throttle and full rudder, while allowing
+-- the vehicle to progress to a 20 ft turning diameter at full throttle.
+local TRACK_CENTER_SPACING_FT =
+  3.0
+
+local PIVOT_RADIUS_FT =
+  TRACK_CENTER_SPACING_FT / 2.0
+
+local FULL_TURN_RADIUS_FT =
+  10.0
+
 local TURN_GAIN =
-  0.40
+  1.0
 
 
--- Steering authority stays at 100% through half speed,
--- then follows a smooth S-curve taper to 25% at maximum
--- actual vehicle speed.
---
---   speed 0%   -> 100% steering retained
---   speed 25%  -> 100%
---   speed 50%  -> 100%
---   speed 60%  ->  90%
---   speed 70%  ->  80%
---   speed 80%  ->  65%
---   speed 90%  ->  50%
---   speed 100% ->  25%
---
--- IMPORTANT:
--- This is based on estimated ACTUAL vehicle speed,
--- not throttle-stick position.
-local STEER_TAPER_START =
-  0.50
-
-local STEER_MIN_SCALE =
-  0.25
-
-
--- As throttle rises, the steering deadband widens from
--- 2.0% to 10.0% of full stick travel so tiny corrections at
--- high throttle do not create a visible steering response.
---
--- In raw EdgeTX units, this corresponds to:
---   0% throttle -> 0.020 * 1024 = 20.48
--- 100% throttle -> 0.100 * 1024 = 102.40
---
--- Once the rudder sits outside the deadband, the steering
--- contribution ramps up to the normal full response.
+-- The old speed-taper steering reduction is intentionally replaced by the
+-- geometric turn model above. The system still keeps a small deadband for
+-- stick noise, but steering authority is now defined by the required turn
+-- radius rather than a speed-dependent scaling factor.
 local THROTTLE_DEADBAND_MIN =
   0.020
 
@@ -1102,81 +1098,25 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- SPEED-BASED STEERING REDUCTION
+  -- GEOMETRIC TURNING MODEL
   --
-  -- Keep full steering authority through 50% actual speed.
-  -- Above 50%, use a smoothstep taper to 50% at full speed.
+  -- The steering law is defined by the required turning radius, not by
+  -- a speed-tapered gain. This avoids the earlier ambiguity where a
+  -- high-speed taper masked the actual pivot geometry.
   --
-  -- This protects against abrupt full-speed turns without
-  -- weakening steering through the normal working-speed range.
+  -- At 0 throttle + full rudder:
+  --   pivot about a point on the outside edge of the inside track
+  --
+  -- At full throttle + full rudder:
+  --   turning diameter = 12 ft => radius = 6 ft
   -- ----------------------------------------------------------
 
-  local speedScale =
-    1.0
-
-
-  if vehicleSpeed > STEER_TAPER_START then
-
-    local highSpeedProgress =
-      clamp(
-        (
-          vehicleSpeed -
-          STEER_TAPER_START
-        ) /
-        (
-          1.0 -
-          STEER_TAPER_START
-        ),
-        0,
-        1
-      )
-
-
-    -- Smoothstep taper:
-    --
-    --   s = t^2 * (3 - 2t)
-    --
-    -- This starts the steering reduction gently above 50%
-    -- vehicle speed, becomes progressively stronger through
-    -- the middle of the high-speed range, and flattens again
-    -- as maximum speed is approached.
-    local smoothProgress =
-      highSpeedProgress *
-      highSpeedProgress *
-      (
-        3 -
-        2 * highSpeedProgress
-      )
-
-
-    speedScale =
-      1.0 -
-      (
-        smoothProgress *
-        (
-          1.0 -
-          STEER_MIN_SCALE
-        )
-      )
-
-  end
-
-
-  -- ----------------------------------------------------------
-  -- PROGRESSIVE RUDDER
-  --
-  -- Squared rudder response gives fine center-stick control
-  -- while preserving strong steering near full stick.
-  --
-  -- IMPORTANT:
-  -- This is the steering DIFFERENTIAL contribution, not the raw
-  -- left/right track command. It is applied around the shared
-  -- hydrostatic drive baseline.
-  -- ----------------------------------------------------------
-
-  local rudCurve =
-    rud *
-    math.abs(rud)
+  local rudderNorm =
+    clamp(
+      math.abs(rud),
+      0,
+      1
+    )
 
 
   local throttleNorm =
@@ -1187,41 +1127,40 @@ local function run()
     )
 
 
-  local throttleDeadband =
-    THROTTLE_DEADBAND_MIN +
+  local targetRadiusFt =
+    PIVOT_RADIUS_FT +
     (
-      THROTTLE_DEADBAND_MAX -
-      THROTTLE_DEADBAND_MIN
+      FULL_TURN_RADIUS_FT -
+      PIVOT_RADIUS_FT
     ) *
-    throttleNorm
+    throttleNorm *
+    (rudderNorm * rudderNorm)
 
 
-  local throttleOutsideDeadband =
-    clamp(
-      (
-        throttleNorm -
-        throttleDeadband
-      ) /
+  local turnRatio =
+    (
+      PIVOT_RADIUS_FT /
       math.max(
-        1.0 -
-        throttleDeadband,
+        targetRadiusFt,
         0.001
-      ),
-      0,
-      1
+      )
+    ) *
+    (
+      rud /
+      math.max(
+        rudderNorm,
+        0.001
+      )
     )
 
 
-  local throttleResponseScale =
-    0.25 +
-    (0.75 * throttleOutsideDeadband)
-
-
   local turn =
-    rudCurve *
-    TURN_GAIN *
-    speedScale *
-    throttleResponseScale
+    clamp(
+      turnRatio *
+      TURN_GAIN,
+      -1,
+      1
+    )
 
 
   -- ==========================================================

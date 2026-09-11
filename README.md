@@ -468,90 +468,72 @@ while passing through zero.
 
 ### Steering
 
-Steering is modeled as a squared rudder response with actual-speed
-authority scaling. The effective steering contribution is:
+Steering is modeled as a geometric track-turning law rather than a
+speed-tapered gain. The steering target is defined by the required turning
+radius of the vehicle, which is set by the physical track spacing and the
+requested steering input.
+
+The model uses a pivot radius equal to half the track center spacing, so at
+zero throttle with full rudder the vehicle rotates about a point on the
+outside edge of the inside track. For a track spacing B, the pivot radius is:
 
 $$
-\text{turn} = \text{rudder}^2 \times \text{TURN\_GAIN} \times \text{speedScale}
+R_{pivot} = \frac{B}{2}
 $$
 
-where the squared rudder input preserves fine center-stick control while
-retaining strong steering near full stick travel.
-
-The controller estimates actual vehicle speed from the hydrostatically
-smoothed track outputs and applies a smoothstep speed taper to steering
-authority. The steering input also carries a throttle-dependent deadband
-so tiny corrections at high throttle do not create a visible steering
-response.
-
-For a normalized vehicle speed s in the range [0, 1], the steering
-authority taper is defined as:
+The full-throttle / full-rudder target is a 12 ft turning diameter, which is
+6 ft of radius:
 
 $$
-t = \frac{s - 0.50}{0.50}
+R_{full} = 6 \text{ ft}
 $$
 
-$$
-\text{smooth} = t^2 (3 - 2t)
-$$
+The target radius at a given throttle and rudder command is then:
 
 $$
-\text{speedScale} = 1.00 - \left(0.75 \times \text{smooth}\right)
+R_{target} = R_{pivot} + (R_{full} - R_{pivot}) \times |throttle| \times rudder^2
 $$
 
-The throttle-dependent rudder deadband varies from 2.0% to 10.0% of full
-stick travel across the throttle range, which corresponds to raw values of:
+and the required steering differential becomes:
 
 $$
-0.020 \times 1024 = 20.48
+\text{turnRatio} = \frac{R_{pivot}}{R_{target}} \times \operatorname{sign}(rudder)
 $$
 
-and
+This produces the required behavior:
+
+- zero throttle + full rudder => true pivot about the outside edge of the
+  inside track
+- full throttle + full rudder => 20 ft turning diameter
+- intermediate throttle and rudder values interpolate smoothly between the
+  two states
+
+The actual track output is then applied as a differential around the common
+drive baseline:
 
 $$
-0.100 \times 1024 = 102.40
-$$
-
-at the low and high ends of throttle demand. In normalized form:
-
-$$
-\text{deadband}(throttle) = 0.020 + (0.100 - 0.020) \times |throttle|
-$$
-
-and the steering response outside that deadband is scaled with:
-
-$$
-\text{throttleResponseScale} = 0.25 + 0.75 \times \text{outsideDeadband}
-$$
-
-So the full-speed steering floor remains at 25% while the response ramps
-up aggressively once the stick sits outside the throttle-dependent
-deadband. This preserves low-speed agility while reducing abrupt
-high-speed turning behavior.
-
-The steering effect is then applied as a differential around the shared
-hydrostatic drive baseline, not as a raw stand-alone left/right command.
-The actual wheel/track outputs are built as:
-
-$$
-\text{leftTrack} = \text{driveThrottle} \times (1 + \text{turn})
+\text{leftTrack} = \text{driveThrottle} \times (1 + \text{turnRatio})
 $$
 
 $$
-\text{rightTrack} = \text{driveThrottle} \times (1 - \text{turn})
+\text{rightTrack} = \text{driveThrottle} \times (1 - \text{turnRatio})
 $$
 
-This makes the steering differential more visible at higher throttle,
-while still allowing the speed taper to reduce steering authority as the
-vehicle approaches full travel speed. The large forward-drive term is
-shared by both tracks, and the visible steering response is the difference
-between them. The differential remains immediate even while the steering
-authority is speed-damped.
+This keeps the steering behavior physically grounded in the vehicle geometry,
+so the pivot point and turning radius are defined by the actual machine
+layout rather than by an arbitrary speed-dependent gain schedule.
 
-At zero throttle, the vehicle behaves like a pure counter-rotating pivot.
-As throttle increases, the steering mix progressively blends into normal
-differential track drive using a throttle-based pivot blend. This keeps
-low-speed agility without allowing excessive full-speed steering response.
+At zero throttle and full rudder, the vehicle is rotating about an
+instantaneous center located on the outside edge of the inside track. For a
+3 ft track-center spacing, that center is 1.5 ft off the vehicle centerline.
+
+![PB600 turning geometry: zero-throttle pivot vs full-throttle turn](images/turning_geometry_pivot_vs_full.svg)
+
+*Zero-throttle pivot radius = 1.5 ft; full-throttle turning radius = 10.0 ft*
+
+The key point is that the 1.5 ft radius is measured from the vehicle
+centerline to the actual turning center, and that turning center sits just
+outside the inner track contact patch.
 
 ![PB600 RC Steering Authority vs Speed Curve](images/pb600_steering_linear_vs_smooth.png)
 
