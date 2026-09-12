@@ -24,31 +24,25 @@ elseif ($Environment -eq "Production") {
 # Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-# Version file is the source of truth for the application version shown in the debug panel.
-# Only production deployments increment the patch number after a successful radio deploy.
-$VersionFile = Join-Path $RepoRoot 'radio\version.lua'
+# The application version lives in the main mixer script so the radio copy can
+# be patched directly without depending on a separate widget-readable Lua file.
+$SystemScriptPath = Join-Path $RepoRoot 'scripts\mixes\system.lua'
 
-if (!(Test-Path $VersionFile)) {
-    Set-Content -Path $VersionFile -Value 'APP_VERSION = "1.1.1"' -NoNewline
+if (!(Test-Path $SystemScriptPath)) {
+    throw ('Missing mixer script for version tracking: ' + $SystemScriptPath)
 }
 
-$VersionText = (Get-Content -Path $VersionFile -Raw).Trim()
+$SystemText = (Get-Content -Path $SystemScriptPath -Raw).Trim()
 
-if ($VersionText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+if ($SystemText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $CurrentVersion = $Matches[1]
     $parts = $CurrentVersion.Split('.')
     $Major = [int]$parts[0]
     $Minor = [int]$parts[1]
     $Patch = [int]$parts[2]
 }
-elseif ($VersionText -match '^([0-9]+)\.([0-9]+)\.([0-9]+)$') {
-    $Major = [int]$Matches[1]
-    $Minor = [int]$Matches[2]
-    $Patch = [int]$Matches[3]
-    $CurrentVersion = "$Major.$Minor.$Patch"
-}
 else {
-    throw ('Version file must contain an assignment such as APP_VERSION = "1.1.3": ' + $VersionFile)
+    throw ('Version must be defined in the mixer script as APP_VERSION = "1.1.3": ' + $SystemScriptPath)
 }
 
 $CurrentVersionDisplay = $CurrentVersion
@@ -234,21 +228,16 @@ Copy-Item `
     -Recurse `
     -Force
 
-# Deploy version.lua in both the root and RADIO folder for compatibility.
-# EdgeTX widgets commonly read /RADIO/version.lua, but some layouts also expect /version.lua.
-$RootVersionTarget = Join-Path $TargetRoot "version.lua"
-$VersionTarget = Join-Path $TargetRadio "version.lua"
-$LegacyVersionTarget = Join-Path $TargetRadio "version.txt"
-if (Test-Path $LegacyVersionTarget) {
-    Remove-Item -Path $LegacyVersionTarget -Force
-}
-Copy-Item -Path $VersionFile -Destination $RootVersionTarget -Force
-Copy-Item -Path $VersionFile -Destination $VersionTarget -Force
+# Only increment the version on successful production deployment.
+# The radio target is the deployed mixer script itself, not a separate version file.
+$TargetSystemScript = Join-Path $TargetMixes 'system.lua'
 
-# Only increment the stored version after all radio writes succeed.
 if ($Environment -eq "Production") {
-    $versionLua = 'APP_VERSION = "' + $PendingVersion + '"'
-    Set-Content -Path $VersionFile -Value $versionLua -NoNewline
+    $updatedSystemScript = (Get-Content -Path $TargetSystemScript -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    Set-Content -Path $TargetSystemScript -Value $updatedSystemScript -NoNewline
+
+    $updatedSourceSystem = (Get-Content -Path $SystemScriptPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    Set-Content -Path $SystemScriptPath -Value $updatedSourceSystem -NoNewline
 }
 
 # ============================================================

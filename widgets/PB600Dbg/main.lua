@@ -1,27 +1,8 @@
 local widget = {}
 
-local function readAppVersion()
-  local candidates = {"/RADIO/version.lua", "/version.lua", "/SCRIPTS/version.lua"}
-
-  for _, path in ipairs(candidates) do
-    local file = io.open(path, "r")
-    if file then
-      local content = file:read("*a")
-      file:close()
-
-      if type(content) == "string" then
-        local version = string.match(content, 'APP_VERSION%s*=%s*"([^"]+)"')
-        if version then
-          return version
-        end
-      end
-    end
-  end
-
-  return "1.1.5"
-end
-
-local APP_VERSION = readAppVersion()
+-- Keep the displayed version in the widget itself so it does not depend on
+-- a separate Lua file being read at widget startup.
+local APP_VERSION = "1.1.12"
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)
