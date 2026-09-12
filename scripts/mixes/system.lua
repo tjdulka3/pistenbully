@@ -307,16 +307,11 @@ local function throttleToSpeedDemand(throttle)
     )
 
 
-  local shaped =
-    x * x *
-    (
-      3 -
-      2 * x
-    )
-
-
+  -- Direct speed demand from the requested throttle.
+  -- The turning geometry is handled separately and is the
+  -- source of truth for the left/right track split.
   return
-    shaped *
+    x *
     sign
 
 end
@@ -1063,74 +1058,15 @@ local function run()
 
   -- ==========================================================
   -- TRACK CONTROL
+  --
+  -- Clean steering model:
+  --
+  --   1) deadband widens with throttle
+  --   2) steering authority tapers from 100% at 50% throttle
+  --      down to 50% at 100% throttle
+  --   3) target turning radius sweeps from 1.5 ft at 0% throttle
+  --      to 10 ft at 100% throttle
   -- ==========================================================
-
-
-  -- ----------------------------------------------------------
-  -- ACTUAL VEHICLE SPEED ESTIMATE
-  --
-  -- Derive forward/reverse vehicle speed from the current
-  -- HYDROSTATICALLY SMOOTHED track outputs.
-  --
-  -- We use the signed directional average:
-  --
-  --   vehicleSpeed =
-  --       abs((lastL + lastR) / 2)
-  --
-  -- rather than average track magnitude.
-  --
-  -- This is important during a stationary pivot:
-  --
-  --   Left  = +40%
-  --   Right = -40%
-  --
-  -- Average magnitude would incorrectly indicate 40% speed.
-  --
-  -- Directional average correctly gives:
-  --
-  --   (+40 + -40) / 2 = 0%
-  --
-  -- meaning the vehicle has essentially no longitudinal speed,
-  -- so full steering authority remains available.
-  -- ----------------------------------------------------------
-
-  local vehicleSpeed =
-    math.abs(
-      (lastL + lastR) /
-      2
-    ) /
-    1024
-
-
-  vehicleSpeed =
-    clamp(
-      vehicleSpeed,
-      0,
-      1
-    )
-
-
-  -- ----------------------------------------------------------
-  -- GEOMETRIC TURNING MODEL
-  --
-  -- The steering law is defined by the required turning radius, not by
-  -- a speed-tapered gain. This avoids the earlier ambiguity where a
-  -- high-speed taper masked the actual pivot geometry.
-  --
-  -- At 0 throttle + full rudder:
-  --   pivot about a point on the outside edge of the inside track
-  --
-  -- At full throttle + full rudder:
-  --   turning diameter = 12 ft => radius = 6 ft
-  -- ----------------------------------------------------------
-
-  local rudderNorm =
-    clamp(
-      math.abs(rud),
-      0,
-      1
-    )
-
 
   local throttleNorm =
     clamp(
@@ -1140,184 +1076,134 @@ local function run()
     )
 
 
+  local rudderNorm =
+    clamp(
+      math.abs(rud),
+      0,
+      1
+    )
+
+
+  local function smoothstep(edge0, edge1, x)
+
+    local t =
+      clamp(
+        (x - edge0) /
+        (edge1 - edge0),
+        0,
+        1
+      )
+
+    return
+      t * t *
+      (3 - 2 * t)
+
+  end
+
+
+  local deadband =
+    0.02 +
+    (0.10 - 0.02) *
+    throttleNorm
+
+
+  local effectiveRudder =
+    0
+
+
+  if rudderNorm > deadband then
+
+    effectiveRudder =
+      (rudderNorm - deadband) /
+      (1 - deadband)
+
+    if rud < 0 then
+      effectiveRudder = -effectiveRudder
+    end
+
+  end
+
+
+  local authority =
+    1.0 -
+    0.5 *
+    smoothstep(
+      0.50,
+      1.00,
+      throttleNorm
+    )
+
+
+  if throttleNorm < 0.50 then
+    authority = 1.0
+  end
+
+
   local targetRadiusFt =
     PIVOT_RADIUS_FT +
     (
       FULL_TURN_RADIUS_FT -
       PIVOT_RADIUS_FT
     ) *
-    throttleNorm *
-    (rudderNorm * rudderNorm)
+    throttleNorm
 
 
   local turnRatio =
-    (
-      PIVOT_RADIUS_FT /
-      math.max(
-        targetRadiusFt,
-        0.001
-      )
-    ) *
-    (
-      rud /
-      math.max(
-        rudderNorm,
-        0.001
-      )
-    )
+    0
 
 
-  local turn =
-    clamp(
-      turnRatio *
-      TURN_GAIN,
-      -1,
-      1
-    )
+  if math.abs(effectiveRudder) > 0 then
+
+    turnRatio =
+      (
+        PIVOT_RADIUS_FT /
+        math.max(
+          targetRadiusFt,
+          0.001
+        )
+      ) *
+      authority *
+      effectiveRudder
+
+  end
 
 
-  -- ==========================================================
-  -- PIVOT + DRIVE BLENDING
-  --
-  -- At zero throttle:
-  --     pure counter-rotating pivot
-  --
-  -- As throttle increases:
-  --     progressively blend toward differential track drive.
-  --
-  -- NOTE:
-  --
-  -- Pivot blending is still based on throttle demand.
-  --
-  -- SPEED DAMPING is now based on actual hydrostatic speed.
-  --
-  -- These serve different purposes:
-  --
-  --   pivotBlend = type of steering geometry
-  --   speedScale = amount of steering authority
-  -- ==========================================================
-
-  local pivotBlend =
-    clamp(
-      math.abs(thr) /
-      PIVOT_BLEND_END,
-      0,
-      1
-    )
-
-
-  -- ----------------------------------------------------------
-  -- MOVING DIFFERENTIAL DRIVE
-  --
-  -- Convert raw throttle demand to a PB600-like hydrostatic
-  -- travel-speed demand before applying differential steering.
-  --
-  -- Pivot blending still uses RAW throttle above, so low-speed
-  -- pivot behavior remains independent of this speed curve.
-  -- ----------------------------------------------------------
-
-  local driveThrottle =
+  local drive =
     throttleToSpeedDemand(
       thr
     )
 
 
-  -- Steering is a differential applied around the drive baseline,
-  -- not a stand-alone left/right command. Increase the differential
-  -- bias so the turn remains visible even at higher track speed,
-  -- while the speed taper still reduces steering authority as the
-  -- vehicle approaches full travel speed.
-  local driveLeft =
-    driveThrottle *
-    (
-      1 +
-      turn
-    )
+  if math.abs(thr) < THROTTLE_DEADBAND_MIN then
+    drive = 0
+  end
 
 
-  local driveRight =
-    driveThrottle *
-    (
-      1 -
-      turn
-    )
+  local leftCmd =
+    drive *
+    (1 + turnRatio)
 
 
-  -- ----------------------------------------------------------
-  -- STATIONARY / LOW-SPEED PIVOT
-  -- ----------------------------------------------------------
-
-  local pivotLeft =
-    turn
+  local rightCmd =
+    drive *
+    (1 - turnRatio)
 
 
-  local pivotRight =
-    -turn
-
-
-  -- ----------------------------------------------------------
-  -- BLEND THE TWO STEERING MODES
-  -- ----------------------------------------------------------
-
-  local left =
-    (
-      driveLeft *
-      pivotBlend
-    )
-    +
-    (
-      pivotLeft *
-      (1 - pivotBlend)
-    )
-
-
-  local right =
-    (
-      driveRight *
-      pivotBlend
-    )
-    +
-    (
-      pivotRight *
-      (1 - pivotBlend)
-    )
-
-
-  -- ==========================================================
-  -- TRACK OUTPUT LIMITS
-  --
-  -- Do NOT limit to abs(throttle).
-  --
-  -- The previous throttle ceiling:
-  --
-  --   * prevented stationary pivot turns
-  --   * clipped outside-track steering boost
-  --
-  -- Allow the mixer to use the complete track range.
-  -- ==========================================================
-
-  left =
+  leftCmd =
     clamp(
-      left,
+      leftCmd,
       -1,
       1
     )
 
 
-  right =
+  rightCmd =
     clamp(
-      right,
+      rightCmd,
       -1,
       1
     )
 
-
-  -- ==========================================================
-  -- GROOM REVERSE SAFETY
-  --
-  -- Reverse track output is permitted only after the
-  -- automatic blade/tiller clearance movement completes.
-  -- ==========================================================
 
   local reverseAllowed =
     isGroom
@@ -1329,144 +1215,38 @@ local function run()
     and not reverseAllowed
   then
 
-    if left < 0 then
-
-      left =
-        0
-
+    if leftCmd < 0 then
+      leftCmd = 0
     end
 
-
-    if right < 0 then
-
-      right =
-        0
-
+    if rightCmd < 0 then
+      rightCmd = 0
     end
 
   end
 
-
-  -- ==========================================================
-  -- IMPLEMENT TRANSITION CREEP
-  -- ==========================================================
-
-  if bladeTransitionActive
-    or tillerTransitionActive
-  then
-
-    left =
-      left *
-      TRANSITION_POWER
-
-
-    right =
-      right *
-      TRANSITION_POWER
-
-  end
-
-
-  -- ==========================================================
-  -- REVERSE-LIFT HARD BLOCK
-  --
-  -- Even though transition creep is normally permitted,
-  -- absolutely no reverse output is allowed while the
-  -- blade/tiller reverse clearance lift is still occurring.
-  -- ==========================================================
 
   if reverseState == "lifting" then
 
-    if left < 0 then
-
-      left =
-        0
-
+    if leftCmd < 0 then
+      leftCmd = 0
     end
 
-
-    if right < 0 then
-
-      right =
-        0
-
+    if rightCmd < 0 then
+      rightCmd = 0
     end
 
   end
 
 
-  -- ==========================================================
-  -- TRACK OUTPUT TARGETS
-  -- ==========================================================
-
-  local targetL =
-    left *
-    1024
-
-
-  local targetR =
-    right *
-    1024
-
-
-  -- ==========================================================
-  -- HYDROSTATIC DRIVE + IMMEDIATE STEERING DIFFERENTIAL
-  --
-  -- Longitudinal vehicle speed remains hydrostatically smoothed,
-  -- but steering differential is applied immediately.
-  --
-  -- This separates:
-  --
-  --   center/drive component  -> hydrostatic acceleration/braking
-  --   steering differential  -> immediate track response
-  --
-  -- The result is a heavy, progressive straight-line response
-  -- without making turn input feel delayed.
-  -- ==========================================================
-
-  local targetCenter =
-    (
-      targetL +
-      targetR
-    ) /
-    2
-
-
-  local targetDifferential =
-    (
-      targetL -
-      targetR
-    ) /
-    2
-
-
-  local previousCenter =
-    (
-      lastL +
-      lastR
-    ) /
-    2
-
-
-  local centerOut =
-    smoothDirectional(
-      previousCenter,
-      targetCenter,
-      ACCEL_RATE,
-      DECEL_RATE,
-      REVERSE_BOOST,
-      dt
-    )
-
-
   local leftOut =
-    centerOut +
-    targetDifferential
+    leftCmd *
+    1024
 
 
   local rightOut =
-    centerOut -
-    targetDifferential
+    rightCmd *
+    1024
 
 
   leftOut =

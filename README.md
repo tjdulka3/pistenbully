@@ -468,64 +468,81 @@ while passing through zero.
 
 ### Steering
 
-Steering is modeled as a geometric track-turning law rather than a
-speed-tapered gain. The steering target is defined by the required turning
-radius of the vehicle, which is set by the physical track spacing and the
-requested steering input.
+Steering is modeled as a direct geometric differential between the two
+tracks, with the effective steering authority and deadband defined as a
+function of throttle demand.
 
-The model uses a pivot radius equal to half the track center spacing, so at
-zero throttle with full rudder the vehicle rotates about a point on the
-outside edge of the inside track. For a track spacing B, the pivot radius is:
+The base geometry is:
 
-$$
-R_{pivot} = \frac{B}{2}
-$$
+- track center spacing = 3 ft
+- pivot radius at zero throttle = 1.5 ft
+- full-throttle target radius = 10 ft
 
-The full-throttle / full-rudder target is a 12 ft turning diameter, which is
-6 ft of radius:
+So the radius sweep is:
 
 $$
-R_{full} = 6 \text{ ft}
+R_{target}(thr) = 1.5 + (10 - 1.5) \times thr
 $$
 
-The target radius at a given throttle and rudder command is then:
+with $thr \in [0,1]$.
+
+At zero throttle and full rudder, the vehicle pivots about a point just
+outside the inside track edge. At full throttle and full rudder, the target
+turning radius is 10 ft.
+
+The deadband is intentionally not fixed. It widens as throttle rises:
 
 $$
-R_{target} = R_{pivot} + (R_{full} - R_{pivot}) \times |throttle| \times rudder^2
+\text{deadband}(thr) = 0.02 + (0.10 - 0.02) \times thr
 $$
 
-and the required steering differential becomes:
+This keeps small stick noise from creating track motion at low speed while
+still allowing the steering input to remain clean under stronger throttle
+demand.
+
+The steering contribution is then reduced smoothly after roughly 50% throttle:
 
 $$
-\text{turnRatio} = \frac{R_{pivot}}{R_{target}} \times \operatorname{sign}(rudder)
+\text{authority}(thr) = 1 - 0.5 \times \text{smoothstep}(0.5, 1.0, thr)
 $$
 
-This produces the required behavior:
+This gives:
 
-- zero throttle + full rudder => true pivot about the outside edge of the
-  inside track
-- full throttle + full rudder => 20 ft turning diameter
-- intermediate throttle and rudder values interpolate smoothly between the
-  two states
+- 0% throttle -> 100% steering authority
+- 50% throttle -> 100% steering authority
+- 100% throttle -> 50% steering authority
 
-The actual track output is then applied as a differential around the common
-drive baseline:
+The effective steering input is computed after the throttle-dependent deadband
+is removed, and the final turn ratio is:
 
 $$
-\text{leftTrack} = \text{driveThrottle} \times (1 + \text{turnRatio})
+\text{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times \text{authority}(thr) \times \operatorname{sign}(rudder_{eff})
+$$
+
+with:
+
+$$
+R_{pivot} = 1.5 \text{ ft}
+$$
+
+The final track outputs are:
+
+$$
+\text{leftTrack} = \text{drive} \times (1 + \text{turnRatio})
 $$
 
 $$
-\text{rightTrack} = \text{driveThrottle} \times (1 - \text{turnRatio})
+\text{rightTrack} = \text{drive} \times (1 - \text{turnRatio})
 $$
 
-This keeps the steering behavior physically grounded in the vehicle geometry,
-so the pivot point and turning radius are defined by the actual machine
-layout rather than by an arbitrary speed-dependent gain schedule.
+This means the physical turning behavior is defined by the machine geometry,
+while the effective steering authority falls off smoothly as speed demand rises.
 
-At zero throttle and full rudder, the vehicle is rotating about an
-instantaneous center located on the outside edge of the inside track. For a
-3 ft track-center spacing, that center is 1.5 ft off the vehicle centerline.
+The result is:
+
+- zero throttle + full rudder => deep pivot about the inside-track edge
+- medium throttle + full rudder => reduced but still strong turn response
+- full throttle + full rudder => wide 10 ft turn radius with authority reduced to 50%
 
 ![PB600 turning geometry: zero-throttle pivot vs full-throttle turn](images/turning_geometry_pivot_vs_full.svg)
 
