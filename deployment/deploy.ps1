@@ -24,17 +24,16 @@ elseif ($Environment -eq "Production") {
 # Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-# The application version lives in the main mixer script so the radio copy can
-# be patched directly without depending on a separate widget-readable Lua file.
-$SystemScriptPath = Join-Path $RepoRoot 'scripts\mixes\system.lua'
+# The debug widget owns the displayed application version.
+$DebugWidgetPath = Join-Path $RepoRoot 'widgets\PB600Dbg\main.lua'
 
-if (!(Test-Path $SystemScriptPath)) {
-    throw ('Missing mixer script for version tracking: ' + $SystemScriptPath)
+if (!(Test-Path $DebugWidgetPath)) {
+    throw ('Missing debug widget script for version tracking: ' + $DebugWidgetPath)
 }
 
-$SystemText = (Get-Content -Path $SystemScriptPath -Raw).Trim()
+$DebugWidgetText = (Get-Content -Path $DebugWidgetPath -Raw).Trim()
 
-if ($SystemText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+if ($DebugWidgetText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $CurrentVersion = $Matches[1]
     $parts = $CurrentVersion.Split('.')
     $Major = [int]$parts[0]
@@ -42,7 +41,7 @@ if ($SystemText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $Patch = [int]$parts[2]
 }
 else {
-    throw ('Version must be defined in the mixer script as APP_VERSION = "1.1.3": ' + $SystemScriptPath)
+    throw ('Version must be defined in the debug widget as APP_VERSION = "1.1.3": ' + $DebugWidgetPath)
 }
 
 $CurrentVersionDisplay = $CurrentVersion
@@ -229,15 +228,14 @@ Copy-Item `
     -Force
 
 # Only increment the version on successful production deployment.
-# The radio target is the deployed mixer script itself, not a separate version file.
-$TargetSystemScript = Join-Path $TargetMixes 'system.lua'
+$TargetDebugWidget = Join-Path $TargetWidgets 'PB600Dbg\main.lua'
 
 if ($Environment -eq "Production") {
-    $updatedSystemScript = (Get-Content -Path $TargetSystemScript -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
-    Set-Content -Path $TargetSystemScript -Value $updatedSystemScript -NoNewline
+    $updatedTargetWidget = (Get-Content -Path $TargetDebugWidget -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    Set-Content -Path $TargetDebugWidget -Value $updatedTargetWidget -NoNewline
 
-    $updatedSourceSystem = (Get-Content -Path $SystemScriptPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
-    Set-Content -Path $SystemScriptPath -Value $updatedSourceSystem -NoNewline
+    $updatedSourceWidget = (Get-Content -Path $DebugWidgetPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    Set-Content -Path $DebugWidgetPath -Value $updatedSourceWidget -NoNewline
 }
 
 # ============================================================
