@@ -1,1 +1,2 @@
+APP_NAME = "PistenBully 600"
 APP_VERSION = "1.1.12"

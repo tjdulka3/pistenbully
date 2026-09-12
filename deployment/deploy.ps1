@@ -24,8 +24,8 @@ elseif ($Environment -eq "Production") {
 # Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-# The repository version file is only an initial seed. Production deployment
-# maintains the actual version on the radio SD card without changing source files.
+# The repository version file is deployed to Test and seeds a new Production
+# radio. Production deployment then increments only the SD-card copy.
 $VersionSeedPath = Join-Path $RepoRoot 'radio\version.lua'
 
 if (!(Test-Path $VersionSeedPath)) {
@@ -222,9 +222,14 @@ $SourceRadio = Join-Path `
 
 Write-Host "Deploying radio..."
 
-Get-ChildItem -Path $SourceRadio -Force |
-    Where-Object { $_.Name -ne 'version.lua' } |
-    Copy-Item -Destination $TargetRadio -Recurse -Force
+if ($Environment -eq "Test") {
+    Copy-Item "$SourceRadio\*" $TargetRadio -Recurse -Force
+}
+else {
+    Get-ChildItem -Path $SourceRadio -Force |
+        Where-Object { $_.Name -ne 'version.lua' } |
+        Copy-Item -Destination $TargetRadio -Recurse -Force
+}
 
 # Only increment the version on successful production deployment.
 $TargetVersionPath = Join-Path $TargetRadio 'version.lua'
@@ -245,8 +250,12 @@ if ($Environment -eq "Production") {
             throw ('Version must be defined in the radio version file as APP_VERSION = "1.1.3": ' + $TargetVersionPath)
         }
     }
+    else {
+        Copy-Item -Path $VersionSeedPath -Destination $TargetVersionPath -Force
+    }
 
-    Set-Content -Path $TargetVersionPath -Value ('APP_VERSION = "' + $PendingVersion + '"') -NoNewline
+    $UpdatedVersionText = (Get-Content -Path $TargetVersionPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    Set-Content -Path $TargetVersionPath -Value $UpdatedVersionText -NoNewline
 }
 
 # ============================================================
