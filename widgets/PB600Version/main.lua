@@ -1,18 +1,34 @@
 local function readVersionInfo()
-  local versionScript = loadScript("/RADIO/version.lua")
-
-  if not versionScript then
-    return "PistenBully 600", "Version unavailable"
+  if type(loadScript) ~= "function" then
+    return "PistenBully 600", "E1: script loader unavailable"
   end
 
-  local versionInfo = versionScript()
+  local versionScript = loadScript("/RADIO/version.lua")
+
+  if type(versionScript) ~= "function" then
+    return "PistenBully 600", "E2: version file not loadable"
+  end
+
+  local success, versionInfo = pcall(versionScript)
+
+  if not success then
+    return "PistenBully 600", "E3: version file execution failed"
+  end
 
   if type(versionInfo) ~= "table" then
-    return "PistenBully 600", "Version unavailable"
+    return "PistenBully 600", "E4: version data is invalid"
   end
 
   local name = versionInfo.name
   local version = versionInfo.version
+
+  if type(name) ~= "string" then
+    return "PistenBully 600", "E5: application name missing"
+  end
+
+  if type(version) ~= "string" then
+    return name, "E6: application version missing"
+  end
 
   return name or "PistenBully 600", version and ("v" .. version) or "Version unavailable"
 end
