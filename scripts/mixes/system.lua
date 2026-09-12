@@ -156,17 +156,11 @@ local tillerTransitionRemaining =
   0
 
 
--- Current INTERNAL track outputs.
+-- Current longitudinal drive output.
 --
--- Longitudinal motion is hydrostatically smoothed while the
--- steering differential is applied immediately.
---
--- These are maintained before the physical Right-track
--- direction inversion at the final return statement.
-local lastL =
-  0
-
-local lastR =
+-- Longitudinal motion is hydrostatically smoothed before the
+-- steering differential is applied, so steering remains immediate.
+local lastDrive =
   0
 
 
@@ -696,10 +690,7 @@ local function run()
 
   if eStop then
 
-    lastL =
-      0
-
-    lastR =
+    lastDrive =
       0
 
 
@@ -1107,13 +1098,30 @@ local function run()
   end
 
 
+  local smoothedDrive =
+    smoothDirectional(
+      lastDrive,
+      drive * 1024,
+      ACCEL_RATE,
+      DECEL_RATE,
+      REVERSE_BOOST,
+      dt
+    ) /
+    1024
+
+
+  lastDrive =
+    smoothedDrive *
+    1024
+
+
   local leftCmd =
-    drive *
+    smoothedDrive *
     (1 + turnRatio)
 
 
   local rightCmd =
-    drive *
+    smoothedDrive *
     (1 - turnRatio)
 
 
@@ -1191,14 +1199,6 @@ local function run()
       -1024,
       1024
     )
-
-
-  lastL =
-    leftOut
-
-
-  lastR =
-    rightOut
 
 
   -- ============================================================
