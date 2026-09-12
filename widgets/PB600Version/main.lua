@@ -1,15 +1,18 @@
 local function readVersionInfo()
-  local file = io.open("/RADIO/version.lua", "r")
+  local versionScript = loadScript("/RADIO/version.lua")
 
-  if not file then
+  if not versionScript then
     return "PistenBully 600", "Version unavailable"
   end
 
-  local content = file:read("*a")
-  file:close()
+  local versionInfo = versionScript()
 
-  local name = string.match(content, 'APP_NAME%s*=%s*"([^"]+)"')
-  local version = string.match(content, 'APP_VERSION%s*=%s*"([^"]+)"')
+  if type(versionInfo) ~= "table" then
+    return "PistenBully 600", "Version unavailable"
+  end
+
+  local name = versionInfo.name
+  local version = versionInfo.version
 
   return name or "PistenBully 600", version and ("v" .. version) or "Version unavailable"
 end
