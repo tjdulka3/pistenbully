@@ -2,7 +2,7 @@ local widget = {}
 
 -- Keep the displayed version in the widget itself so it does not depend on
 -- a separate Lua file being read at widget startup.
-local APP_VERSION = "1.1.12"
+local APP_VERSION = "1.1.13"
 
 --------------------------------------------------
 -- COLOR PALETTE (PB600 STYLE)

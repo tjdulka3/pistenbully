@@ -395,9 +395,9 @@ left and right track outputs.
 ## Features
 
 -   Differential track steering
--   Pivot/drive blending
--   Nonlinear rudder response
--   Reduced steering sensitivity at higher speeds
+-   Throttle-scaled rudder deadband with full-travel rescaling
+-   Smooth steering-authority taper above 50% throttle
+-   Throttle-dependent turn-radius target
 -   Hydrostatic-style acceleration
 -   Hydrostatic-style deceleration/braking
 -   Increased braking when changing direction
@@ -431,10 +431,12 @@ position to ESC output.
 The primary tuning constants are maintained in `system.lua`:
 
 ``` lua
-local TURN_GAIN         = 0.40
-local STEER_TAPER_START = 0.50
-local STEER_MIN_SCALE   = 0.50
-local PIVOT_BLEND_END   = 0.80
+local TRACK_CENTER_SPACING_FT = 3.0
+local FULL_TURN_RADIUS_FT     = 10.0
+local TURN_GAIN               = 1.0
+local RUDDER_DEADBAND         = 0.02
+local THROTTLE_DEADBAND_MIN   = 0.02
+local THROTTLE_DEADBAND_MAX   = 0.10
 
 local ACCEL_RATE        = 191
 local DECEL_RATE        = 512
@@ -468,9 +470,9 @@ while passing through zero.
 
 ### Steering
 
-Steering is modeled as a direct geometric differential between the two
-tracks, with the effective steering authority and deadband defined as a
-function of throttle demand.
+Steering is a differential-drive calculation. It applies a
+throttle-dependent rudder deadband, rescales rudder outside that deadband,
+then combines a radius target and a high-throttle authority taper.
 
 The base geometry is:
 
@@ -478,7 +480,7 @@ The base geometry is:
 - pivot radius at zero throttle = 1.5 ft
 - full-throttle target radius = 10 ft
 
-So the radius sweep is:
+At full rudder, the radius sweep is:
 
 $$
 R_{target}(thr) = 1.5 + (10 - 1.5) \times thr
@@ -486,9 +488,15 @@ $$
 
 with $thr \in [0,1]$.
 
-At zero throttle and full rudder, the vehicle pivots about a point just
-outside the inside track edge. At full throttle and full rudder, the target
-turning radius is 10 ft.
+At zero throttle, the internal full-rudder turn ratio is based on the 1.5 ft
+radius. However, the final track commands are multiplied by drive demand, so
+zero throttle produces zero track output rather than a stationary pivot. At
+full throttle and full rudder, the target radius is 10 ft.
+
+![PB600 Turning Geometry: Zero-Throttle Pivot vs Full-Throttle Turn](images/turning_geometry_pivot_vs_full.svg)
+
+*The 1.5 ft and 10 ft radius targets used by the steering calculation. Zero
+throttle still produces no track movement because drive demand is zero.*
 
 The deadband is intentionally not fixed. It widens as throttle rises:
 
@@ -496,9 +504,13 @@ $$
 \text{deadband}(thr) = 0.02 + (0.10 - 0.02) \times thr
 $$
 
-This keeps small stick noise from creating track motion at low speed while
-still allowing the steering input to remain clean under stronger throttle
-demand.
+Rudder outside this threshold is remapped to preserve the full $[-1, 1]$
+range:
+
+$$
+rudder_{eff} = \operatorname{sign}(rudder) \times
+\frac{|rudder| - deadband(thr)}{1 - deadband(thr)}
+$$
 
 The steering contribution is then reduced smoothly after roughly 50% throttle:
 
@@ -512,11 +524,11 @@ This gives:
 - 50% throttle -> 100% steering authority
 - 100% throttle -> 50% steering authority
 
-The effective steering input is computed after the throttle-dependent deadband
-is removed, and the final turn ratio is:
+The target radius uses throttle demand only. Partial rudder reduces the turn
+ratio linearly through $rudder_{eff}$:
 
 $$
-\text{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times \text{authority}(thr) \times \operatorname{sign}(rudder_{eff})
+  ext{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times \text{authority}(thr) \times rudder_{eff}
 $$
 
 with:
@@ -535,39 +547,22 @@ $$
 \text{rightTrack} = \text{drive} \times (1 - \text{turnRatio})
 $$
 
-This means the physical turning behavior is defined by the machine geometry,
-while the effective steering authority falls off smoothly as speed demand rises.
+The drive demand is direct throttle after a 2% throttle deadband; hydrostatic
+smoothing is applied to the final track outputs. This means the commanded
+turning behavior is defined by the radius target and authority taper, while
+the actual response remains progressive.
 
 The result is:
 
-- zero throttle + full rudder => deep pivot about the inside-track edge
-- medium throttle + full rudder => reduced but still strong turn response
-- full throttle + full rudder => wide 10 ft turn radius with authority reduced to 50%
+- zero throttle + any rudder => no track command
+- low throttle + full rudder => strongest differential ratio
+- full throttle + full rudder => 10 ft target radius and 50% authority
 
-![PB600 turning geometry: zero-throttle pivot vs full-throttle turn](images/turning_geometry_pivot_vs_full.svg)
+![PB600 Steering Turn Ratio by Throttle and Rudder](images/steering_contribution_test.svg)
 
-*Zero-throttle pivot radius = 1.5 ft; full-throttle turning radius = 10.0 ft*
-
-The key point is that the 1.5 ft radius is measured from the vehicle
-centerline to the actual turning center, and that turning center sits just
-outside the inner track contact patch.
-
-![PB600 RC Steering Authority vs Speed Curve](images/pb600_steering_linear_vs_smooth.png)
-
-*PB600 RC Steering Authority vs Speed Curve*
-
-The implemented curve stays flat at 100% steering authority through
-roughly 50% actual speed, then follows the smoothstep taper to 50%
-steering at maximum speed.
-
-For direct comparison of full-rudder turn contribution at representative
-throttle points, the model is plotted at 50%, 75%, and 100% throttle.
-This shows how the steering differential remains strong near mid-speed and
-then tapers as speed demand rises.
-
-![PB600 Full-Rudder Steering Contribution at Representative Throttle Points](images/steering_contribution_test.svg)
-
-*PB600 full-rudder steering contribution at representative throttle points*
+*The plotted curves reproduce the active `system.lua` steering equations.
+Each begins after its throttle-dependent rudder deadband and shows the
+combined effect of rudder rescaling, authority taper, and radius target.*
 
 Hydrostatic Throttle and Track-Speed Model
 
@@ -754,8 +749,8 @@ half of the throttle range.
 
 ------------------------------------------------------------------------
 
-The steering authority curve is documented in the preceding section and
-is the authoritative description for the live vehicle behavior.
+The steering equations and accompanying plot in the preceding section are
+the authoritative description for the live vehicle behavior.
 
 ------------------------------------------------------------------------
 
@@ -2080,10 +2075,13 @@ reverse-clearance movement.
 
   Parameter             Value Function
   ------------------- ------- ----------------------------------------------
-  `TURN_GAIN`            0.25 Base differential steering strength
-  `SPEED_FACTOR`         0.60 Steering reduction as track speed increases
-  `RUDDER_DEADBAND`      0.02 Track steering deadband
-  `ACCEL_RATE`            205 Approx. 5 s zero-to-full acceleration
+  `TRACK_CENTER_SPACING_FT` 3.0 Track center spacing, ft
+  `FULL_TURN_RADIUS_FT`    10.0 Full-rudder target radius at full throttle, ft
+  `TURN_GAIN`               1.0 Differential steering multiplier
+  `RUDDER_DEADBAND`        0.02 Fixed input rudder threshold
+  `THROTTLE_DEADBAND_MIN`  0.02 Rudder deadband at zero throttle
+  `THROTTLE_DEADBAND_MAX`  0.10 Rudder deadband at full throttle
+  `ACCEL_RATE`              191 Approx. 5 s zero-to-full acceleration
   `DECEL_RATE`            512 Approx. 2 s full-to-zero deceleration
   `REVERSE_BOOST`         250 Faster pressure dump during direction change
 
@@ -2257,7 +2255,8 @@ Coordination ranges
 Blade reverse-lift factor
 Hydrostatic acceleration/deceleration rates
 TURN_GAIN
-SPEED_FACTOR
+Steering deadband limits
+Full turn radius
 Reverse threshold
 ```
 

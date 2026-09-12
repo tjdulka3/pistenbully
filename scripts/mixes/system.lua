@@ -51,23 +51,11 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Geometric turning model for the PB600 track system.
---
--- The stationary pivot condition is defined by rotating about a point
--- on the outside edge of the inside track.
---
--- For a track center spacing B, the pivot radius is B / 2.
--- The full-throttle / full-rudder turning radius is 10 ft, which gives
--- a 20 ft turning diameter.
---
--- The target turn ratio is therefore:
---
---   R_pivot = B / 2
---   R_target = R_pivot + (R_full - R_pivot) * |thr| * rud^2
---   turnRatio = (R_pivot / R_target) * sign(rud)
---
--- This gives a true pivot at 0 throttle and full rudder, while allowing
--- the vehicle to progress to a 20 ft turning diameter at full throttle.
+-- Steering blends a throttle-scaled rudder deadband, rescaled rudder
+-- input, and a smooth high-throttle authority taper. Full rudder uses a
+-- target radius that widens linearly from 1.5 ft at zero throttle to 10 ft
+-- at full throttle. The final differential is multiplied by drive demand,
+-- so a stationary pivot is not commanded at zero throttle.
 local TRACK_CENTER_SPACING_FT =
   3.0
 
@@ -90,20 +78,6 @@ local THROTTLE_DEADBAND_MIN =
 
 local THROTTLE_DEADBAND_MAX =
   0.100
-
-
--- Throttle point at which the low-speed pivot component
--- has completely transitioned to normal differential drive.
---
--- 0.80 means:
---
---    0% throttle -> 100% pivot component
---   20% throttle ->  75% pivot component
---   40% throttle ->  50% pivot component
---   60% throttle ->  25% pivot component
---   80% throttle ->   0% pivot component
-local PIVOT_BLEND_END =
-  0.80
 
 
 -- Time-based hydrostatic output rates.
@@ -237,21 +211,10 @@ local function normStick(v)
   end
 
 
-  -- EdgeTX sources may appear as either:
-  --
-  --   signed:   -1024 .. 1024
-  --   unsigned: 0 .. 1024 with center around 512
-  --
-  -- Normalize both forms into a signed -1.0 .. 1.0 range.
+  -- EdgeTX stick sources are signed (-1024 .. 1024). Positive intermediate
+  -- values must remain positive; treating them as an unsigned source centered
+  -- at 512 would incorrectly command reverse below approximately half stick.
   if math.abs(v) > 100 then
-
-    -- Unsigned center-based sticks often sit near 512 at neutral.
-    if v >= 0 and v <= 1024 then
-
-      return
-        (v - 512) / 512
-
-    end
 
     return
       v / 1024
@@ -1059,13 +1022,12 @@ local function run()
   -- ==========================================================
   -- TRACK CONTROL
   --
-  -- Clean steering model:
+  -- Steering model:
   --
-  --   1) deadband widens with throttle
-  --   2) steering authority tapers from 100% at 50% throttle
-  --      down to 50% at 100% throttle
-  --   3) target turning radius sweeps from 1.5 ft at 0% throttle
-  --      to 10 ft at 100% throttle
+  --   1) rudder deadband widens from 2% to 10% with throttle
+  --   2) remaining rudder is rescaled to retain full travel
+  --   3) authority tapers from 100% at 50% throttle to 50% at full throttle
+  --   4) full-rudder target radius widens from 1.5 ft to 10 ft with throttle
   -- ==========================================================
 
   local throttleNorm =
