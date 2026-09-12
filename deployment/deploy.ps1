@@ -24,16 +24,17 @@ elseif ($Environment -eq "Production") {
 # Repository root is one level above /deployment
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 
-# The debug widget owns the displayed application version.
-$DebugWidgetPath = Join-Path $RepoRoot 'widgets\PB600Dbg\main.lua'
+# The repository version file is only an initial seed. Production deployment
+# maintains the actual version on the radio SD card without changing source files.
+$VersionSeedPath = Join-Path $RepoRoot 'radio\version.lua'
 
-if (!(Test-Path $DebugWidgetPath)) {
-    throw ('Missing debug widget script for version tracking: ' + $DebugWidgetPath)
+if (!(Test-Path $VersionSeedPath)) {
+    throw ('Missing version seed file: ' + $VersionSeedPath)
 }
 
-$DebugWidgetText = (Get-Content -Path $DebugWidgetPath -Raw).Trim()
+$VersionSeedText = (Get-Content -Path $VersionSeedPath -Raw).Trim()
 
-if ($DebugWidgetText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+if ($VersionSeedText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $CurrentVersion = $Matches[1]
     $parts = $CurrentVersion.Split('.')
     $Major = [int]$parts[0]
@@ -41,7 +42,7 @@ if ($DebugWidgetText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
     $Patch = [int]$parts[2]
 }
 else {
-    throw ('Version must be defined in the debug widget as APP_VERSION = "1.1.3": ' + $DebugWidgetPath)
+    throw ('Version must be defined in the version seed file as APP_VERSION = "1.1.3": ' + $VersionSeedPath)
 }
 
 $CurrentVersionDisplay = $CurrentVersion
@@ -221,21 +222,31 @@ $SourceRadio = Join-Path `
 
 Write-Host "Deploying radio..."
 
-Copy-Item `
-    "$SourceRadio\*" `
-    $TargetRadio `
-    -Recurse `
-    -Force
+Get-ChildItem -Path $SourceRadio -Force |
+    Where-Object { $_.Name -ne 'version.lua' } |
+    Copy-Item -Destination $TargetRadio -Recurse -Force
 
 # Only increment the version on successful production deployment.
-$TargetDebugWidget = Join-Path $TargetWidgets 'PB600Dbg\main.lua'
+$TargetVersionPath = Join-Path $TargetRadio 'version.lua'
 
 if ($Environment -eq "Production") {
-    $updatedTargetWidget = (Get-Content -Path $TargetDebugWidget -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
-    Set-Content -Path $TargetDebugWidget -Value $updatedTargetWidget -NoNewline
+    if (Test-Path $TargetVersionPath) {
+        $TargetVersionText = (Get-Content -Path $TargetVersionPath -Raw).Trim()
 
-    $updatedSourceWidget = (Get-Content -Path $DebugWidgetPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
-    Set-Content -Path $DebugWidgetPath -Value $updatedSourceWidget -NoNewline
+        if ($TargetVersionText -match 'APP_VERSION\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"') {
+            $CurrentVersion = $Matches[1]
+            $parts = $CurrentVersion.Split('.')
+            $Major = [int]$parts[0]
+            $Minor = [int]$parts[1]
+            $Patch = [int]$parts[2]
+            $PendingVersion = "$Major.$Minor.$([int]$Patch + 1)"
+        }
+        else {
+            throw ('Version must be defined in the radio version file as APP_VERSION = "1.1.3": ' + $TargetVersionPath)
+        }
+    }
+
+    Set-Content -Path $TargetVersionPath -Value ('APP_VERSION = "' + $PendingVersion + '"') -NoNewline
 }
 
 # ============================================================
