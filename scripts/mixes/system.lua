@@ -51,9 +51,8 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Steering blends a throttle-scaled rudder deadband, rescaled rudder
--- input, and a smooth high-throttle authority taper. Full rudder uses a
--- target radius that widens linearly from 1.5 ft at zero throttle to 10 ft
+-- Steering blends a throttle-scaled rudder deadband and rescaled rudder
+-- input. Full rudder uses a target radius that widens linearly from 1.5 ft at zero throttle to 10 ft
 -- at full throttle. The final differential is multiplied by drive demand,
 -- so a stationary pivot is not commanded at zero throttle.
 local TRACK_CENTER_SPACING_FT =
@@ -1026,8 +1025,7 @@ local function run()
   --
   --   1) rudder deadband widens from 2% to 10% with throttle
   --   2) remaining rudder is rescaled to retain full travel
-  --   3) authority tapers from 100% at 50% throttle to 50% at full throttle
-  --   4) full-rudder target radius widens from 1.5 ft to 10 ft with throttle
+  --   3) full-rudder target radius widens from 1.5 ft to 10 ft with throttle
   -- ==========================================================
 
   local throttleNorm =
@@ -1044,23 +1042,6 @@ local function run()
       0,
       1
     )
-
-
-  local function smoothstep(edge0, edge1, x)
-
-    local t =
-      clamp(
-        (x - edge0) /
-        (edge1 - edge0),
-        0,
-        1
-      )
-
-    return
-      t * t *
-      (3 - 2 * t)
-
-  end
 
 
   local deadband =
@@ -1083,21 +1064,6 @@ local function run()
       effectiveRudder = -effectiveRudder
     end
 
-  end
-
-
-  local authority =
-    1.0 -
-    0.5 *
-    smoothstep(
-      0.50,
-      1.00,
-      throttleNorm
-    )
-
-
-  if throttleNorm < 0.50 then
-    authority = 1.0
   end
 
 
@@ -1124,7 +1090,6 @@ local function run()
           0.001
         )
       ) *
-      authority *
       effectiveRudder
 
   end

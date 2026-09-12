@@ -12,11 +12,6 @@ function ClampValue([double]$value, [double]$min, [double]$max) {
     return $value
 }
 
-function SmoothStep([double]$edge0, [double]$edge1, [double]$value) {
-    $normalized = ClampValue (($value - $edge0) / ($edge1 - $edge0)) 0.0 1.0
-    return $normalized * $normalized * (3.0 - (2.0 * $normalized))
-}
-
 function SimulateTurn([double]$rudder, [double]$throttle) {
     $rud = ClampValue $rudder -1.0 1.0
     $thr = ClampValue $throttle -1.0 1.0
@@ -46,8 +41,7 @@ function SimulateTurn([double]$rudder, [double]$throttle) {
     }
 
     $targetRadiusFt = $PIVOT_RADIUS_FT + (($FULL_TURN_RADIUS_FT - $PIVOT_RADIUS_FT) * $throttleNorm)
-    $authority = 1.0 - (0.5 * (SmoothStep 0.50 1.00 $throttleNorm))
-    $turnRatio = ($PIVOT_RADIUS_FT / [math]::Max($targetRadiusFt, 0.001)) * $authority * $effectiveRudder
+    $turnRatio = ($PIVOT_RADIUS_FT / [math]::Max($targetRadiusFt, 0.001)) * $effectiveRudder
     $turn = ClampValue ($turnRatio * $TURN_GAIN) -1.0 1.0
 
     [pscustomobject]@{

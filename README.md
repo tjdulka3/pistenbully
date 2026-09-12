@@ -472,7 +472,7 @@ while passing through zero.
 
 Steering is a differential-drive calculation. It applies a
 throttle-dependent rudder deadband, rescales rudder outside that deadband,
-then combines a radius target and a high-throttle authority taper.
+then derives the track differential from the selected turn radius.
 
 The base geometry is:
 
@@ -512,23 +512,11 @@ rudder_{eff} = \operatorname{sign}(rudder) \times
 \frac{|rudder| - deadband(thr)}{1 - deadband(thr)}
 $$
 
-The steering contribution is then reduced smoothly after roughly 50% throttle:
-
-$$
-\text{authority}(thr) = 1 - 0.5 \times \text{smoothstep}(0.5, 1.0, thr)
-$$
-
-This gives:
-
-- 0% throttle -> 100% steering authority
-- 50% throttle -> 100% steering authority
-- 100% throttle -> 50% steering authority
-
 The target radius uses throttle demand only. Partial rudder reduces the turn
 ratio linearly through $rudder_{eff}$:
 
 $$
-  ext{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times \text{authority}(thr) \times rudder_{eff}
+\mathrm{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times rudder_{eff}
 $$
 
 with:
@@ -549,20 +537,27 @@ $$
 
 The drive demand is direct throttle after a 2% throttle deadband; hydrostatic
 smoothing is applied to the final track outputs. This means the commanded
-turning behavior is defined by the radius target and authority taper, while
-the actual response remains progressive.
+turning behavior is defined by the radius target alone, while the actual
+response remains progressive.
 
 The result is:
 
 - zero throttle + any rudder => no track command
 - low throttle + full rudder => strongest differential ratio
-- full throttle + full rudder => 10 ft target radius and 50% authority
+- full throttle + full rudder => 10 ft target radius and 15% differential ratio
 
 ![PB600 Steering Turn Ratio by Throttle and Rudder](images/steering_contribution_test.svg)
 
 *The plotted curves reproduce the active `system.lua` steering equations.
 Each begins after its throttle-dependent rudder deadband and shows the
-combined effect of rudder rescaling, authority taper, and radius target.*
+combined effect of rudder rescaling and radius target.*
+
+![PB600 Internal Left and Right Track Commands](images/steering_track_output_heatmap.svg)
+
+*The center dot is the neutral left-stick position, $0,0$. Each quadrant maps
+to forward/reverse throttle and left/right rudder in 10% increments. These are
+the internal left and right track commands before the physical right-track
+wiring inversion at the `system.lua` return statement.*
 
 Hydrostatic Throttle and Track-Speed Model
 

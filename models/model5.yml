@@ -981,7 +981,7 @@ screenData:
       layoutData: 
          zones: 
             0:
-               widgetName: PB600 DEBUG FINAL
+               widgetName: PB600Dbg
                widgetData: 
          options: 
             0:
@@ -1015,29 +1015,8 @@ topbarData:
                   value: 
                      color: COLIDX1
       1:
-         widgetName: ModelBmp
+         widgetName: PB600Version
          widgetData: 
-            options: 
-               0:
-                  type: Color
-                  value: 
-                     color: COLIDX8
-               1:
-                  type: Unsigned
-                  value: 
-                     unsignedValue: 0
-               2:
-                  type: Bool
-                  value: 
-                     boolValue: 1
-               3:
-                  type: Color
-                  value: 
-                     color: COLIDX12
-               4:
-                  type: Bool
-                  value: 
-                     boolValue: 1
       2:
          widgetName: Radio Info
          widgetData: 
@@ -1087,7 +1066,7 @@ topbarWidgetWidth:
       val: 1
    3:
       val: 1
-view: 1
+view: 0
 modelRegistrationID: "174252Q-"
 customSwitches: 
    SW1:
