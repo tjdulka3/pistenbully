@@ -3,7 +3,7 @@ local function readVersionInfo()
     return "PistenBully 600", "E1: script loader unavailable"
   end
 
-  local versionScript = loadScript("/RADIO/version.lua")
+  local versionScript = loadScript("/SCRIPTS/version.lua")
 
   if type(versionScript) ~= "function" then
     return "PistenBully 600", "E2: version file not loadable"

@@ -118,9 +118,13 @@ PRODUCTION DEPLOYMENT CANCELLED.
 # Create required EdgeTX directories
 # ============================================================
 
-$TargetMixes = Join-Path `
+$TargetScripts = Join-Path `
     $TargetRoot `
-    "SCRIPTS\MIXES"
+    "SCRIPTS"
+
+$TargetMixes = Join-Path `
+    $TargetScripts `
+    "MIXES"
 
 $TargetWidgets = Join-Path `
     $TargetRoot `
@@ -136,7 +140,7 @@ $TargetRadio = Join-Path `
 
 New-Item `
     -ItemType Directory `
-    -Path $TargetMixes `
+    -Path $TargetScripts `
     -Force | Out-Null
 
 New-Item `
@@ -222,19 +226,23 @@ $SourceRadio = Join-Path `
 
 Write-Host "Deploying radio..."
 
-if ($Environment -eq "Test") {
-    Copy-Item "$SourceRadio\*" $TargetRadio -Recurse -Force
-}
-else {
-    Get-ChildItem -Path $SourceRadio -Force |
-        Where-Object { $_.Name -ne 'version.lua' } |
-        Copy-Item -Destination $TargetRadio -Recurse -Force
+Get-ChildItem -Path $SourceRadio -Force |
+    Where-Object { $_.Name -ne 'version.lua' } |
+    Copy-Item -Destination $TargetRadio -Recurse -Force
+
+# Version metadata is loaded from SCRIPTS, not RADIO.
+$LegacyTargetVersionPath = Join-Path $TargetRadio 'version.lua'
+if (Test-Path $LegacyTargetVersionPath) {
+    Remove-Item -Path $LegacyTargetVersionPath -Force
 }
 
 # Only increment the version on successful production deployment.
-$TargetVersionPath = Join-Path $TargetRadio 'version.lua'
+$TargetVersionPath = Join-Path $TargetScripts 'version.lua'
 
-if ($Environment -eq "Production") {
+if ($Environment -eq "Test") {
+    Copy-Item -Path $VersionSeedPath -Destination $TargetVersionPath -Force
+}
+else {
     if (Test-Path $TargetVersionPath) {
         $TargetVersionText = (Get-Content -Path $TargetVersionPath -Raw).Trim()
 
@@ -247,7 +255,7 @@ if ($Environment -eq "Production") {
             $PendingVersion = "$Major.$Minor.$([int]$Patch + 1)"
         }
         else {
-            throw ('Version must be defined in the radio version file as APP_VERSION = "1.1.3": ' + $TargetVersionPath)
+            throw ('Version must be defined in the script version file as APP_VERSION = "1.1.3": ' + $TargetVersionPath)
         }
     }
     else {
