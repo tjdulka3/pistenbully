@@ -1,6 +1,8 @@
 $TRACK_CENTER_SPACING_FT = 3.0
 $PIVOT_RADIUS_FT = $TRACK_CENTER_SPACING_FT / 2.0
 $FULL_TURN_RADIUS_FT = 10.0
+$LOW_SPEED_TURN_RATIO = 1.0
+$FULL_SPEED_TURN_RATIO = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
 $RUDDER_DEADBAND = 0.02
 $THROTTLE_DEADBAND_MIN = 0.02
 $THROTTLE_DEADBAND_MAX = 0.10
@@ -21,26 +23,36 @@ function GetTrackCommands([double]$throttle, [double]$rudder) {
 
     if ($rudderInput -lt 0) { $effectiveRudder = -$effectiveRudder }
 
-    $targetRadius = $PIVOT_RADIUS_FT + (($FULL_TURN_RADIUS_FT - $PIVOT_RADIUS_FT) * $throttleNorm)
-    $turnRatio = ($PIVOT_RADIUS_FT / $targetRadius) * $effectiveRudder
+    $fullRudderTurnRatio = $LOW_SPEED_TURN_RATIO + (($FULL_SPEED_TURN_RATIO - $LOW_SPEED_TURN_RATIO) * $throttleNorm)
+    $turnRatio = $fullRudderTurnRatio * $effectiveRudder
+    $steeringAuthority = [math]::Abs($turnRatio)
 
     return [pscustomobject]@{
         Left = ClampValue ($drive * (1.0 + $turnRatio)) -1.0 1.0
         Right = ClampValue ($drive * (1.0 - $turnRatio)) -1.0 1.0
+        Contribution = $steeringAuthority
     }
 }
 
-function GetCellColor([double]$value) {
-    $magnitude = [math]::Round([math]::Abs($value) * 180)
-    if ($value -gt 0) { return ('rgb({0},255,{0})' -f (255 - $magnitude), (255 - $magnitude)) }
-    if ($value -lt 0) { return ('rgb(255,{0},{0})' -f (255 - $magnitude), (255 - $magnitude)) }
-    return '#ffffff'
+function GetSteeringColor([double]$contribution, [double]$maximumContribution) {
+    $intensity = [math]::Min(1.0, $contribution / $maximumContribution)
+    $redBlue = [math]::Round(255.0 * (1.0 - $intensity))
+    $green = 255
+    return ('rgb({0},{1},{0})' -f $redBlue, $green)
 }
 
-function AddHeatmap([string]$title, [string]$propertyName, [int]$originX) {
+function AddHeatmap([string]$title, [int]$originX) {
     $cellSize = 20
     $gridSize = 21 * $cellSize
+    $maximumContribution = 0.0
     $svg = @("<text x='$($originX + ($gridSize / 2))' y='64' text-anchor='middle' font-size='18' font-weight='700'>$title</text>")
+
+    for ($throttleStep = -10; $throttleStep -le 10; $throttleStep++) {
+        for ($rudderStep = -10; $rudderStep -le 10; $rudderStep++) {
+            $command = GetTrackCommands ($throttleStep / 10.0) ($rudderStep / 10.0)
+            $maximumContribution = [math]::Max($maximumContribution, $command.Contribution)
+        }
+    }
 
     for ($throttleStep = 10; $throttleStep -ge -10; $throttleStep--) {
         $throttle = $throttleStep / 10.0
@@ -49,10 +61,10 @@ function AddHeatmap([string]$title, [string]$propertyName, [int]$originX) {
             $rudder = $rudderStep / 10.0
             $column = $rudderStep + 10
             $command = GetTrackCommands $throttle $rudder
-            $value = $command.$propertyName
+            $contribution = $command.Contribution
             $x = $originX + ($column * $cellSize)
             $y = 90 + ($row * $cellSize)
-            $svg += "<rect x='$x' y='$y' width='$cellSize' height='$cellSize' fill='$(GetCellColor $value)' stroke='#d1d5db' stroke-width='0.5'><title>Throttle $([math]::Round($throttle * 100))%, Rudder $([math]::Round($rudder * 100))%: $([math]::Round($value * 100))%</title></rect>"
+            $svg += "<rect x='$x' y='$y' width='$cellSize' height='$cellSize' fill='$(GetSteeringColor $contribution $maximumContribution)' stroke='#d1d5db' stroke-width='0.5'><title>Throttle $([math]::Round($throttle * 100))%, Rudder $([math]::Round($rudder * 100))%: steering authority $([math]::Round($contribution * 100))%</title></rect>"
         }
     }
 
@@ -72,22 +84,20 @@ function AddHeatmap([string]$title, [string]$propertyName, [int]$originX) {
     $svg += "<text x='$centerX' y='580' text-anchor='middle' font-size='12' font-weight='700'>REVERSE (-)</text>"
     $svg += "<text x='$($originX + 8)' y='548' text-anchor='start' font-size='12' font-weight='700'>LEFT (-)</text>"
     $svg += "<text x='$($originX + $gridSize - 8)' y='548' text-anchor='end' font-size='12' font-weight='700'>RIGHT (+)</text>"
-    $svg += "<text x='$centerX' y='602' text-anchor='middle' font-size='14'>Rudder</text>"
+        $svg += "<text x='$centerX' y='602' text-anchor='middle' font-size='14'>Rudder</text>"
     $svg += "<text x='$($originX - 54)' y='300' text-anchor='middle' font-size='14' transform='rotate(-90 $($originX - 54) 300)'>Throttle</text>"
     return $svg
 }
 
-$leftHeatmap = AddHeatmap 'Left Track Command' 'Left' 105
-$rightHeatmap = AddHeatmap 'Right Track Command' 'Right' 650
+$heatmap = AddHeatmap 'Normalized Steering Authority: |Left - Right| / (2 x |Drive|)' 380
 $outputPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'images\steering_track_output_heatmap.svg'
 
 $svg = @"
-<svg xmlns='http://www.w3.org/2000/svg' width='1180' height='660' viewBox='0 0 1180 660'>
-    <rect width='1180' height='660' fill='white'/>
-  <text x='590' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Internal Track Commands at 10% Stick Increments</text>
-    <text x='590' y='638' text-anchor='middle' font-size='13'>Green: forward command | Red: reverse command | White: neutral</text>
-  $($leftHeatmap -join '')
-  $($rightHeatmap -join '')
+<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='660' viewBox='0 0 1000 660'>
+    <rect width='1000' height='660' fill='white'/>
+    <text x='500' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Steering Contribution at 10% Stick Increments</text>
+    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no steering authority | Full green: greatest normalized track differential</text>
+    $($heatmap -join '')
 </svg>
 "@
 

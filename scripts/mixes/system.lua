@@ -52,8 +52,8 @@ local WORK_ANGLE     = 0.50
 -- ============================================================
 
 -- Steering blends a throttle-scaled rudder deadband and rescaled rudder
--- input. Full rudder uses a target radius that widens linearly from 1.5 ft at zero throttle to 10 ft
--- at full throttle. The final differential is multiplied by drive demand,
+-- input. Full-rudder authority decays linearly between the ratios implied by
+-- the 1.5 ft low-speed and 10 ft full-speed turn-radius targets. The final differential is multiplied by drive demand,
 -- so a stationary pivot is not commanded at zero throttle.
 local TRACK_CENTER_SPACING_FT =
   3.0
@@ -63,6 +63,13 @@ local PIVOT_RADIUS_FT =
 
 local FULL_TURN_RADIUS_FT =
   10.0
+
+local LOW_SPEED_TURN_RATIO =
+  1.0
+
+local FULL_SPEED_TURN_RATIO =
+  PIVOT_RADIUS_FT /
+  FULL_TURN_RADIUS_FT
 
 local TURN_GAIN =
   1.0
@@ -1025,7 +1032,7 @@ local function run()
   --
   --   1) rudder deadband widens from 2% to 10% with throttle
   --   2) remaining rudder is rescaled to retain full travel
-  --   3) full-rudder target radius widens from 1.5 ft to 10 ft with throttle
+  --   3) full-rudder turn ratio decays linearly from 1.0 to 0.15 with throttle
   -- ==========================================================
 
   local throttleNorm =
@@ -1067,11 +1074,11 @@ local function run()
   end
 
 
-  local targetRadiusFt =
-    PIVOT_RADIUS_FT +
+  local fullRudderTurnRatio =
+    LOW_SPEED_TURN_RATIO +
     (
-      FULL_TURN_RADIUS_FT -
-      PIVOT_RADIUS_FT
+      FULL_SPEED_TURN_RATIO -
+      LOW_SPEED_TURN_RATIO
     ) *
     throttleNorm
 
@@ -1083,13 +1090,7 @@ local function run()
   if math.abs(effectiveRudder) > 0 then
 
     turnRatio =
-      (
-        PIVOT_RADIUS_FT /
-        math.max(
-          targetRadiusFt,
-          0.001
-        )
-      ) *
+      fullRudderTurnRatio *
       effectiveRudder
 
   end

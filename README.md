@@ -396,8 +396,8 @@ left and right track outputs.
 
 -   Differential track steering
 -   Throttle-scaled rudder deadband with full-travel rescaling
--   Smooth steering-authority taper above 50% throttle
--   Throttle-dependent turn-radius target
+-   Linear steering-authority decay between turn-radius endpoints
+-   Turn-radius endpoint calibration
 -   Hydrostatic-style acceleration
 -   Hydrostatic-style deceleration/braking
 -   Increased braking when changing direction
@@ -472,7 +472,7 @@ while passing through zero.
 
 Steering is a differential-drive calculation. It applies a
 throttle-dependent rudder deadband, rescales rudder outside that deadband,
-then derives the track differential from the selected turn radius.
+then linearly decays the track differential between the two turn-radius targets.
 
 The base geometry is:
 
@@ -480,18 +480,19 @@ The base geometry is:
 - pivot radius at zero throttle = 1.5 ft
 - full-throttle target radius = 10 ft
 
-At full rudder, the radius sweep is:
+The full-rudder turn ratio is interpolated linearly:
 
 $$
-R_{target}(thr) = 1.5 + (10 - 1.5) \times thr
+\mathrm{turnRatio}_{full}(thr) = 1.0 + (0.15 - 1.0) \times thr
 $$
 
 with $thr \in [0,1]$.
 
-At zero throttle, the internal full-rudder turn ratio is based on the 1.5 ft
-radius. However, the final track commands are multiplied by drive demand, so
-zero throttle produces zero track output rather than a stationary pivot. At
-full throttle and full rudder, the target radius is 10 ft.
+The low-speed endpoint $1.0$ is derived from $1.5 / 1.5$, and the full-speed
+endpoint $0.15$ is derived from $1.5 / 10$. The equivalent radius therefore
+grows nonlinearly, but the steering differential itself decays linearly. At
+zero throttle, drive demand remains zero, so the system does not command a
+stationary pivot.
 
 ![PB600 Turning Geometry: Zero-Throttle Pivot vs Full-Throttle Turn](images/turning_geometry_pivot_vs_full.svg)
 
@@ -512,11 +513,10 @@ rudder_{eff} = \operatorname{sign}(rudder) \times
 \frac{|rudder| - deadband(thr)}{1 - deadband(thr)}
 $$
 
-The target radius uses throttle demand only. Partial rudder reduces the turn
-ratio linearly through $rudder_{eff}$:
+Partial rudder reduces the turn ratio linearly through $rudder_{eff}$:
 
 $$
-\mathrm{turnRatio} = \frac{R_{pivot}}{R_{target}(thr)} \times rudder_{eff}
+\mathrm{turnRatio} = \mathrm{turnRatio}_{full}(thr) \times rudder_{eff}
 $$
 
 with:
@@ -537,8 +537,8 @@ $$
 
 The drive demand is direct throttle after a 2% throttle deadband; hydrostatic
 smoothing is applied to the final track outputs. This means the commanded
-turning behavior is defined by the radius target alone, while the actual
-response remains progressive.
+turning behavior decays linearly between the two calibrated radius endpoints,
+while the actual response remains progressive.
 
 The result is:
 
@@ -552,12 +552,15 @@ The result is:
 Each begins after its throttle-dependent rudder deadband and shows the
 combined effect of rudder rescaling and radius target.*
 
-![PB600 Internal Left and Right Track Commands](images/steering_track_output_heatmap.svg)
+![PB600 Steering Contribution](images/steering_track_output_heatmap.svg)
 
 *The center dot is the neutral left-stick position, $0,0$. Each quadrant maps
-to forward/reverse throttle and left/right rudder in 10% increments. These are
-the internal left and right track commands before the physical right-track
-wiring inversion at the `system.lua` return statement.*
+to forward/reverse throttle and left/right rudder in 10% increments. Color
+shows normalized steering authority $|\text{leftTrack} - \text{rightTrack}| /
+(2|\text{drive}|)$, which equals $|\text{turnRatio}|$: white is no steering
+authority and full green is the strongest authority in the map. This makes the
+strongest steering authority appear at low throttle, independently of total
+track output.*
 
 Hydrostatic Throttle and Track-Speed Model
 

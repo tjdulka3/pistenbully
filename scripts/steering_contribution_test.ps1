@@ -1,6 +1,8 @@
 $TRACK_CENTER_SPACING_FT = 3.0
 $PIVOT_RADIUS_FT = $TRACK_CENTER_SPACING_FT / 2.0
 $FULL_TURN_RADIUS_FT = 10.0
+$LOW_SPEED_TURN_RATIO = 1.0
+$FULL_SPEED_TURN_RATIO = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
 $TURN_GAIN = 1.0
 $RUDDER_DEADBAND = 0.02
 $THROTTLE_DEADBAND_MIN = 0.02
@@ -36,12 +38,13 @@ function SimulateTurn([double]$rudder, [double]$throttle) {
             Rudder = $rudder
             Turn = 0.0
             TurnRatio = 0.0
-            RadiusFt = $PIVOT_RADIUS_FT + (($FULL_TURN_RADIUS_FT - $PIVOT_RADIUS_FT) * $throttleNorm)
+            RadiusFt = $PIVOT_RADIUS_FT / ($LOW_SPEED_TURN_RATIO + (($FULL_SPEED_TURN_RATIO - $LOW_SPEED_TURN_RATIO) * $throttleNorm))
         }
     }
 
-    $targetRadiusFt = $PIVOT_RADIUS_FT + (($FULL_TURN_RADIUS_FT - $PIVOT_RADIUS_FT) * $throttleNorm)
-    $turnRatio = ($PIVOT_RADIUS_FT / [math]::Max($targetRadiusFt, 0.001)) * $effectiveRudder
+    $fullRudderTurnRatio = $LOW_SPEED_TURN_RATIO + (($FULL_SPEED_TURN_RATIO - $LOW_SPEED_TURN_RATIO) * $throttleNorm)
+    $targetRadiusFt = $PIVOT_RADIUS_FT / $fullRudderTurnRatio
+    $turnRatio = $fullRudderTurnRatio * $effectiveRudder
     $turn = ClampValue ($turnRatio * $TURN_GAIN) -1.0 1.0
 
     [pscustomobject]@{
