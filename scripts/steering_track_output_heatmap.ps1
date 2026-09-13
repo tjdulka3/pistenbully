@@ -15,7 +15,6 @@ function ClampValue([double]$value, [double]$min, [double]$max) {
 
 function GetTrackCommands([double]$throttle, [double]$rudder) {
     $throttleNorm = [math]::Abs($throttle)
-    $drive = if ($throttleNorm -lt $THROTTLE_DEADBAND_MIN) { 0.0 } else { $throttle }
     $rudderInput = if ([math]::Abs($rudder) -lt $RUDDER_DEADBAND) { 0.0 } else { $rudder }
     $rudderNorm = [math]::Abs($rudderInput)
     $deadband = $THROTTLE_DEADBAND_MIN + (($THROTTLE_DEADBAND_MAX - $THROTTLE_DEADBAND_MIN) * $throttleNorm)
@@ -25,11 +24,26 @@ function GetTrackCommands([double]$throttle, [double]$rudder) {
 
     $fullRudderTurnRatio = $LOW_SPEED_TURN_RATIO + (($FULL_SPEED_TURN_RATIO - $LOW_SPEED_TURN_RATIO) * $throttleNorm)
     $turnRatio = $fullRudderTurnRatio * $effectiveRudder
-    $steeringAuthority = [math]::Abs($turnRatio)
+
+    $drive = if ($throttleNorm -lt $THROTTLE_DEADBAND_MIN) {
+        if ($rudderNorm -gt $RUDDER_DEADBAND) { 0.10 } else { 0.0 }
+    } else {
+        $throttle
+    }
+
+    $left = ClampValue ($drive * (1.0 + $turnRatio)) -1.0 1.0
+    $right = ClampValue ($drive * (1.0 - $turnRatio)) -1.0 1.0
+
+    if ([math]::Abs($drive) -lt 0.0001) {
+        $left = 0.0
+        $right = 0.0
+    }
+
+    $steeringAuthority = if ([math]::Abs($drive) -gt 0.0001) { [math]::Abs($turnRatio) } else { 0.0 }
 
     return [pscustomobject]@{
-        Left = ClampValue ($drive * (1.0 + $turnRatio)) -1.0 1.0
-        Right = ClampValue ($drive * (1.0 - $turnRatio)) -1.0 1.0
+        Left = $left
+        Right = $right
         Contribution = $steeringAuthority
     }
 }

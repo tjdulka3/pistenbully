@@ -1093,8 +1093,20 @@ local function run()
     )
 
 
-  if math.abs(thr) < THROTTLE_DEADBAND_MIN then
+  local zeroThrottlePivot =
+    math.abs(thr) < THROTTLE_DEADBAND_MIN
+    and
+    math.abs(rud) > RUDDER_DEADBAND
+
+
+  if zeroThrottlePivot then
+
+    drive = 0.10
+
+  elseif math.abs(thr) < THROTTLE_DEADBAND_MIN then
+
     drive = 0
+
   end
 
 

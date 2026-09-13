@@ -535,14 +535,18 @@ $$
 \text{rightTrack} = \text{drive} \times (1 - \text{turnRatio})
 $$
 
-The drive demand is direct throttle after a 2% throttle deadband; hydrostatic
-smoothing is applied to the final track outputs. This means the commanded
-turning behavior decays linearly between the two calibrated radius endpoints,
-while the actual response remains progressive.
+The drive demand is direct throttle after a 2% throttle deadband. When the
+throttle is at zero but the rudder has exceeded the base 2% deadband, a small
+minimum-turn drive floor is applied so the machine executes the tightest-turn
+pivot rather than a no-op. Hydrostatic smoothing is then applied to the final
+track outputs. This means the commanded turning behavior decays linearly
+between the two calibrated radius endpoints, while the actual response remains
+progressive.
 
 The result is:
 
-- zero throttle + any rudder => no track command
+- zero throttle + rudder inside deadband => no track command
+- zero throttle + rudder outside deadband => minimum-radius pivot command
 - low throttle + full rudder => strongest differential ratio
 - full throttle + full rudder => 10 ft target radius and 15% differential ratio
 
