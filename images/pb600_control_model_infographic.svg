@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">PB600 Custom Control Model Overview</title>
+  <desc id="desc">One-page infographic summarizing the implemented PB600 EdgeTX custom control model, major features, and UI panels.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="55%" stop-color="#132f4c"/>
+      <stop offset="100%" stop-color="#164e63"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; }
+      .h1 { fill:#f8fafc; font-size:42px; font-weight:700; }
+      .h2 { fill:#e2e8f0; font-size:24px; font-weight:700; }
+      .h3 { fill:#f8fafc; font-size:22px; font-weight:700; }
+      .body { fill:#dbe4ee; font-size:18px; }
+      .small { fill:#cbd5e1; font-size:15px; }
+      .label { fill:#93c5fd; font-size:16px; font-weight:700; letter-spacing:1px; }
+      .pill { fill:#082f49; stroke:#38bdf8; stroke-width:1.5; rx:14; }
+      .card { fill:#0b1220; fill-opacity:0.72; stroke:#334155; stroke-width:1.5; rx:24; filter:url(#shadow); }
+      .panel { fill:#0f172a; fill-opacity:0.82; stroke:#475569; stroke-width:1.25; rx:22; }
+      .bullet { fill:#facc15; }
+      .track { fill:#22c55e; }
+      .blade { fill:#38bdf8; }
+      .tiller { fill:#f59e0b; }
+      .safety { fill:#ef4444; }
+      .ui { fill:#a78bfa; }
+      .sound { fill:#14b8a6; }
+      .line { stroke:#475569; stroke-width:2; stroke-linecap:round; }
+      .flow { stroke:url(#accent); stroke-width:6; stroke-linecap:round; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="70" y="58" width="1460" height="8" rx="4" fill="url(#accent)"/>
+
+  <text x="90" y="120" class="h1">PB600 Custom Control Model</text>
+  <text x="90" y="160" class="body">EdgeTX-based machine controller for the RadioMaster TX16S MK3 with custom Lua mixers, live tuning, safety interlocks, and dual UI panels.</text>
+
+  <rect x="90" y="192" width="170" height="34" class="pill"/>
+  <text x="175" y="215" text-anchor="middle" class="small">3 MIXER SCRIPTS</text>
+  <rect x="278" y="192" width="176" height="34" class="pill"/>
+  <text x="366" y="215" text-anchor="middle" class="small">18+ CHANNEL USES</text>
+  <rect x="472" y="192" width="178" height="34" class="pill"/>
+  <text x="561" y="215" text-anchor="middle" class="small">5 LIVE TUNING GVS</text>
+  <rect x="668" y="192" width="200" height="34" class="pill"/>
+  <text x="768" y="215" text-anchor="middle" class="small">2 PRIMARY UI PANELS</text>
+
+  <rect x="90" y="255" width="1420" height="95" class="card"/>
+  <text x="120" y="290" class="label">CONTROL FLOW</text>
+  <text x="125" y="327" class="h3">Inputs</text>
+  <text x="125" y="348" class="small">sticks • sliders • switches</text>
+  <line x1="255" y1="318" x2="385" y2="318" class="flow"/>
+  <text x="420" y="327" class="h3">EdgeTX Model</text>
+  <text x="420" y="348" class="small">mixes • channel routing • logical switches</text>
+  <line x1="665" y1="318" x2="795" y2="318" class="flow"/>
+  <text x="835" y="327" class="h3">Lua Control</text>
+  <text x="835" y="348" class="small">system.lua • blade.lua • tiller.lua</text>
+  <line x1="1080" y1="318" x2="1210" y2="318" class="flow"/>
+  <text x="1245" y="327" class="h3">Outputs + UI</text>
+  <text x="1245" y="348" class="small">actuators • sound • widgets • status</text>
+
+  <rect x="90" y="385" width="455" height="220" class="card"/>
+  <circle cx="132" cy="431" r="16" class="track"/>
+  <text x="165" y="439" class="h2">Track + Drive Control</text>
+  <text x="122" y="478" class="body">• Differential left/right track drive from throttle + rudder</text>
+  <text x="122" y="510" class="body">• Throttle-scaled rudder deadband and turn authority shaping</text>
+  <text x="122" y="542" class="body">• Hydrostatic-style acceleration, braking, and reversal behavior</text>
+  <text x="122" y="574" class="body">• Reverse blocked in Groom until implement clearance completes</text>
+  <text x="122" y="606" class="body">• Engine/sound output follows effective track load, not raw stick</text>
+
+  <rect x="572" y="385" width="455" height="220" class="card"/>
+  <circle cx="614" cy="431" r="16" class="blade"/>
+  <text x="647" y="439" class="h2">Blade Control</text>
+  <text x="604" y="478" class="body">• 6 dedicated outputs: lift, tilt, angle, slew, LW, RW</text>
+  <text x="604" y="510" class="body">• Automatic Transport ↔ Work positioning for lift, angle, wings</text>
+  <text x="604" y="542" class="body">• Manual tilt/lift and slew/angle via SC mode switching</text>
+  <text x="604" y="574" class="body">• Groom coordination adds rudder-based wing/slew/tilt/angle motion</text>
+  <text x="604" y="606" class="body">• Reverse auto-lift captures and restores exact pre-reverse height</text>
+
+  <rect x="1055" y="385" width="455" height="220" class="card"/>
+  <circle cx="1097" cy="431" r="16" class="tiller"/>
+  <text x="1130" y="439" class="h2">Tiller + Grooming Control</text>
+  <text x="1087" y="478" class="body">• Outputs for tiller angle, lift, finisher L/R, and swing</text>
+  <text x="1087" y="510" class="body">• Automatic Groom entry/exit positioning with timed finisher motion</text>
+  <text x="1087" y="542" class="body">• Manual tiller lift/angle on SC Down, finishers on SE / SG</text>
+  <text x="1087" y="574" class="body">• Coordinated swing and Groom-only tiller-angle assist</text>
+  <text x="1087" y="606" class="body">• Rotor safety interlock keeps tiller motor off during unsafe states</text>
+
+  <rect x="90" y="635" width="680" height="205" class="card"/>
+  <circle cx="132" cy="680" r="16" class="safety"/>
+  <text x="165" y="688" class="h2">Safety, Modes, and State Management</text>
+  <text x="122" y="726" class="body">• Three operating modes: Transport, Plow, Groom</text>
+  <text x="122" y="756" class="body">• Independent E-stop handling in every mixer script</text>
+  <text x="122" y="786" class="body">• Transition-state outputs expose blade/tiller automatic motion</text>
+  <text x="122" y="816" class="body">• 5 global variables support live tuning without changing code</text>
+  <text x="448" y="726" class="body">• Exact position models prevent drift across repeated cycles</text>
+  <text x="448" y="756" class="body">• SH one-shot rehome resets modeled zero positions</text>
+  <text x="448" y="786" class="body">• Logical switches drive local UI/audio status without owning safety</text>
+  <text x="448" y="816" class="body">• Sound + light channels integrate with the same control model</text>
+
+  <rect x="800" y="635" width="710" height="205" class="card"/>
+  <circle cx="842" cy="680" r="16" class="ui"/>
+  <text x="875" y="688" class="h2">UI Panels and Operator Feedback</text>
+
+  <rect x="835" y="715" width="305" height="95" class="panel"/>
+  <text x="857" y="743" class="h3">PB600Op</text>
+  <text x="857" y="768" class="small">Operator panel</text>
+  <text x="857" y="793" class="small">Animated machine view, track motion, gauges,</text>
+  <text x="857" y="813" class="small">status bar, light indicators, reverse/transition state.</text>
+
+  <rect x="1165" y="715" width="305" height="95" class="panel"/>
+  <text x="1187" y="743" class="h3">PB600Dbg</text>
+  <text x="1187" y="768" class="small">Diagnostic panel</text>
+  <text x="1187" y="793" class="small">Inputs, switch states, logical switches, Lua outputs,</text>
+  <text x="1187" y="813" class="small">channels, and global variables for tuning + troubleshooting.</text>
+
+  <text x="838" y="834" class="small">Top bar also includes PB600Version for app/version display loaded from /SCRIPTS/version.lua.</text>
+
+  <text x="90" y="875" class="small">Summary source: README, models/model5.yml, scripts/mixes/*.lua, widgets/PB600Op, PB600Dbg, PB600Version.</text>
+</svg>
