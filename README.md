@@ -478,7 +478,7 @@ The base geometry is:
 
 - track center spacing = 3 ft
 - pivot radius at zero throttle = 1.5 ft
-- full-throttle target radius = 10 ft
+- full-throttle target radius = 6 ft
 
 The full-rudder turn ratio is interpolated linearly:
 
@@ -489,10 +489,10 @@ $$
 with $thr \in [0,1]$.
 
 The low-speed endpoint $1.0$ is derived from $1.5 / 1.5$, and the full-speed
-endpoint $0.15$ is derived from $1.5 / 10$. The equivalent radius therefore
+endpoint $0.25$ is derived from $1.5 / 6$. The equivalent radius therefore
 grows nonlinearly, but the steering differential itself decays linearly. At
-zero throttle, drive demand remains zero, so the system does not command a
-stationary pivot.
+zero throttle, drive demand remains zero unless the rudder exceeds the base
+deadband, in which case the minimum-radius pivot fallback is applied.
 
 ![PB600 Turning Geometry: Zero-Throttle Pivot vs Full-Throttle Turn](images/turning_geometry_pivot_vs_full.svg)
 
@@ -548,7 +548,7 @@ The result is:
 - zero throttle + rudder inside deadband => no track command
 - zero throttle + rudder outside deadband => minimum-radius pivot command
 - low throttle + full rudder => strongest differential ratio
-- full throttle + full rudder => 10 ft target radius and 15% differential ratio
+- full throttle + full rudder => 6 ft target radius and 25% differential ratio
 
 ![PB600 Steering Turn Ratio by Throttle and Rudder](images/steering_contribution_test.svg)
 

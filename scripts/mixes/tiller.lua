@@ -590,6 +590,59 @@ local function run()
     )
 
 
+  local steeringThrottleNorm =
+    clamp(
+      math.abs(thr),
+      0,
+      1
+    )
+
+
+  local steeringDeadband =
+    0.02 +
+    (0.10 - 0.02) *
+    steeringThrottleNorm
+
+
+  local steeringRud =
+    0
+
+
+  if math.abs(rawRud) > steeringDeadband then
+
+    steeringRud =
+      (math.abs(rawRud) - steeringDeadband) /
+      (1 - steeringDeadband)
+
+    if rawRud < 0 then
+      steeringRud = -steeringRud
+    end
+
+  end
+
+
+  local fullRudderTurnRatio =
+    1.0 +
+    (
+      0.25 -
+      1.0
+    ) *
+    steeringThrottleNorm
+
+
+  local steeringTurnRatio =
+    0
+
+
+  if math.abs(steeringRud) > 0 then
+
+    steeringTurnRatio =
+      fullRudderTurnRatio *
+      steeringRud
+
+  end
+
+
   local coordRud =
     applyDeadband(
       rawRud,
@@ -948,7 +1001,7 @@ local function run()
   if swingCoordEnabled then
 
     swingCmd =
-      swingRud *
+      steeringTurnRatio *
       SWING_COORD_GAIN *
       SWING_SIGN *
       1024
