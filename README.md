@@ -14,6 +14,8 @@ behaviors of the full-size PistenBully.
 The control system is designed for a RadioMaster TX16S MK3 running
 EdgeTX.
 
+![PB600 Custom Control Model Overview](images/pb600_control_model_infographic.svg)
+
 ```mermaid
 flowchart LR
     subgraph Model["EdgeTX Model / Radio Configuration"]
