@@ -1,11 +1,10 @@
 $TRACK_CENTER_SPACING_FT = 3.0
 $PIVOT_RADIUS_FT = $TRACK_CENTER_SPACING_FT / 2.0
 $FULL_TURN_RADIUS_FT = 6.0
-$TURN_GAIN = 1.0
-$STEER_YAW_PEAK = 0.50
-$STEER_YAW_FULL = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
+$STEER_GAIN_LOW = 0.70
+$STEER_GAIN_FULL = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
 $STEER_TAPER_START = 0.75
-$DRIVE_DEADBAND = 0.15
+$DRIVE_DEADBAND = 0.05
 $RUDDER_DEADBAND = 0.01
 $RUDDER_DB_MIN = 0.01
 $RUDDER_DB_KNEE = 0.80
@@ -34,14 +33,17 @@ function GetTrackCommands([double]$throttle, [double]$rudder) {
     $drive = if ($throttleNorm -le $DRIVE_DEADBAND) { 0.0 } else { [math]::Sign($throttle) * ($throttleNorm - $DRIVE_DEADBAND) / (1.0 - $DRIVE_DEADBAND) }
 
     $speed = [math]::Abs($drive)
-    $yawEnvelope = if ($speed -gt $STEER_TAPER_START) {
-        $STEER_YAW_PEAK + (($STEER_YAW_FULL - $STEER_YAW_PEAK) * ($speed - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START))
-    } else { $STEER_YAW_PEAK }
-    $yawDir = if ($drive -lt 0) { -1.0 } else { 1.0 }
-    $yaw = $effectiveRudder * $yawEnvelope * $TURN_GAIN * $yawDir
+    $steerGain = if ($speed -gt $STEER_TAPER_START) {
+        $STEER_GAIN_LOW + (($STEER_GAIN_FULL - $STEER_GAIN_LOW) * ($speed - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START))
+    } else { $STEER_GAIN_LOW }
+    $steer = $effectiveRudder * $steerGain
 
-    $left = ClampValue ($drive + $yaw) -1.0 1.0
-    $right = ClampValue ($drive - $yaw) -1.0 1.0
+    $left = $drive + $steer
+    $right = $drive - $steer
+    if ($left -gt 1.0) { $right -= ($left - 1.0); $left = 1.0 }
+    elseif ($left -lt -1.0) { $right -= ($left + 1.0); $left = -1.0 }
+    if ($right -gt 1.0) { $left -= ($right - 1.0); $right = 1.0 }
+    elseif ($right -lt -1.0) { $left -= ($right + 1.0); $right = -1.0 }
 
     $steeringAuthority = [math]::Abs($left - $right) / 2.0
 
@@ -114,7 +116,7 @@ $svg = @"
 <svg xmlns='http://www.w3.org/2000/svg' width='1000' height='660' viewBox='0 0 1000 660'>
     <rect width='1000' height='660' fill='white'/>
     <text x='500' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Steering Contribution at 10% Stick Increments</text>
-    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Steady state, drive deadband +/-15% throttle</text>
+    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Steady state, drive deadband +/-5% throttle</text>
     $($heatmap -join '')
 </svg>
 "@

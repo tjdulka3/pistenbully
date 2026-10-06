@@ -51,12 +51,12 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Steering is one continuous model: a track differential (yaw) added around
--- the smoothed drive speed. Yaw is STEER_YAW_PEAK from standstill (a pivot)
--- up to STEER_TAPER_START speed, then tapers to the value giving
--- FULL_TURN_RADIUS_FT at full speed. Turn radius therefore tightens smoothly
--- as the machine slows, and the inside track only reverses once speed is
--- below the yaw.
+-- Two-lever emulation: the single stick is mixed into independent left and
+-- right track levers (L = drive + steer, R = drive - steer), each smoothed
+-- hydrostatically on its own. Steer authority is STEER_GAIN_LOW up to
+-- STEER_TAPER_START drive, then tapers to the value giving
+-- FULL_TURN_RADIUS_FT at full drive. Demand beyond +/-1 on one track is
+-- shifted back so the track differential is preserved.
 local TRACK_CENTER_SPACING_FT =
   3.0
 
@@ -66,34 +66,26 @@ local PIVOT_RADIUS_FT =
 local FULL_TURN_RADIUS_FT =
   6.0
 
-local STEER_YAW_PEAK =
-  0.50
+local STEER_GAIN_LOW =
+  0.70
 
-local STEER_YAW_FULL =
+local STEER_GAIN_FULL =
   PIVOT_RADIUS_FT /
   FULL_TURN_RADIUS_FT
 
 local STEER_TAPER_START =
   0.75
 
-local TURN_GAIN =
-  1.0
-
 
 -- ============================================================
--- DRIVE DEADBAND / YAW RATE LIMIT
+-- DRIVE DEADBAND
 --
 -- Throttle inside +/- DRIVE_DEADBAND commands no drive; drive rescales
--- from 0 at its edge. Yaw still follows rudder there.
---
--- YAW_SLEW_RATE limits yaw change (track units/sec) so a pivot ramps in.
+-- from 0 at its edge. Rudder still steers (pivots) there.
 -- ============================================================
 
 local DRIVE_DEADBAND =
-  0.15
-
-local YAW_SLEW_RATE =
-  1.5
+  0.05
 
 
 -- Rudder deadband vs throttle: grows gently from MIN at 0 to KNEE_VALUE at
@@ -181,16 +173,11 @@ local tillerTransitionRemaining =
   0
 
 
--- Current longitudinal drive output.
---
--- Longitudinal motion is hydrostatically smoothed before the
--- steering differential is applied, so steering remains immediate.
-local lastDrive =
+-- Hydrostatic output of each track lever (-1024..1024).
+local lastLeft =
   0
 
-
--- Slew-limited yaw command (track units).
-local lastYaw =
+local lastRight =
   0
 
 
@@ -720,7 +707,10 @@ local function run()
 
   if eStop then
 
-    lastDrive =
+    lastLeft =
+      0
+
+    lastRight =
       0
 
 
@@ -1051,11 +1041,10 @@ local function run()
   --
   -- Steering model:
   --
-  --   1) rudder adds a track differential (yaw) around the smoothed
-  --      drive speed; yaw is strongest at low speed and tapers
-  --      above STEER_TAPER_START
-  --   2) at standstill the same yaw is a counter-rotating pivot
-  --   3) yaw is slew-limited so a pivot ramps in instead of snapping
+  --   1) the stick is mixed into left/right track levers:
+  --      L = drive + steer, R = drive - steer
+  --   2) with no drive, rudder alone counter-rotates the tracks (pivot)
+  --   3) each track is hydrostatically smoothed independently
   -- ==========================================================
 
   local throttleNorm =
@@ -1137,10 +1126,76 @@ local function run()
   end
 
 
-  local smoothedDrive =
+  local steerGain =
+    STEER_GAIN_LOW
+
+  if math.abs(drive) > STEER_TAPER_START then
+
+    steerGain =
+      STEER_GAIN_LOW +
+      (STEER_GAIN_FULL - STEER_GAIN_LOW) *
+      (math.abs(drive) - STEER_TAPER_START) /
+      (1 - STEER_TAPER_START)
+
+  end
+
+
+  local steer =
+    effectiveRudder *
+    steerGain
+
+
+  local leftTarget =
+    drive +
+    steer
+
+  local rightTarget =
+    drive -
+    steer
+
+
+  -- Shift both tracks back when one lever is out of range.
+  if leftTarget > 1 then
+
+    rightTarget =
+      rightTarget - (leftTarget - 1)
+
+    leftTarget =
+      1
+
+  elseif leftTarget < -1 then
+
+    rightTarget =
+      rightTarget - (leftTarget + 1)
+
+    leftTarget =
+      -1
+
+  end
+
+  if rightTarget > 1 then
+
+    leftTarget =
+      leftTarget - (rightTarget - 1)
+
+    rightTarget =
+      1
+
+  elseif rightTarget < -1 then
+
+    leftTarget =
+      leftTarget - (rightTarget + 1)
+
+    rightTarget =
+      -1
+
+  end
+
+
+  local leftCmd =
     smoothDirectional(
-      lastDrive,
-      drive * 1024,
+      lastLeft,
+      leftTarget * 1024,
       ACCEL_RATE,
       DECEL_RATE,
       REVERSE_BOOST,
@@ -1148,93 +1203,24 @@ local function run()
     ) /
     1024
 
-
-  lastDrive =
-    smoothedDrive *
+  local rightCmd =
+    smoothDirectional(
+      lastRight,
+      rightTarget * 1024,
+      ACCEL_RATE,
+      DECEL_RATE,
+      REVERSE_BOOST,
+      dt
+    ) /
     1024
 
+  lastLeft =
+    leftCmd *
+    1024
 
-  local normalLeft =
-    smoothedDrive
-
-
-  local normalRight =
-    smoothedDrive
-
-
-  -- ----------------------------------------------------------
-  -- YAW (differential / pivot)
-  --
-  -- Positive rudder: left track forward, right track back.
-  -- Based on actual smoothed speed, not stick position, so a
-  -- slowing turn tightens continuously into a pivot.
-  -- ----------------------------------------------------------
-
-  local speedNorm =
-    math.abs(smoothedDrive)
-
-  local yawEnvelope =
-    STEER_YAW_PEAK
-
-  if speedNorm > STEER_TAPER_START then
-
-    yawEnvelope =
-      STEER_YAW_PEAK +
-      (STEER_YAW_FULL - STEER_YAW_PEAK) *
-      (speedNorm - STEER_TAPER_START) /
-      (1 - STEER_TAPER_START)
-
-  end
-
-
-  -- Same rudder turns the same way in reverse.
-  local yawDir =
-    1
-
-  if throttleNorm > DRIVE_DEADBAND then
-
-    if thr < 0 then
-      yawDir = -1
-    end
-
-  elseif smoothedDrive < 0 then
-
-    yawDir = -1
-
-  end
-
-
-  local yawTarget =
-    effectiveRudder *
-    yawEnvelope *
-    TURN_GAIN *
-    yawDir
-
-
-  local yawStep =
-    YAW_SLEW_RATE *
-    dt
-
-  local yawCmd =
-    lastYaw +
-    clamp(
-      yawTarget - lastYaw,
-      -yawStep,
-      yawStep
-    )
-
-  lastYaw =
-    yawCmd
-
-
-  local leftCmd =
-    normalLeft +
-    yawCmd
-
-
-  local rightCmd =
-    normalRight -
-    yawCmd
+  lastRight =
+    rightCmd *
+    1024
 
 
   leftCmd =
@@ -1262,7 +1248,7 @@ local function run()
   -- reaches READY.
 
   local pivotActive =
-    math.abs(yawCmd) > 0
+    effectiveRudder ~= 0
 
 
   local reverseAllowed =

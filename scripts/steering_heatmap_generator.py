@@ -20,11 +20,10 @@ except Exception as e:
 TRACK_CENTER_SPACING_FT = 3.0
 PIVOT_RADIUS_FT = TRACK_CENTER_SPACING_FT / 2.0
 FULL_TURN_RADIUS_FT = 6.0
-TURN_GAIN = 1.0
-STEER_YAW_PEAK = 0.50
-STEER_YAW_FULL = PIVOT_RADIUS_FT / FULL_TURN_RADIUS_FT
+STEER_GAIN_LOW = 0.70
+STEER_GAIN_FULL = PIVOT_RADIUS_FT / FULL_TURN_RADIUS_FT
 STEER_TAPER_START = 0.75
-DRIVE_DEADBAND = 0.15
+DRIVE_DEADBAND = 0.05
 RUDDER_DEADBAND = 0.01
 RUDDER_DB_MIN = 0.01
 RUDDER_DB_KNEE = 0.80
@@ -56,13 +55,25 @@ def track_commands(thr, rud):
     drive = 0.0 if thr_norm <= DRIVE_DEADBAND else (1.0 if thr > 0 else -1.0) * (thr_norm - DRIVE_DEADBAND) / (1.0 - DRIVE_DEADBAND)
 
     speed = abs(drive)
-    envelope = STEER_YAW_PEAK
+    gain = STEER_GAIN_LOW
     if speed > STEER_TAPER_START:
-        envelope += (STEER_YAW_FULL - STEER_YAW_PEAK) * (speed - STEER_TAPER_START) / (1.0 - STEER_TAPER_START)
-    yaw = eff * envelope * TURN_GAIN * (-1.0 if drive < 0 else 1.0)
+        gain += (STEER_GAIN_FULL - STEER_GAIN_LOW) * (speed - STEER_TAPER_START) / (1.0 - STEER_TAPER_START)
+    steer = eff * gain
 
-    left = clamp(drive + yaw, -1.0, 1.0)
-    right = clamp(drive - yaw, -1.0, 1.0)
+    left = drive + steer
+    right = drive - steer
+    if left > 1.0:
+        right -= left - 1.0
+        left = 1.0
+    elif left < -1.0:
+        right -= left + 1.0
+        left = -1.0
+    if right > 1.0:
+        left -= right - 1.0
+        right = 1.0
+    elif right < -1.0:
+        left -= right + 1.0
+        right = -1.0
 
     diff = abs(left - right) / 2.0
     radius = float("inf") if diff < 1e-6 else abs(left + right) / 2.0 / diff * PIVOT_RADIUS_FT
@@ -97,7 +108,7 @@ def main():
         ax.grid(True, alpha=0.2, linestyle="--")
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
-    fig.suptitle("PB600 Steering Model (drive deadband +/-15% throttle, dashed)", fontsize=14, fontweight="bold")
+    fig.suptitle("PB600 Steering Model (drive deadband +/-5% throttle, dashed)", fontsize=14, fontweight="bold")
     fig.tight_layout()
 
     output_dir = Path(__file__).resolve().parent.parent / "images"
