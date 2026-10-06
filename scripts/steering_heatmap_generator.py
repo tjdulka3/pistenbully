@@ -24,12 +24,12 @@ TURN_GAIN = 1.0
 STEER_YAW_PEAK = 0.50
 STEER_YAW_FULL = PIVOT_RADIUS_FT / FULL_TURN_RADIUS_FT
 STEER_TAPER_START = 0.75
-PIVOT_POWER = 0.70
-PIVOT_BLEND_START = 0.15
-PIVOT_BLEND_END = 0.20
-THROTTLE_DEADBAND_MIN = 0.02
-THROTTLE_DEADBAND_MAX = 0.10
-RUDDER_DEADBAND = 0.02
+DRIVE_DEADBAND = 0.15
+RUDDER_DEADBAND = 0.01
+RUDDER_DB_MIN = 0.01
+RUDDER_DB_KNEE = 0.80
+RUDDER_DB_KNEE_VALUE = 0.06
+RUDDER_DB_MAX = 0.20
 
 
 def clamp(v, lo, hi):
@@ -42,7 +42,10 @@ def track_commands(thr, rud):
         rud = 0.0
 
     thr_norm = abs(thr)
-    deadband = THROTTLE_DEADBAND_MIN + (THROTTLE_DEADBAND_MAX - THROTTLE_DEADBAND_MIN) * thr_norm
+    if thr_norm <= RUDDER_DB_KNEE:
+        deadband = RUDDER_DB_MIN + (RUDDER_DB_KNEE_VALUE - RUDDER_DB_MIN) * thr_norm / RUDDER_DB_KNEE
+    else:
+        deadband = RUDDER_DB_KNEE_VALUE + (RUDDER_DB_MAX - RUDDER_DB_KNEE_VALUE) * (thr_norm - RUDDER_DB_KNEE) / (1.0 - RUDDER_DB_KNEE)
 
     eff = 0.0
     if abs(rud) > deadband:
@@ -50,25 +53,16 @@ def track_commands(thr, rud):
         if rud < 0:
             eff = -eff
 
-    drive = 0.0 if thr_norm <= PIVOT_BLEND_START else (1.0 if thr > 0 else -1.0) * (thr_norm - PIVOT_BLEND_START) / (1.0 - PIVOT_BLEND_START)
+    drive = 0.0 if thr_norm <= DRIVE_DEADBAND else (1.0 if thr > 0 else -1.0) * (thr_norm - DRIVE_DEADBAND) / (1.0 - DRIVE_DEADBAND)
 
-    pivot_rudder = eff
-
-    if thr_norm <= PIVOT_BLEND_START:
-        blend = 1.0
-    elif thr_norm < PIVOT_BLEND_END:
-        blend = 1.0 - (thr_norm - PIVOT_BLEND_START) / (PIVOT_BLEND_END - PIVOT_BLEND_START)
-    else:
-        blend = 0.0
-    pivot = pivot_rudder * PIVOT_POWER * blend
-
+    speed = abs(drive)
     envelope = STEER_YAW_PEAK
-    if thr_norm > STEER_TAPER_START:
-        envelope += (STEER_YAW_FULL - STEER_YAW_PEAK) * (thr_norm - STEER_TAPER_START) / (1.0 - STEER_TAPER_START)
-    diff = eff * envelope * TURN_GAIN * (1.0 - blend) * (-1.0 if thr < 0 else 1.0)
+    if speed > STEER_TAPER_START:
+        envelope += (STEER_YAW_FULL - STEER_YAW_PEAK) * (speed - STEER_TAPER_START) / (1.0 - STEER_TAPER_START)
+    yaw = eff * envelope * TURN_GAIN * (-1.0 if drive < 0 else 1.0)
 
-    left = clamp(drive + pivot + diff, -1.0, 1.0)
-    right = clamp(drive - pivot - diff, -1.0, 1.0)
+    left = clamp(drive + yaw, -1.0, 1.0)
+    right = clamp(drive - yaw, -1.0, 1.0)
 
     diff = abs(left - right) / 2.0
     radius = float("inf") if diff < 1e-6 else abs(left + right) / 2.0 / diff * PIVOT_RADIUS_FT
@@ -95,7 +89,7 @@ def main():
                        aspect="equal", vmin=vmin, vmax=vmax)
         ax.contour(axis * 100, axis * 100, data, levels=[-0.5, -0.25, 0.25, 0.5],
                    colors="black", alpha=0.35, linewidths=0.5)
-        for edge in (-PIVOT_BLEND_START * 100, PIVOT_BLEND_START * 100):
+        for edge in (-DRIVE_DEADBAND * 100, DRIVE_DEADBAND * 100):
             ax.axhline(edge, color="black", linestyle="--", linewidth=0.8, alpha=0.6)
         ax.set_title(title, fontweight="bold")
         ax.set_xlabel("Rudder (%)")
@@ -103,7 +97,7 @@ def main():
         ax.grid(True, alpha=0.2, linestyle="--")
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
-    fig.suptitle("PB600 Steering Model (pivot zone +/-15% throttle, dashed)", fontsize=14, fontweight="bold")
+    fig.suptitle("PB600 Steering Model (drive deadband +/-15% throttle, dashed)", fontsize=14, fontweight="bold")
     fig.tight_layout()
 
     output_dir = Path(__file__).resolve().parent.parent / "images"

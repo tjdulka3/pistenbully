@@ -51,11 +51,12 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Above the pivot zone, full rudder adds a fixed track differential
--- (STEER_YAW_PEAK) that holds to STEER_TAPER_START throttle, then tapers
--- linearly to the value giving FULL_TURN_RADIUS_FT at full throttle. The
--- differential is independent of hydrostatic drive smoothing, so turn radius
--- grows with throttle.
+-- Steering is one continuous model: a track differential (yaw) added around
+-- the smoothed drive speed. Yaw is STEER_YAW_PEAK from standstill (a pivot)
+-- up to STEER_TAPER_START speed, then tapers to the value giving
+-- FULL_TURN_RADIUS_FT at full speed. Turn radius therefore tightens smoothly
+-- as the machine slows, and the inside track only reverses once speed is
+-- below the yaw.
 local TRACK_CENTER_SPACING_FT =
   3.0
 
@@ -80,33 +81,34 @@ local TURN_GAIN =
 
 
 -- ============================================================
--- ZERO / LOW THROTTLE PIVOT TUNING
+-- DRIVE DEADBAND / YAW RATE LIMIT
 --
--- For |throttle| <= PIVOT_BLEND_START, rudder directly counter-rotates the
--- tracks, proportional to rudder; full rudder = +/- PIVOT_POWER.
--- A short fade to PIVOT_BLEND_END hands off to differential steering
--- without a step.
+-- Throttle inside +/- DRIVE_DEADBAND commands no drive; drive rescales
+-- from 0 at its edge. Yaw still follows rudder there.
+--
+-- YAW_SLEW_RATE limits yaw change (track units/sec) so a pivot ramps in.
 -- ============================================================
 
-local PIVOT_POWER =
-  0.70
-
-local PIVOT_BLEND_START =
+local DRIVE_DEADBAND =
   0.15
 
-local PIVOT_BLEND_END =
-  0.20
+local YAW_SLEW_RATE =
+  1.5
 
 
--- The old speed-taper steering reduction is intentionally replaced by the
--- geometric turn model above. The system still keeps a small deadband for
--- stick noise, but steering authority is now defined by the required turn
--- radius rather than a speed-dependent scaling factor.
-local THROTTLE_DEADBAND_MIN =
-  0.020
+-- Rudder deadband vs throttle: grows gently from MIN at 0 to KNEE_VALUE at
+-- KNEE throttle, then steeply to MAX at full throttle.
+local RUDDER_DB_MIN =
+  0.010
 
-local THROTTLE_DEADBAND_MAX =
-  0.100
+local RUDDER_DB_KNEE =
+  0.80
+
+local RUDDER_DB_KNEE_VALUE =
+  0.060
+
+local RUDDER_DB_MAX =
+  0.200
 
 
 -- Time-based hydrostatic output rates.
@@ -147,7 +149,7 @@ local REVERSE_BOOST =
 
 
 local RUDDER_DEADBAND =
-  0.02
+  0.01
 
 local REVERSE_DEADBAND =
   0.02
@@ -184,6 +186,11 @@ local tillerTransitionRemaining =
 -- Longitudinal motion is hydrostatically smoothed before the
 -- steering differential is applied, so steering remains immediate.
 local lastDrive =
+  0
+
+
+-- Slew-limited yaw command (track units).
+local lastYaw =
   0
 
 
@@ -1044,14 +1051,11 @@ local function run()
   --
   -- Steering model:
   --
-  --   1) normal driving retains the existing throttle-scaled
-  --      rudder deadband and geometric differential steering
-  --   2) at zero throttle, rudder commands a true counter-rotating
-  --      pivot instead of creating artificial forward drive
-  --   3) pivot authority is full through 15% throttle and fades
-  --      to zero by 20% throttle
-  --   4) pivot response bypasses longitudinal hydrostatic smoothing;
-  --      normal forward/reverse drive retains that smoothing
+  --   1) rudder adds a track differential (yaw) around the smoothed
+  --      drive speed; yaw is strongest at low speed and tapers
+  --      above STEER_TAPER_START
+  --   2) at standstill the same yaw is a counter-rotating pivot
+  --   3) yaw is slew-limited so a pivot ramps in instead of snapping
   -- ==========================================================
 
   local throttleNorm =
@@ -1070,13 +1074,25 @@ local function run()
     )
 
 
-  local deadband =
-    THROTTLE_DEADBAND_MIN +
-    (
-      THROTTLE_DEADBAND_MAX -
-      THROTTLE_DEADBAND_MIN
-    ) *
-    throttleNorm
+  local deadband
+
+  if throttleNorm <= RUDDER_DB_KNEE then
+
+    deadband =
+      RUDDER_DB_MIN +
+      (RUDDER_DB_KNEE_VALUE - RUDDER_DB_MIN) *
+      throttleNorm /
+      RUDDER_DB_KNEE
+
+  else
+
+    deadband =
+      RUDDER_DB_KNEE_VALUE +
+      (RUDDER_DB_MAX - RUDDER_DB_KNEE_VALUE) *
+      (throttleNorm - RUDDER_DB_KNEE) /
+      (1 - RUDDER_DB_KNEE)
+
+  end
 
 
   local effectiveRudder =
@@ -1106,8 +1122,8 @@ local function run()
     )
 
 
-  -- No forward/reverse drive inside the pivot band; drive rescales from 0 at its edge.
-  if throttleNorm <= PIVOT_BLEND_START then
+  -- No forward/reverse drive inside the deadband; drive rescales from 0 at its edge.
+  if throttleNorm <= DRIVE_DEADBAND then
 
     drive = 0
 
@@ -1115,8 +1131,8 @@ local function run()
 
     drive =
       drive *
-      (throttleNorm - PIVOT_BLEND_START) /
-      (throttleNorm * (1 - PIVOT_BLEND_START))
+      (throttleNorm - DRIVE_DEADBAND) /
+      (throttleNorm * (1 - DRIVE_DEADBAND))
 
   end
 
@@ -1147,95 +1163,78 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- TRUE ZERO / LOW THROTTLE PIVOT
+  -- YAW (differential / pivot)
   --
-  -- Rudder response is linear: full rudder = full PIVOT_POWER.
-  --
-  -- Positive rudder:
-  --   left track forward
-  --   right track reverse
-  --
-  -- Negative rudder reverses those directions.
+  -- Positive rudder: left track forward, right track back.
+  -- Based on actual smoothed speed, not stick position, so a
+  -- slowing turn tightens continuously into a pivot.
   -- ----------------------------------------------------------
 
-  local pivotRudder =
-    effectiveRudder
-
-
-  local pivotBlend =
-    0
-
-
-  if throttleNorm <= PIVOT_BLEND_START then
-
-    pivotBlend =
-      1
-
-  elseif throttleNorm < PIVOT_BLEND_END then
-
-    pivotBlend =
-      1 -
-      (
-        throttleNorm -
-        PIVOT_BLEND_START
-      ) /
-      (
-        PIVOT_BLEND_END -
-        PIVOT_BLEND_START
-      )
-
-  end
-
-
-  local pivotCmd =
-    pivotRudder *
-    PIVOT_POWER *
-    pivotBlend
-
+  local speedNorm =
+    math.abs(smoothedDrive)
 
   local yawEnvelope =
     STEER_YAW_PEAK
 
-  if throttleNorm > STEER_TAPER_START then
+  if speedNorm > STEER_TAPER_START then
 
     yawEnvelope =
       STEER_YAW_PEAK +
       (STEER_YAW_FULL - STEER_YAW_PEAK) *
-      (throttleNorm - STEER_TAPER_START) /
+      (speedNorm - STEER_TAPER_START) /
       (1 - STEER_TAPER_START)
 
   end
 
 
-  -- Signed so the same rudder turns the same way in reverse.
-  local diffCmd =
+  -- Same rudder turns the same way in reverse.
+  local yawDir =
+    1
+
+  if throttleNorm > DRIVE_DEADBAND then
+
+    if thr < 0 then
+      yawDir = -1
+    end
+
+  elseif smoothedDrive < 0 then
+
+    yawDir = -1
+
+  end
+
+
+  local yawTarget =
     effectiveRudder *
     yawEnvelope *
     TURN_GAIN *
-    (1 - pivotBlend) *
-    (thr < 0 and -1 or 1)
+    yawDir
 
 
-  -- Blend the pivot contribution on top of normal travel.
-  --
-  -- At zero throttle:
-  --   normalLeft/right = 0
-  --   pivotCmd supplies equal/opposite track commands.
-  --
-  -- As throttle rises:
-  --   pivotCmd fades away and the existing normal steering
-  --   becomes the sole steering behavior.
+  local yawStep =
+    YAW_SLEW_RATE *
+    dt
+
+  local yawCmd =
+    lastYaw +
+    clamp(
+      yawTarget - lastYaw,
+      -yawStep,
+      yawStep
+    )
+
+  lastYaw =
+    yawCmd
+
 
   local leftCmd =
     normalLeft +
-    pivotCmd +
-    diffCmd
+    yawCmd
 
 
   local rightCmd =
     normalRight -
-    pivotCmd -
-    diffCmd
+    yawCmd
 
 
   leftCmd =
@@ -1263,9 +1262,7 @@ local function run()
   -- reaches READY.
 
   local pivotActive =
-    pivotBlend > 0
-    and
-    math.abs(pivotCmd) > 0
+    math.abs(yawCmd) > 0
 
 
   local reverseAllowed =

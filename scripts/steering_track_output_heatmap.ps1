@@ -5,12 +5,12 @@ $TURN_GAIN = 1.0
 $STEER_YAW_PEAK = 0.50
 $STEER_YAW_FULL = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
 $STEER_TAPER_START = 0.75
-$PIVOT_POWER = 0.70
-$PIVOT_BLEND_START = 0.15
-$PIVOT_BLEND_END = 0.20
-$RUDDER_DEADBAND = 0.02
-$THROTTLE_DEADBAND_MIN = 0.02
-$THROTTLE_DEADBAND_MAX = 0.10
+$DRIVE_DEADBAND = 0.15
+$RUDDER_DEADBAND = 0.01
+$RUDDER_DB_MIN = 0.01
+$RUDDER_DB_KNEE = 0.80
+$RUDDER_DB_KNEE_VALUE = 0.06
+$RUDDER_DB_MAX = 0.20
 
 function ClampValue([double]$value, [double]$min, [double]$max) {
     if ($value -lt $min) { return $min }
@@ -22,26 +22,26 @@ function GetTrackCommands([double]$throttle, [double]$rudder) {
     $throttleNorm = [math]::Abs($throttle)
     $rudderInput = if ([math]::Abs($rudder) -lt $RUDDER_DEADBAND) { 0.0 } else { $rudder }
     $rudderNorm = [math]::Abs($rudderInput)
-    $deadband = $THROTTLE_DEADBAND_MIN + (($THROTTLE_DEADBAND_MAX - $THROTTLE_DEADBAND_MIN) * $throttleNorm)
+    $deadband = if ($throttleNorm -le $RUDDER_DB_KNEE) {
+        $RUDDER_DB_MIN + (($RUDDER_DB_KNEE_VALUE - $RUDDER_DB_MIN) * $throttleNorm / $RUDDER_DB_KNEE)
+    } else {
+        $RUDDER_DB_KNEE_VALUE + (($RUDDER_DB_MAX - $RUDDER_DB_KNEE_VALUE) * ($throttleNorm - $RUDDER_DB_KNEE) / (1.0 - $RUDDER_DB_KNEE))
+    }
     $effectiveRudder = if ($rudderNorm -gt $deadband) { ($rudderNorm - $deadband) / (1.0 - $deadband) } else { 0.0 }
 
     if ($rudderInput -lt 0) { $effectiveRudder = -$effectiveRudder }
 
-    $drive = if ($throttleNorm -le $PIVOT_BLEND_START) { 0.0 } else { [math]::Sign($throttle) * ($throttleNorm - $PIVOT_BLEND_START) / (1.0 - $PIVOT_BLEND_START) }
+    $drive = if ($throttleNorm -le $DRIVE_DEADBAND) { 0.0 } else { [math]::Sign($throttle) * ($throttleNorm - $DRIVE_DEADBAND) / (1.0 - $DRIVE_DEADBAND) }
 
-    $pivotRudder = $effectiveRudder
-    $pivotBlend = if ($throttleNorm -le $PIVOT_BLEND_START) { 1.0 }
-        elseif ($throttleNorm -lt $PIVOT_BLEND_END) { 1.0 - (($throttleNorm - $PIVOT_BLEND_START) / ($PIVOT_BLEND_END - $PIVOT_BLEND_START)) }
-        else { 0.0 }
-    $pivot = $pivotRudder * $PIVOT_POWER * $pivotBlend
-
-    $yawEnvelope = if ($throttleNorm -gt $STEER_TAPER_START) {
-        $STEER_YAW_PEAK + (($STEER_YAW_FULL - $STEER_YAW_PEAK) * ($throttleNorm - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START))
+    $speed = [math]::Abs($drive)
+    $yawEnvelope = if ($speed -gt $STEER_TAPER_START) {
+        $STEER_YAW_PEAK + (($STEER_YAW_FULL - $STEER_YAW_PEAK) * ($speed - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START))
     } else { $STEER_YAW_PEAK }
-    $diff = $effectiveRudder * $yawEnvelope * $TURN_GAIN * (1.0 - $pivotBlend) * $(if ($throttle -lt 0) { -1.0 } else { 1.0 })
+    $yawDir = if ($drive -lt 0) { -1.0 } else { 1.0 }
+    $yaw = $effectiveRudder * $yawEnvelope * $TURN_GAIN * $yawDir
 
-    $left = ClampValue ($drive + $pivot + $diff) -1.0 1.0
-    $right = ClampValue ($drive - $pivot - $diff) -1.0 1.0
+    $left = ClampValue ($drive + $yaw) -1.0 1.0
+    $right = ClampValue ($drive - $yaw) -1.0 1.0
 
     $steeringAuthority = [math]::Abs($left - $right) / 2.0
 
@@ -114,7 +114,7 @@ $svg = @"
 <svg xmlns='http://www.w3.org/2000/svg' width='1000' height='660' viewBox='0 0 1000 660'>
     <rect width='1000' height='660' fill='white'/>
     <text x='500' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Steering Contribution at 10% Stick Increments</text>
-    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Pivot zone: +/-15% throttle</text>
+    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Steady state, drive deadband +/-15% throttle</text>
     $($heatmap -join '')
 </svg>
 "@

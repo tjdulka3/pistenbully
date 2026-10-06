@@ -73,6 +73,11 @@ local SWING_COORD_GAIN =
   0.70
 
 
+-- Max coordinated swing travel rate (fraction of output range per second).
+local SWING_SLEW_RATE =
+  1.0
+
+
 -- ============================================================
 -- OUTPUT DIRECTION
 -- ============================================================
@@ -109,6 +114,10 @@ local anglePos =
 
 -- Coordination offset is modeled separately.
 local coordAnglePos =
+  0
+
+
+local swingCoordPos =
   0
 
 
@@ -998,12 +1007,30 @@ local function run()
   --   S2 radio mix owns CH9.
   -- ==========================================================
 
+  local swingStep =
+    SWING_SLEW_RATE *
+    dt
+
+  swingCoordPos =
+    swingCoordPos +
+    clamp(
+      (
+        swingCoordEnabled
+        and steeringTurnRatio *
+          SWING_COORD_GAIN *
+          SWING_SIGN
+        or 0
+      ) -
+      swingCoordPos,
+      -swingStep,
+      swingStep
+    )
+
+
   if swingCoordEnabled then
 
     swingCmd =
-      steeringTurnRatio *
-      SWING_COORD_GAIN *
-      SWING_SIGN *
+      swingCoordPos *
       1024
 
   end
