@@ -1,8 +1,13 @@
 $TRACK_CENTER_SPACING_FT = 3.0
 $PIVOT_RADIUS_FT = $TRACK_CENTER_SPACING_FT / 2.0
 $FULL_TURN_RADIUS_FT = 6.0
-$LOW_SPEED_TURN_RATIO = 1.0
-$FULL_SPEED_TURN_RATIO = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
+$TURN_GAIN = 1.0
+$STEER_YAW_PEAK = 0.50
+$STEER_YAW_FULL = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
+$STEER_TAPER_START = 0.75
+$PIVOT_POWER = 0.70
+$PIVOT_BLEND_START = 0.15
+$PIVOT_BLEND_END = 0.20
 $RUDDER_DEADBAND = 0.02
 $THROTTLE_DEADBAND_MIN = 0.02
 $THROTTLE_DEADBAND_MAX = 0.10
@@ -22,24 +27,23 @@ function GetTrackCommands([double]$throttle, [double]$rudder) {
 
     if ($rudderInput -lt 0) { $effectiveRudder = -$effectiveRudder }
 
-    $fullRudderTurnRatio = $LOW_SPEED_TURN_RATIO + (($FULL_SPEED_TURN_RATIO - $LOW_SPEED_TURN_RATIO) * $throttleNorm)
-    $turnRatio = $fullRudderTurnRatio * $effectiveRudder
+    $drive = if ($throttleNorm -le $PIVOT_BLEND_START) { 0.0 } else { [math]::Sign($throttle) * ($throttleNorm - $PIVOT_BLEND_START) / (1.0 - $PIVOT_BLEND_START) }
 
-    $drive = if ($throttleNorm -lt $THROTTLE_DEADBAND_MIN) {
-        if ($rudderNorm -gt $RUDDER_DEADBAND) { 0.10 } else { 0.0 }
-    } else {
-        $throttle
-    }
+    $pivotRudder = $effectiveRudder
+    $pivotBlend = if ($throttleNorm -le $PIVOT_BLEND_START) { 1.0 }
+        elseif ($throttleNorm -lt $PIVOT_BLEND_END) { 1.0 - (($throttleNorm - $PIVOT_BLEND_START) / ($PIVOT_BLEND_END - $PIVOT_BLEND_START)) }
+        else { 0.0 }
+    $pivot = $pivotRudder * $PIVOT_POWER * $pivotBlend
 
-    $left = ClampValue ($drive * (1.0 + $turnRatio)) -1.0 1.0
-    $right = ClampValue ($drive * (1.0 - $turnRatio)) -1.0 1.0
+    $yawEnvelope = if ($throttleNorm -gt $STEER_TAPER_START) {
+        $STEER_YAW_PEAK + (($STEER_YAW_FULL - $STEER_YAW_PEAK) * ($throttleNorm - $STEER_TAPER_START) / (1.0 - $STEER_TAPER_START))
+    } else { $STEER_YAW_PEAK }
+    $diff = $effectiveRudder * $yawEnvelope * $TURN_GAIN * (1.0 - $pivotBlend) * $(if ($throttle -lt 0) { -1.0 } else { 1.0 })
 
-    if ([math]::Abs($drive) -lt 0.0001) {
-        $left = 0.0
-        $right = 0.0
-    }
+    $left = ClampValue ($drive + $pivot + $diff) -1.0 1.0
+    $right = ClampValue ($drive - $pivot - $diff) -1.0 1.0
 
-    $steeringAuthority = if ([math]::Abs($drive) -gt 0.0001) { [math]::Abs($turnRatio) } else { 0.0 }
+    $steeringAuthority = [math]::Abs($left - $right) / 2.0
 
     return [pscustomobject]@{
         Left = $left
@@ -78,7 +82,7 @@ function AddHeatmap([string]$title, [int]$originX) {
             $contribution = $command.Contribution
             $x = $originX + ($column * $cellSize)
             $y = 90 + ($row * $cellSize)
-            $svg += "<rect x='$x' y='$y' width='$cellSize' height='$cellSize' fill='$(GetSteeringColor $contribution $maximumContribution)' stroke='#d1d5db' stroke-width='0.5'><title>Throttle $([math]::Round($throttle * 100))%, Rudder $([math]::Round($rudder * 100))%: steering authority $([math]::Round($contribution * 100))%</title></rect>"
+            $svg += "<rect x='$x' y='$y' width='$cellSize' height='$cellSize' fill='$(GetSteeringColor $contribution $maximumContribution)' stroke='#d1d5db' stroke-width='0.5'><title>Throttle $([math]::Round($throttle * 100))%, Rudder $([math]::Round($rudder * 100))%: yaw $([math]::Round($contribution * 100))%, L $([math]::Round($command.Left * 100))%, R $([math]::Round($command.Right * 100))%</title></rect>"
         }
     }
 
@@ -103,14 +107,14 @@ function AddHeatmap([string]$title, [int]$originX) {
     return $svg
 }
 
-$heatmap = AddHeatmap 'Normalized Steering Authority: |Left - Right| / (2 x |Drive|)' 380
+$heatmap = AddHeatmap 'Yaw Command: |Left - Right| / 2' 380
 $outputPath = Join-Path (Split-Path $PSScriptRoot -Parent) 'images\steering_track_output_heatmap.svg'
 
 $svg = @"
 <svg xmlns='http://www.w3.org/2000/svg' width='1000' height='660' viewBox='0 0 1000 660'>
     <rect width='1000' height='660' fill='white'/>
     <text x='500' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Steering Contribution at 10% Stick Increments</text>
-    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no steering authority | Full green: greatest normalized track differential</text>
+    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Pivot zone: +/-15% throttle</text>
     $($heatmap -join '')
 </svg>
 "@

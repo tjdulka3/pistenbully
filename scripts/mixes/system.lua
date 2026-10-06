@@ -51,10 +51,11 @@ local WORK_ANGLE     = 0.50
 -- TRACK / HYDROSTATIC TUNING
 -- ============================================================
 
--- Steering blends a throttle-scaled rudder deadband and rescaled rudder
--- input. Full-rudder authority decays linearly between the ratios implied by
--- the 1.5 ft low-speed and 10 ft full-speed turn-radius targets. The final differential is multiplied by drive demand,
--- so a stationary pivot is not commanded at zero throttle.
+-- Above the pivot zone, full rudder adds a fixed track differential
+-- (STEER_YAW_PEAK) that holds to STEER_TAPER_START throttle, then tapers
+-- linearly to the value giving FULL_TURN_RADIUS_FT at full throttle. The
+-- differential is independent of hydrostatic drive smoothing, so turn radius
+-- grows with throttle.
 local TRACK_CENTER_SPACING_FT =
   3.0
 
@@ -64,12 +65,15 @@ local PIVOT_RADIUS_FT =
 local FULL_TURN_RADIUS_FT =
   6.0
 
-local LOW_SPEED_TURN_RATIO =
-  1.0
+local STEER_YAW_PEAK =
+  0.50
 
-local FULL_SPEED_TURN_RATIO =
+local STEER_YAW_FULL =
   PIVOT_RADIUS_FT /
   FULL_TURN_RADIUS_FT
+
+local STEER_TAPER_START =
+  0.75
 
 local TURN_GAIN =
   1.0
@@ -78,22 +82,20 @@ local TURN_GAIN =
 -- ============================================================
 -- ZERO / LOW THROTTLE PIVOT TUNING
 --
--- At zero throttle, rudder directly counter-rotates the tracks.
--- Full rudder commands +/- PIVOT_POWER.
---
--- Pivot authority remains full through PIVOT_BLEND_START and then
--- fades linearly to zero by PIVOT_BLEND_END, where the normal
--- differential steering model has full authority.
+-- For |throttle| <= PIVOT_BLEND_START, rudder directly counter-rotates the
+-- tracks, proportional to rudder; full rudder = +/- PIVOT_POWER.
+-- A short fade to PIVOT_BLEND_END hands off to differential steering
+-- without a step.
 -- ============================================================
 
 local PIVOT_POWER =
   0.70
 
 local PIVOT_BLEND_START =
-  0.05
+  0.15
 
 local PIVOT_BLEND_END =
-  0.30
+  0.20
 
 
 -- The old speed-taper steering reduction is intentionally replaced by the
@@ -1046,8 +1048,8 @@ local function run()
   --      rudder deadband and geometric differential steering
   --   2) at zero throttle, rudder commands a true counter-rotating
   --      pivot instead of creating artificial forward drive
-  --   3) pivot authority is full through 5% throttle and fades
-  --      smoothly to zero by 30% throttle
+  --   3) pivot authority is full through 15% throttle and fades
+  --      to zero by 20% throttle
   --   4) pivot response bypasses longitudinal hydrostatic smoothing;
   --      normal forward/reverse drive retains that smoothing
   -- ==========================================================
@@ -1098,38 +1100,23 @@ local function run()
   -- NORMAL DIFFERENTIAL STEERING
   -- ----------------------------------------------------------
 
-  local fullRudderTurnRatio =
-    LOW_SPEED_TURN_RATIO +
-    (
-      FULL_SPEED_TURN_RATIO -
-      LOW_SPEED_TURN_RATIO
-    ) *
-    throttleNorm
-
-
-  local turnRatio =
-    0
-
-
-  if math.abs(effectiveRudder) > 0 then
-
-    turnRatio =
-      fullRudderTurnRatio *
-      effectiveRudder *
-      TURN_GAIN
-
-  end
-
-
   local drive =
     throttleToSpeedDemand(
       thr
     )
 
 
-  if math.abs(thr) < THROTTLE_DEADBAND_MIN then
+  -- No forward/reverse drive inside the pivot band; drive rescales from 0 at its edge.
+  if throttleNorm <= PIVOT_BLEND_START then
 
     drive = 0
+
+  else
+
+    drive =
+      drive *
+      (throttleNorm - PIVOT_BLEND_START) /
+      (throttleNorm * (1 - PIVOT_BLEND_START))
 
   end
 
@@ -1152,22 +1139,17 @@ local function run()
 
 
   local normalLeft =
-    smoothedDrive *
-    (1 + turnRatio)
+    smoothedDrive
 
 
   local normalRight =
-    smoothedDrive *
-    (1 - turnRatio)
+    smoothedDrive
 
 
   -- ----------------------------------------------------------
   -- TRUE ZERO / LOW THROTTLE PIVOT
   --
-  -- Rudder shaping:
-  --
-  --   near center = softer response
-  --   full rudder = full PIVOT_POWER
+  -- Rudder response is linear: full rudder = full PIVOT_POWER.
   --
   -- Positive rudder:
   --   left track forward
@@ -1177,29 +1159,7 @@ local function run()
   -- ----------------------------------------------------------
 
   local pivotRudder =
-    0
-
-
-  if math.abs(effectiveRudder) > 0 then
-
-    local r =
-      math.abs(effectiveRudder)
-
-    local shaped =
-      r *
-      (
-        0.50 +
-        0.50 * r
-      )
-
-    if effectiveRudder < 0 then
-      shaped = -shaped
-    end
-
-    pivotRudder =
-      shaped
-
-  end
+    effectiveRudder
 
 
   local pivotBlend =
@@ -1233,6 +1193,29 @@ local function run()
     pivotBlend
 
 
+  local yawEnvelope =
+    STEER_YAW_PEAK
+
+  if throttleNorm > STEER_TAPER_START then
+
+    yawEnvelope =
+      STEER_YAW_PEAK +
+      (STEER_YAW_FULL - STEER_YAW_PEAK) *
+      (throttleNorm - STEER_TAPER_START) /
+      (1 - STEER_TAPER_START)
+
+  end
+
+
+  -- Signed so the same rudder turns the same way in reverse.
+  local diffCmd =
+    effectiveRudder *
+    yawEnvelope *
+    TURN_GAIN *
+    (1 - pivotBlend) *
+    (thr < 0 and -1 or 1)
+
+
   -- Blend the pivot contribution on top of normal travel.
   --
   -- At zero throttle:
@@ -1245,12 +1228,14 @@ local function run()
 
   local leftCmd =
     normalLeft +
-    pivotCmd
+    pivotCmd +
+    diffCmd
 
 
   local rightCmd =
     normalRight -
-    pivotCmd
+    pivotCmd -
+    diffCmd
 
 
   leftCmd =

@@ -398,6 +398,23 @@ mixData:
    speedUp: 0
    speedDown: 0
    name: "spots"
+ -
+   destCh: 19
+   srcRaw: "ls(8)"
+   carryTrim: 0
+   mixWarn: 0
+   mltpx: ADD
+   delayPrec: 0
+   speedPrec: 0
+   flightModes: 000000000
+   weight: 100
+   offset: 0
+   swtch: "NONE"
+   delayUp: 0
+   delayDown: 0
+   speedUp: 0
+   speedDown: 0
+   name: "revl"
 limitData: 
    0:
       min: 0
@@ -803,6 +820,10 @@ customFn:
       def: "1"
 flightModeData: 
    0:
+      trim: 
+         0:
+            value: 2
+            mode: 0
       name: ""
       swtch: "NONE"
       fadeIn: 0
@@ -1074,7 +1095,7 @@ customSwitches:
       type: 2POS
       group: 0
       start: START_PREVIOUS
-      state: 0
+      state: 1
       onColorLuaOverride: OFF
       offColorLuaOverride: OFF
       onColor: 
@@ -1090,7 +1111,7 @@ customSwitches:
       type: 2POS
       group: 0
       start: START_PREVIOUS
-      state: 0
+      state: 1
       onColorLuaOverride: OFF
       offColorLuaOverride: OFF
       onColor: 
@@ -1106,7 +1127,7 @@ customSwitches:
       type: 2POS
       group: 0
       start: START_PREVIOUS
-      state: 0
+      state: 1
       onColorLuaOverride: OFF
       offColorLuaOverride: OFF
       onColor: 
@@ -1120,7 +1141,7 @@ customSwitches:
    SW4:
       name: ""
       type: 2POS
-      group: 1
+      group: 0
       start: START_PREVIOUS
       state: 0
       onColorLuaOverride: OFF
