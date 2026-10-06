@@ -75,6 +75,27 @@ local TURN_GAIN =
   1.0
 
 
+-- ============================================================
+-- ZERO / LOW THROTTLE PIVOT TUNING
+--
+-- At zero throttle, rudder directly counter-rotates the tracks.
+-- Full rudder commands +/- PIVOT_POWER.
+--
+-- Pivot authority remains full through PIVOT_BLEND_START and then
+-- fades linearly to zero by PIVOT_BLEND_END, where the normal
+-- differential steering model has full authority.
+-- ============================================================
+
+local PIVOT_POWER =
+  0.70
+
+local PIVOT_BLEND_START =
+  0.05
+
+local PIVOT_BLEND_END =
+  0.30
+
+
 -- The old speed-taper steering reduction is intentionally replaced by the
 -- geometric turn model above. The system still keeps a small deadband for
 -- stick noise, but steering authority is now defined by the required turn
@@ -1021,9 +1042,14 @@ local function run()
   --
   -- Steering model:
   --
-  --   1) rudder deadband widens from 2% to 10% with throttle
-  --   2) remaining rudder is rescaled to retain full travel
-  --   3) full-rudder turn ratio decays linearly from 1.0 to 0.15 with throttle
+  --   1) normal driving retains the existing throttle-scaled
+  --      rudder deadband and geometric differential steering
+  --   2) at zero throttle, rudder commands a true counter-rotating
+  --      pivot instead of creating artificial forward drive
+  --   3) pivot authority is full through 5% throttle and fades
+  --      smoothly to zero by 30% throttle
+  --   4) pivot response bypasses longitudinal hydrostatic smoothing;
+  --      normal forward/reverse drive retains that smoothing
   -- ==========================================================
 
   local throttleNorm =
@@ -1043,8 +1069,11 @@ local function run()
 
 
   local deadband =
-    0.02 +
-    (0.10 - 0.02) *
+    THROTTLE_DEADBAND_MIN +
+    (
+      THROTTLE_DEADBAND_MAX -
+      THROTTLE_DEADBAND_MIN
+    ) *
     throttleNorm
 
 
@@ -1065,6 +1094,10 @@ local function run()
   end
 
 
+  -- ----------------------------------------------------------
+  -- NORMAL DIFFERENTIAL STEERING
+  -- ----------------------------------------------------------
+
   local fullRudderTurnRatio =
     LOW_SPEED_TURN_RATIO +
     (
@@ -1082,7 +1115,8 @@ local function run()
 
     turnRatio =
       fullRudderTurnRatio *
-      effectiveRudder
+      effectiveRudder *
+      TURN_GAIN
 
   end
 
@@ -1093,17 +1127,7 @@ local function run()
     )
 
 
-  local zeroThrottlePivot =
-    math.abs(thr) < THROTTLE_DEADBAND_MIN
-    and
-    math.abs(rud) > RUDDER_DEADBAND
-
-
-  if zeroThrottlePivot then
-
-    drive = 0.10
-
-  elseif math.abs(thr) < THROTTLE_DEADBAND_MIN then
+  if math.abs(thr) < THROTTLE_DEADBAND_MIN then
 
     drive = 0
 
@@ -1127,14 +1151,106 @@ local function run()
     1024
 
 
-  local leftCmd =
+  local normalLeft =
     smoothedDrive *
     (1 + turnRatio)
 
 
-  local rightCmd =
+  local normalRight =
     smoothedDrive *
     (1 - turnRatio)
+
+
+  -- ----------------------------------------------------------
+  -- TRUE ZERO / LOW THROTTLE PIVOT
+  --
+  -- Rudder shaping:
+  --
+  --   near center = softer response
+  --   full rudder = full PIVOT_POWER
+  --
+  -- Positive rudder:
+  --   left track forward
+  --   right track reverse
+  --
+  -- Negative rudder reverses those directions.
+  -- ----------------------------------------------------------
+
+  local pivotRudder =
+    0
+
+
+  if math.abs(effectiveRudder) > 0 then
+
+    local r =
+      math.abs(effectiveRudder)
+
+    local shaped =
+      r *
+      (
+        0.50 +
+        0.50 * r
+      )
+
+    if effectiveRudder < 0 then
+      shaped = -shaped
+    end
+
+    pivotRudder =
+      shaped
+
+  end
+
+
+  local pivotBlend =
+    0
+
+
+  if throttleNorm <= PIVOT_BLEND_START then
+
+    pivotBlend =
+      1
+
+  elseif throttleNorm < PIVOT_BLEND_END then
+
+    pivotBlend =
+      1 -
+      (
+        throttleNorm -
+        PIVOT_BLEND_START
+      ) /
+      (
+        PIVOT_BLEND_END -
+        PIVOT_BLEND_START
+      )
+
+  end
+
+
+  local pivotCmd =
+    pivotRudder *
+    PIVOT_POWER *
+    pivotBlend
+
+
+  -- Blend the pivot contribution on top of normal travel.
+  --
+  -- At zero throttle:
+  --   normalLeft/right = 0
+  --   pivotCmd supplies equal/opposite track commands.
+  --
+  -- As throttle rises:
+  --   pivotCmd fades away and the existing normal steering
+  --   becomes the sole steering behavior.
+
+  local leftCmd =
+    normalLeft +
+    pivotCmd
+
+
+  local rightCmd =
+    normalRight -
+    pivotCmd
 
 
   leftCmd =
@@ -1153,6 +1269,20 @@ local function run()
     )
 
 
+  -- True when the operator is intentionally commanding the
+  -- low-speed counter-rotating steering component.
+  --
+  -- This distinction is important in Groom mode: one track must
+  -- be allowed to run backward for a pivot even though ordinary
+  -- vehicle reverse remains locked out until the auto-lift cycle
+  -- reaches READY.
+
+  local pivotActive =
+    pivotBlend > 0
+    and
+    math.abs(pivotCmd) > 0
+
+
   local reverseAllowed =
     isGroom
     and reverseRequested
@@ -1161,6 +1291,7 @@ local function run()
 
   if isGroom
     and not reverseAllowed
+    and not pivotActive
   then
 
     if leftCmd < 0 then
@@ -1174,7 +1305,12 @@ local function run()
   end
 
 
-  if reverseState == "lifting" then
+  -- During the automatic reverse-lift movement, ordinary reverse
+  -- remains blocked. Intentional steering pivot remains available.
+
+  if reverseState == "lifting"
+    and not pivotActive
+  then
 
     if leftCmd < 0 then
       leftCmd = 0

@@ -496,8 +496,9 @@ deadband, in which case the minimum-radius pivot fallback is applied.
 
 ![PB600 Turning Geometry: Zero-Throttle Pivot vs Full-Throttle Turn](images/turning_geometry_pivot_vs_full.svg)
 
-*The 1.5 ft and 10 ft radius targets used by the steering calculation. Zero
-throttle still produces no track movement because drive demand is zero.*
+*The 1.5 ft and 6 ft radius targets used by the steering calculation. Zero
+throttle still produces no track movement unless rudder exceeds the base
+deadband, in which case the minimum-radius pivot fallback is applied.*
 
 The deadband is intentionally not fixed. It widens as throttle rises:
 
