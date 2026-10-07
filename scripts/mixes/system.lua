@@ -11,7 +11,7 @@
 --
 -- GV2 = Blade working depth %
 -- GV3 = Tiller Groom depth %
--- GV4 = Reverse auto-lift %
+-- GV4 = Groom auto-lift %
 -- GV5 = Tiller working angle %
 --
 -- SF Up = E-stop
@@ -157,6 +157,16 @@ local RUDDER_DEADBAND =
 
 local REVERSE_DEADBAND =
   0.02
+
+
+-- Groom auto lift: reverse throttle, or a pivot (rudder with throttle inside
+-- +/- PIVOT_LIFT_THR) which runs one track in reverse. Must match
+-- blade.lua and tiller.lua.
+local PIVOT_LIFT_THR =
+  0.15
+
+local PIVOT_LIFT_RUD =
+  0.05
 
 
 -- Track power while blade/tiller is repositioning.
@@ -647,16 +657,16 @@ local function run()
 
 
   -- ----------------------------------------------------------
-  -- REVERSE CLEARANCE
+  -- AUTO LIFT
   -- ----------------------------------------------------------
 
-  local BLADE_REVERSE_LIFT_FACTOR =
+  local BLADE_AUTO_LIFT_FACTOR =
     1.00
 
 
   local bladeReverseLift =
     reverseLift *
-    BLADE_REVERSE_LIFT_FACTOR
+    BLADE_AUTO_LIFT_FACTOR
 
 
   local bladeReverseLiftUpTime =
@@ -890,12 +900,20 @@ local function run()
 
 
   -- ==========================================================
-  -- AUTOMATIC REVERSE / BLADE + TILLER LIFT
+  -- GROOM AUTO LIFT (reverse throttle or pivot)
   -- ==========================================================
+
+  local pivotRequested =
+    isGroom
+    and math.abs(thr) <= PIVOT_LIFT_THR
+    and math.abs(rud) > PIVOT_LIFT_RUD
 
   local reverseRequested =
     isGroom
-    and thr < -REVERSE_DEADBAND
+    and (
+      thr < -REVERSE_DEADBAND
+      or pivotRequested
+    )
 
 
   -- ----------------------------------------------------------
@@ -1030,7 +1048,7 @@ local function run()
   --
   --   Groom
   --   + normal tiller transition finished
-  --   + no reverse lift/backing/return cycle active
+  --   + no auto lift/backing/return cycle active
   -- ==========================================================
 
   local tillerMotorEnable =
@@ -1204,6 +1222,20 @@ local function run()
   end
 
 
+  -- Hold both tracks until the implements are lifted for a pivot.
+  if pivotRequested
+    and reverseState ~= "ready"
+  then
+
+    leftTarget =
+      0
+
+    rightTarget =
+      0
+
+  end
+
+
   local brakeRate =
     DECEL_RATE +
     (
@@ -1272,6 +1304,7 @@ local function run()
 
   local pivotActive =
     effectiveRudder ~= 0
+    and not pivotRequested
 
 
   local reverseAllowed =
@@ -1296,7 +1329,7 @@ local function run()
   end
 
 
-  -- During the automatic reverse-lift movement, ordinary reverse
+  -- During the auto lift movement, ordinary reverse
   -- remains blocked. Intentional steering pivot remains available.
 
   if reverseState == "lifting"

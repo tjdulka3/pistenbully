@@ -10,7 +10,7 @@
 --
 -- GV1 = Coordination intensity %
 -- GV3 = Tiller Groom depth %
--- GV4 = Blade/Tiller reverse auto-lift %
+-- GV4 = Blade/Tiller Groom auto-lift %
 -- GV5 = Tiller working angle %
 --
 -- SD:
@@ -49,6 +49,15 @@ local FIN_FULL_TIME =
 
 local INPUT_DEADBAND =
   0.02
+
+
+-- Groom auto lift: reverse throttle, or a pivot (rudder with throttle within
+-- +/-PIVOT_LIFT_THR). Must match system.lua.
+local PIVOT_LIFT_THR =
+  0.15
+
+local PIVOT_LIFT_RUD =
+  0.05
 
 
 -- Tiller angle coordination range at GV1=100%.
@@ -159,7 +168,7 @@ local reverseState =
   "idle"
 
 
--- Exact lift position before reverse auto-lift.
+-- Exact lift position before auto lift.
 local reverseReturnLift =
   0
 
@@ -1117,17 +1126,21 @@ local function run()
   else
 
     -- ========================================================
-    -- GROOM-ONLY REVERSE AUTO-LIFT
+    -- GROOM-ONLY AUTO LIFT (reverse throttle or pivot)
     -- ========================================================
 
     if inGroom then
 
       local reverseRequested =
         thr < -INPUT_DEADBAND
+        or (
+          math.abs(thr) <= PIVOT_LIFT_THR
+          and math.abs(rawRud) > PIVOT_LIFT_RUD
+        )
 
 
       -- ------------------------------------------------------
-      -- START REVERSE LIFT
+      -- START AUTO LIFT
       -- ------------------------------------------------------
 
       if reverseState == "idle"

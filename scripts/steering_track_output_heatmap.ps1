@@ -5,6 +5,7 @@ $STEER_GAIN_LOW = 0.70
 $STEER_GAIN_FULL = $PIVOT_RADIUS_FT / $FULL_TURN_RADIUS_FT
 $STEER_TAPER_START = 0.90
 $DRIVE_DEADBAND = 0.05
+$PIVOT_LIFT_THR = 0.15
 $RUDDER_DEADBAND = 0.01
 $RUDDER_DB_MIN = 0.01
 $RUDDER_DB_KNEE = 0.80
@@ -99,6 +100,12 @@ function AddHeatmap([string]$title, [int]$originX) {
     $centerY = 90 + ($gridSize / 2)
     $svg += "<line x1='$centerX' y1='90' x2='$centerX' y2='510' stroke='#111827' stroke-width='2' opacity='0.8'/>"
     $svg += "<line x1='$originX' y1='$centerY' x2='$($originX + $gridSize)' y2='$centerY' stroke='#111827' stroke-width='2' opacity='0.8'/>"
+    foreach ($liftStep in @(($PIVOT_LIFT_THR * 10.0), (-$PIVOT_LIFT_THR * 10.0))) {
+        $liftY = 100 + ((10 - $liftStep) * $cellSize)
+        $svg += "<line x1='$originX' y1='$liftY' x2='$($originX + $gridSize)' y2='$liftY' stroke='#b91c1c' stroke-width='2' stroke-dasharray='2 4' stroke-linecap='round'/>"
+    }
+    $svg += "<text x='$($originX + $gridSize + 6)' y='$(100 + ((10 - ($PIVOT_LIFT_THR * 10.0)) * $cellSize) + 4)' font-size='11' fill='#b91c1c'>+$([int]($PIVOT_LIFT_THR * 100))% auto lift</text>"
+    $svg += "<text x='$($originX + $gridSize + 6)' y='$(100 + ((10 + ($PIVOT_LIFT_THR * 10.0)) * $cellSize) + 4)' font-size='11' fill='#b91c1c'>-$([int]($PIVOT_LIFT_THR * 100))% auto lift</text>"
     $svg += "<circle cx='$centerX' cy='$centerY' r='5' fill='#111827' stroke='white' stroke-width='2'/><text x='$($centerX + 9)' y='$($centerY - 8)' font-size='11' font-weight='700'>0,0</text>"
     $svg += "<text x='$centerX' y='82' text-anchor='middle' font-size='12' font-weight='700'>FORWARD (+)</text>"
     $svg += "<text x='$centerX' y='580' text-anchor='middle' font-size='12' font-weight='700'>REVERSE (-)</text>"
@@ -116,7 +123,7 @@ $svg = @"
 <svg xmlns='http://www.w3.org/2000/svg' width='1000' height='660' viewBox='0 0 1000 660'>
     <rect width='1000' height='660' fill='white'/>
     <text x='500' y='30' text-anchor='middle' font-size='22' font-weight='700'>PB600 Steering Contribution at 10% Stick Increments</text>
-    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Steady state, drive deadband +/-5% throttle</text>
+    <text x='500' y='638' text-anchor='middle' font-size='13'>White: no yaw command | Full green: greatest track differential | Steady state, drive deadband +/-5% throttle | Red dotted: Groom auto lift threshold</text>
     $($heatmap -join '')
 </svg>
 "@

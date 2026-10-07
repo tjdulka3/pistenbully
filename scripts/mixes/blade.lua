@@ -11,7 +11,7 @@
 --
 -- GV1 = Coordination intensity %
 -- GV2 = Blade working depth %
--- GV4 = Reverse auto-lift %
+-- GV4 = Groom auto-lift %
 --
 -- SD:
 --   -1024 = Transport
@@ -35,12 +35,12 @@
 local LIFT_DOWN_FULL_TIME = 11.0
 local LIFT_UP_FULL_TIME   = 17.0
 
--- Blade reverse lift relative to GV4.
+-- Blade auto lift relative to GV4.
 --
 -- 1.00 = same percentage as tiller
 -- 1.50 = 50% more blade lift than GV4
 -- 0.75 = 25% less blade lift than GV4
-local BLADE_REVERSE_LIFT_FACTOR = 1.00
+local BLADE_AUTO_LIFT_FACTOR = 1.00
 
 local TILT_FULL_TIME  = 5.0
 local ANGLE_FULL_TIME = 6.7
@@ -48,6 +48,11 @@ local SLEW_FULL_TIME  = 6.7
 local WING_FULL_TIME  = 3.75
 
 local INPUT_DEADBAND = 0.02
+
+-- Groom auto lift: reverse throttle, or a pivot (rudder with throttle within
+-- +/-PIVOT_LIFT_THR). Must match system.lua.
+local PIVOT_LIFT_THR = 0.15
+local PIVOT_LIFT_RUD = 0.05
 
 -- Default non-Transport blade geometry.
 -- These normally should not need live adjustment.
@@ -121,7 +126,7 @@ local lastTime = getTime()
 local modeTransition = false
 
 -- ============================================================
--- REVERSE AUTO-LIFT STATE
+-- GROOM AUTO-LIFT STATE
 --
 -- idle
 -- lifting
@@ -131,7 +136,7 @@ local modeTransition = false
 
 local reverseState = "idle"
 
--- Exact blade height before reverse lift begins.
+-- Exact blade height before auto lift begins.
 local reverseReturnLift = 0
 
 -- Raised blade target for the current reverse cycle.
@@ -459,7 +464,7 @@ lastSh =
 
   local bladeReverseLift =
     reverseLift *
-    BLADE_REVERSE_LIFT_FACTOR
+    BLADE_AUTO_LIFT_FACTOR
 
   -- ==========================================================
   -- SH HOME RESET
@@ -577,7 +582,7 @@ lastSh =
     end
 
     -- Any mode change out of Groom cancels the dedicated
-    -- reverse-clearance state. Normal mode positioning then
+    -- auto lift state. Normal mode positioning then
     -- takes authority over blade lift.
     if sd <= 500 then
       reverseState = "idle"
@@ -652,16 +657,21 @@ lastSh =
 
   else
     -- ==========================================================
-    -- REVERSE AUTO-LIFT
-    -- ==========================================================
+    -- GROOM AUTO-LIFT (reverse throttle or pivot)    -- ==========================================================
 
     local reverseRequested =
       inGroom
-      and thr < -INPUT_DEADBAND
+      and (
+        thr < -INPUT_DEADBAND
+        or (
+          math.abs(thr) <= PIVOT_LIFT_THR
+          and math.abs(normStick(getValue("rud"))) > PIVOT_LIFT_RUD
+        )
+      )
 
 
     -- ----------------------------------------------------------
-    -- START REVERSE LIFT
+    -- START AUTO LIFT
     -- ----------------------------------------------------------
 
     if reverseState == "idle"
@@ -768,7 +778,7 @@ lastSh =
   -- ==========================================================
     -- MANUAL BLADE CONTROL
     --
-    -- Suppressed during reverse lift/hold/return so an operator
+    -- Suppressed during auto lift/hold/return so an operator
     -- input cannot fight the automatic clearance movement.
     -- ==========================================================
     if reverseState == "idle" then
@@ -865,7 +875,7 @@ lastSh =
   -- operation.  It is completely suppressed during:
   --
   --   * Mode transitions
-  --   * Reverse auto-lift
+  --   * Groom auto-lift
   --   * Reverse hold
   --   * Reverse return
   --

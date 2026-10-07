@@ -116,11 +116,11 @@ that same state to visualize the machine without creating a second control path.
   - [Prop3 - Engine Autostart](#prop3---engine-autostart)
   - [Sound-System Signal Architecture](#sound-system-signal-architecture)
     - [Receiver Connections](#receiver-connections)
-- [Automatic Reverse / Blade and Tiller Lift](#automatic-reverse--blade-and-tiller-lift)
+- [Groom Auto Lift](#groom-auto-lift)
 - [Tiller Motor Safety](#tiller-motor-safety)
 - [Emergency Stop](#emergency-stop)
 - [Blade Control](#blade-control)
-  - [Blade Reverse Clearance](#blade-reverse-clearance)
+  - [Blade Auto Lift](#blade-auto-lift)
 - [Manual Blade Controls](#manual-blade-controls)
 - [Automatic Blade Positioning](#automatic-blade-positioning)
 - [Blade Coordination](#blade-coordination)
@@ -128,7 +128,7 @@ that same state to visualize the machine without creating a second control path.
 - [Tiller Control](#tiller-control)
 - [Tiller Coordination](#tiller-coordination)
 - [Global Variables](#global-variables)
-  - [Reverse Lift Scaling](#reverse-lift-scaling)
+  - [Auto Lift Scaling](#auto-lift-scaling)
 - [Lua Output Allocation](#lua-output-allocation)
   - [`blade.lua`](#bladelua)
   - [`tiller.lua`](#tillerlua)
@@ -140,7 +140,7 @@ that same state to visualize the machine without creating a second control path.
   - [Asymmetric Lift Timing](#asymmetric-lift-timing)
   - [Blade Timing](#blade-timing)
   - [Tiller Timing](#tiller-timing)
-  - [Reverse Clearance Timing](#reverse-clearance-timing)
+  - [Auto Lift Timing](#auto-lift-timing)
   - [Position Model Synchronization](#position-model-synchronization)
   - [Transmitter Calibration](#transmitter-calibration)
   - [Receiver Failsafe](#receiver-failsafe)
@@ -173,7 +173,7 @@ that same state to visualize the machine without creating a second control path.
   - [8. Global Variables](#8-global-variables)
   - [9. Coordination Parameters](#9-coordination-parameters)
   - [10. Track / Hydrostatic Parameters](#10-track--hydrostatic-parameters)
-  - [11. Reverse Clearance Parameters](#11-reverse-clearance-parameters)
+  - [11. Auto Lift Parameters](#11-auto-lift-parameters)
   - [12. Logical Switches](#12-logical-switches)
   - [13. Sound System Specifications](#13-sound-system-specifications)
     - [Prop2 Functions](#prop2-functions)
@@ -202,11 +202,11 @@ The PB600 uses three custom Lua mixer scripts:
   `blade.lua`                        Front blade actuator control,
                                      positioning, manual operation,
                                      coordinated blade movement, and
-                                     automatic reverse-clearance lift
+                                     Groom auto lift
 
   `tiller.lua`                       Rear tiller lift, angle,
                                      finishers, grooming position, and
-                                     automatic reverse lift
+                                     Groom auto lift
   ---------------------------------------------------------------------
 
 The scripts intentionally separate responsibilities:
@@ -308,7 +308,7 @@ The following list is the readable version of the live model wiring:
 | CH | Source in model | Lua Output | Used for / returned value |
 |---|---|---|---|
 | CH1 | `lua(2,1)` | `System:TrackL` | Left track drive command. Returns the hydrostatically smoothed left-track output for acceleration, braking, and steering. |
-| CH2 | `lua(0,0)` | `Blade:Lift` | Blade lift actuator. Returns the modeled blade lift target, including transport/plow/groom target tracking and reverse-clearance motion. |
+| CH2 | `lua(0,0)` | `Blade:Lift` | Blade lift actuator. Returns the modeled blade lift target, including transport/plow/groom target tracking and Groom auto lift motion. |
 | CH3 | `lua(2,0)` | `System:TrackR` | Right track drive command. Returns the smoothed right-track output with the physical right-side inversion applied. |
 | CH4 | `lua(0,1)` | `Blade:Tilt` | Blade tilt actuator. Returns the current blade tilt command for manual or coordinated tilt movement. |
 | CH5 | `lua(0,4)` | `Blade:LW` | Left blade wing actuator. Returns the left wing position with the physical direction corrected by the model. |
@@ -319,7 +319,7 @@ The following list is the readable version of the live model wiring:
 | CH10 | `lua(0,2)` | `Blade:Angle` | Blade angle actuator. Returns the commanded blade angle target for mode transitions and manual positioning. |
 | CH11 | `lua(0,3)` | `Blade:Slew` | Blade slew actuator. Returns the lateral blade slew command for manual or coordinated slew behavior. |
 | CH12 | `lua(1,1)` | `Tiller:TAng` | Tiller angle actuator. Returns the current tiller angle target, including coordination effects. |
-| CH13 | `lua(1,0)` | `Tiller:TLift` | Tiller lift actuator. Returns the modeled tiller lift target for transport, groom, and reverse-clearance positions. |
+| CH13 | `lua(1,0)` | `Tiller:TLift` | Tiller lift actuator. Returns the modeled tiller lift target for transport, groom, and Groom auto lift positions. |
 | CH14 | `I9` + `L10` override | `S2 / swing servo` | Tiller swing servo input channel. This is not a direct Lua output; it is the physical swing channel driven by the radio input with logic override. |
 | CH15 | `lua(2,5)` | `System:EngOut` | Engine / drivetrain sound output. Returns the effective engine signal derived from actual track output, weighted toward the most loaded side. |
 | CH16 | `SA` + `L9` override | `Sound Aux` | Auxiliary sound channel. Used for horn and reverse warning logic via SA and the reverse timer state. |
@@ -402,7 +402,7 @@ left and right track outputs.
 -   Hydrostatic-style deceleration/braking
 -   Increased braking when changing direction
 -   Reduced track power while implements are transitioning
--   Automatic Groom reverse protection
+-   Groom auto lift (reverse throttle or pivot)
 -   Emergency stop
 
 Raw throttle and rudder mixes should **not** also be applied to the
@@ -801,10 +801,10 @@ The current configuration instead uses the `Engine` output generated by
 `system.lua`. This allows engine RPM to follow effective hydrostatic
 drivetrain activity rather than raw throttle-stick position.
 
-During Groom reverse initiation, the tracks remain stopped while the
-blade and tiller raise to their reverse-clearance positions. Because the
+During Groom auto lift, the tracks remain stopped while the
+blade and tiller raise. Because the
 Engine signal is derived from the actual track outputs, the engine
-remains near idle until reverse movement is permitted.
+remains near idle until track movement is permitted.
 
 ------------------------------------------------------------------------
 
@@ -901,8 +901,7 @@ No sound                                  Reverse beep
 The timer stops when throttle is no longer below -5.
 
 The reverse beeper intentionally begins when reverse is requested, even
-while the blade and tiller are completing their automatic
-reverse-clearance lift.
+while the blade and tiller are completing their Groom auto lift.
 
 ------------------------------------------------------------------------
 
@@ -979,21 +978,30 @@ The complete control path is:
 
 ------------------------------------------------------------------------
 
-## Automatic Reverse / Blade and Tiller Lift
+## Groom Auto Lift
 
-When operating in Groom mode, reverse is integrated with both the front
-blade and rear tiller rather than simply being blocked.
+In Groom mode, the blade and tiller are raised automatically before any
+track motion that would run a track in reverse, rather than blocking it.
+
+Auto lift is requested by either:
+
+-   Any reverse throttle, or
+-   A pivot: rudder above 5% with throttle inside the pivot band
+    (+/-15%), where one track runs in reverse.
+
+While a pivot is waiting for the lift to complete, both tracks are held
+at zero so the lowered tiller is not dragged sideways.
 
 The sequence is:
 
 ``` text
-Reverse requested
+Auto lift requested (reverse throttle or pivot)
        |
        v
 Tiller rotor disabled
        |
        v
-Reverse track output blocked
+Reverse or pivot track output blocked
        |
        +------------------+
        |                  |
@@ -1004,16 +1012,16 @@ by configured amount  by configured amount
        +--------+---------+
                 |
                 v
-Both reverse-clearance lifts complete
+Both auto lifts complete
                 |
                 v
-Reverse track movement enabled
+Track movement enabled
                 |
                 v
-Snowcat backs with blade and tiller raised
+Snowcat backs or pivots with blade and tiller raised
                 |
                 v
-Reverse command released
+Request released
                 |
        +--------+---------+
        |                  |
@@ -1030,19 +1038,19 @@ Both returns complete
 Tiller rotor enabled
 ```
 
-The base reverse lift amount is controlled by `GV4`.
+The base auto lift amount is controlled by `GV4`.
 
 Both the blade and tiller capture their exact lift position when the
-reverse sequence begins. After reverse ends, each implement returns to
-its captured pre-reverse position rather than simply returning to a
+auto lift sequence begins. After the request ends, each implement returns to
+its captured pre-lift position rather than simply returning to a
 nominal GV-defined working position.
 
 The tiller uses GV4 directly. The blade uses GV4 multiplied by the
-code-level `BLADE_REVERSE_LIFT_FACTOR`. With the current factor of
-`1.00`, both implements use the same reverse-lift percentage.
+code-level `BLADE_AUTO_LIFT_FACTOR`. With the current factor of
+`1.00`, both implements use the same auto lift percentage.
 
-If reverse is released before either implement finishes raising, the
-reverse-clearance lift is still completed before the implement returns
+If the request is released before either implement finishes raising, the
+auto lift is still completed before the implement returns
 to its captured starting height.
 
 This replaces the earlier design in which reverse was completely
@@ -1077,7 +1085,7 @@ whenever rotor operation is prohibited.
 The tiller rotor is disabled during:
 
 -   Emergency stop
--   Automatic reverse lift
+-   Groom auto lift
 -   Reverse operation
 -   Return from reverse to Groom position
 -   Normal tiller transitions
@@ -1152,31 +1160,31 @@ blade functions.
 
 ------------------------------------------------------------------------
 
-## Blade Reverse Clearance
+## Blade Auto Lift
 
-In Groom mode, blade lift participates in the automatic
-reverse-clearance sequence.
+In Groom mode, blade lift participates in the Groom auto lift
+sequence.
 
-When reverse is first requested, `blade.lua`:
+When auto lift is first requested, `blade.lua`:
 
 1.  Captures the current modeled blade-lift position.
 2.  Calculates a raised target using GV4 and
-    `BLADE_REVERSE_LIFT_FACTOR`.
+    `BLADE_AUTO_LIFT_FACTOR`.
 3.  Raises completely to that target.
-4.  Holds the blade at the raised position while reverse remains active.
-5.  Returns to the exact captured position after reverse is released.
+4.  Holds the blade at the raised position while the request remains active.
+5.  Returns to the exact captured position after the request is released.
 
-If reverse is released before the blade has finished raising, the blade
-still completes the full commanded reverse lift before returning to its
+If the request is released before the blade has finished raising, the blade
+still completes the full commanded auto lift before returning to its
 starting position.
 
-During blade reverse lift, hold, and return:
+During blade auto lift, hold, and return:
 
 -   Manual blade control is suppressed.
 -   Blade coordination is suppressed.
--   Automatic reverse clearance has authority over blade Lift.
+-   Groom auto lift has authority over blade Lift.
 
-Normal blade control resumes after the reverse-return sequence
+Normal blade control resumes after the auto lift return sequence
 completes.
 
 ------------------------------------------------------------------------
@@ -1339,9 +1347,9 @@ live from the transmitter.
   GV3         Tiller Groom   0-100       35          Normal tiller
               Depth                                  grooming height/depth
 
-  GV4         Reverse Lift   0-100       10          Base amount the blade
+  GV4         Auto Lift      0-100       10          Base amount the blade
               Height                                 and tiller raise for
-                                                     reverse clearance
+                                                     Groom auto lift
 
   GV5         Tiller Working 0-100       50          Normal tiller working
               Angle                                  angle
@@ -1351,22 +1359,22 @@ live from the transmitter.
                                                      settings
   ------------------------------------------------------------------------
 
-## Reverse Lift Scaling
+## Auto Lift Scaling
 
-`GV4` is the common operator adjustment for reverse-clearance lift.
+`GV4` is the common operator adjustment for Groom auto lift.
 
 The tiller uses GV4 directly. The blade uses GV4 multiplied by a
 code-level scaling factor:
 
 ``` lua
-local BLADE_REVERSE_LIFT_FACTOR = 1.00
+local BLADE_AUTO_LIFT_FACTOR = 1.00
 ```
 
 With `GV4 = 10%` and a blade factor of `1.00`, both blade and tiller
 raise approximately 10% of full lift travel.
 
 The blade factor can be changed in code if the blade requires a
-different amount of reverse clearance without consuming another Global
+different amount of auto lift without consuming another Global
 Variable.
 
 Mechanical timing, actuator direction, steering characteristics,
@@ -1584,10 +1592,10 @@ Raised -> Groom: 11.0 x 0.35 = 3.85 seconds DOWN
 Groom -> Raised: 17.0 x 0.35 = 5.95 seconds UP
 ```
 
-## Reverse Clearance Timing
+## Auto Lift Timing
 
-Reverse is not permitted in Groom until both the blade and tiller have
-completed their required reverse-clearance lift.
+In Groom, reverse and pivot track motion are not permitted until both the
+blade and tiller have completed their required auto lift.
 
 `system.lua` calculates the required lift time for each implement and
 waits for the slower movement.
@@ -1596,37 +1604,37 @@ With the current settings:
 
 ``` text
 GV4 = 10%
-Blade Reverse Lift Factor = 1.00
+Blade Auto Lift Factor = 1.00
 Blade full-stroke UP  = 17.0 seconds
 Tiller full-stroke UP = 17.0 seconds
 ```
 
-the reverse lift times are:
+the auto lift times are:
 
 ``` text
 Blade:   17.0 x 10% = 1.70 seconds UP
 Tiller:  17.0 x 10% = 1.70 seconds UP
 
-Reverse clearance time:
+Auto lift time:
 max(1.70, 1.70) = 1.70 seconds
 ```
 
-When reverse is released, both implements return toward their exact
-captured pre-reverse positions. With the current 11-second full-stroke
+When the request is released, both implements return toward their exact
+captured pre-lift positions. With the current 11-second full-stroke
 downward calibration, a 10% return movement is approximately:
 
 ``` text
 11.0 x 10% = 1.10 seconds DOWN
 ```
 
-The system waits for the slower required return before the reverse cycle
+The system waits for the slower required return before the auto lift cycle
 is considered complete.
 
 ## Position Model Synchronization
 
 `blade.lua`, `tiller.lua`, and `system.lua` must use matching lift
 calibration values. `system.lua` relies on these same values for
-transition timing, reverse-clearance timing, and tiller-motor lockout
+transition timing, auto lift timing, and tiller-motor lockout
 timing.
 
 Using one symmetric travel time for both directions causes the modeled
@@ -1699,13 +1707,13 @@ E-stop.
 
 ### Automatic behavior has one authority
 
-Reverse operation in Groom uses a coordinated blade/tiller
-reverse-clearance sequence.
+Reverse and pivot operation in Groom use a coordinated blade/tiller
+auto lift sequence.
 
-`system.lua` owns permission for track reverse and determines when
-sufficient clearance time has elapsed. `blade.lua` owns physical blade
-reverse-lift movement, while `tiller.lua` owns physical tiller
-reverse-lift movement.
+`system.lua` owns permission for track reverse and pivot and determines when
+sufficient lift time has elapsed. `blade.lua` owns physical blade
+auto lift movement, while `tiller.lua` owns physical tiller
+auto lift movement.
 
 Both implement scripts capture their own starting positions and return
 independently to those positions after reverse.
@@ -1733,17 +1741,17 @@ The current architecture is intended to become the new baseline:
 -   Simplified GV allocation
 -   GV2 Blade Working Depth = 40%
 -   GV3 Tiller Groom Depth = 35%
--   GV4 Reverse Lift Height = 10%
+-   GV4 Auto Lift Height = 10%
 -   Direct Lua hardware outputs
 -   Preserved time-based hydrostatic track behavior
 -   Approximately 5-second acceleration to full power
 -   Approximately 2-second hydrostatic deceleration
 -   Unified blade/tiller coordination
 -   Blade coordination rudder deadband = approximately 12%
--   Automatic blade and tiller reverse-clearance lift
--   Reverse blocked until both implements reach clearance
+-   Groom auto lift of blade and tiller (reverse throttle or pivot)
+-   Reverse and pivot blocked until both implements reach lift height
 -   Blade and tiller return to their captured pre-reverse heights
--   Tiller rotor safety interlock throughout reverse lift, reverse
+-   Tiller rotor safety interlock throughout auto lift, reverse
     operation, and return
 -   E-stop across tracks, tiller rotor, blade, and tiller actuators
 -   Explicit Transport / Plow / Groom transitions
@@ -2052,7 +2060,7 @@ calibration constants.
     GV1 Coordination Intensity                   60%
     GV2 Blade Working Depth                      40%
     GV3 Tiller Groom Depth                       35%
-    GV4 Blade/Tiller Reverse Lift                10%
+    GV4 Blade/Tiller Auto Lift                   10%
     GV5 Tiller Working Angle                     50%
     GV6 Reserved                                 ---
     GV7 Reserved                                 ---
@@ -2072,7 +2080,7 @@ calibration constants.
   `COORD_ANGLE_RANGE`                   0.10
 
 Coordination is disabled during automatic mode transitions and
-reverse-clearance movement.
+Groom auto lift movement.
 
 ### 10. Track / Hydrostatic Parameters
 
@@ -2088,14 +2096,14 @@ reverse-clearance movement.
   `DECEL_RATE`            512 Approx. 2 s full-to-zero deceleration
   `REVERSE_BOOST`         250 Faster pressure dump during direction change
 
-### 11. Reverse Clearance Parameters
+### 11. Auto Lift Parameters
 
   -----------------------------------------------------------------------
   Parameter                          Value / Source
   ---------------------------------- ------------------------------------
-  Reverse lift amount                GV4
+  Auto lift amount                   GV4
 
-  Blade lift multiplier              `BLADE_REVERSE_LIFT_FACTOR = 1.00`
+  Blade lift multiplier              `BLADE_AUTO_LIFT_FACTOR = 1.00`
 
   Blade full UP time                 17.0 s
 
@@ -2105,22 +2113,25 @@ reverse-clearance movement.
 
   Tiller full DOWN time              11.0 s
 
-  Reverse release condition          Slower of blade/tiller clearance
+  Auto lift trigger                  Reverse throttle, or pivot (rudder
+                                     > 5% with throttle within +/-15%)
+
+  Release condition                  Slower of blade/tiller lift
                                      times completed
 
-  Return target                      Captured pre-reverse position for
+  Return target                      Captured pre-lift position for
                                      each implement
 
-  Tiller rotor during reverse cycle  Locked out
+  Tiller rotor during auto lift      Locked out
   -----------------------------------------------------------------------
 
 At GV4 = 10% and blade factor = 1.00:
 
   Movement                    Nominal Time
   ------------------------- --------------
-  Blade reverse lift                1.70 s
-  Tiller reverse lift               1.70 s
-  Reverse clearance delay           1.70 s
+  Blade auto lift                   1.70 s
+  Tiller auto lift                  1.70 s
+  Auto lift delay                   1.70 s
   10% downward return             ~1.10 s
 
 ### 12. Logical Switches
@@ -2205,10 +2216,11 @@ The final channel command must be forced to `-1024`.
   E-stop        0             Stopped        -1024 / OFF     0
   (`SF Up`)                                                  
 
-  Reverse       0             Blade/tiller   OFF             Near idle
-  clearance                   lift active                    
+  Auto lift     0             Blade/tiller   OFF             Near idle
+  (reverse or                 lift active                    
+  pivot)                                                     
 
-  Reverse       Reverse       Clearance      OFF             Follows
+  Reverse       Reverse       Lifted         OFF             Follows
   backing       enabled       positions held                 effective
                                                              tracks
 
@@ -2255,7 +2267,7 @@ Blade/tiller lift travel times
 Wing travel time
 Coordination rudder deadband
 Coordination ranges
-Blade reverse-lift factor
+Blade auto lift factor
 Hydrostatic acceleration/deceleration rates
 TURN_GAIN
 Steering deadband limits

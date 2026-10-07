@@ -255,7 +255,7 @@ local function draw(zone)
     {0,"Coord Gain","%"},
     {1,"Blade Depth","%"},
     {2,"Tiller Depth","%"},
-    {3,"Reverse Lift","%"},
+    {3,"Auto Lift","%"},
     {4,"Tiller Angle","%"}
   }
 
