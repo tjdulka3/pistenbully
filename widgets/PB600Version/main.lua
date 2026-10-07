@@ -30,22 +30,29 @@ local function readVersionInfo()
     return name, "E6: application version missing"
   end
 
-  return name or "PistenBully 600", version and ("v" .. version) or "Version unavailable"
+  local updated = versionInfo.updated
+
+  return name or "PistenBully 600", version and ("v" .. version) or "Version unavailable",
+    "Updated: " .. (type(updated) == "string" and updated or "unknown")
 end
 
 local function create(zone, options)
-  local name, version = readVersionInfo()
+  local name, version, updated = readVersionInfo()
 
   return {
     zone = zone,
     name = name,
-    version = version
+    version = version,
+    updated = updated
   }
 end
 
 local function refresh(widget)
   lcd.drawText(widget.zone.x, widget.zone.y, widget.name, SMLSIZE)
   lcd.drawText(widget.zone.x, widget.zone.y + 16, widget.version, SMLSIZE)
+  if widget.updated then
+    lcd.drawText(widget.zone.x, widget.zone.y + 32, widget.updated, SMLSIZE)
+  end
 end
 
 return {

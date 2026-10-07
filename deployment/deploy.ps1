@@ -262,7 +262,11 @@ else {
         Copy-Item -Path $VersionSeedPath -Destination $TargetVersionPath -Force
     }
 
-    $UpdatedVersionText = (Get-Content -Path $TargetVersionPath -Raw) -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"')
+    # Rebuild from the seed so APP_UPDATED is added to older SD-card files.
+    $UpdatedDate = (Get-Date).ToString('MM/dd/yyyy', [Globalization.CultureInfo]::InvariantCulture)
+    $UpdatedVersionText = (Get-Content -Path $VersionSeedPath -Raw) `
+        -replace 'APP_VERSION\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', ('APP_VERSION = "' + $PendingVersion + '"') `
+        -replace 'APP_UPDATED\s*=\s*"[^"]*"', ('APP_UPDATED = "' + $UpdatedDate + '"')
     Set-Content -Path $TargetVersionPath -Value $UpdatedVersionText -NoNewline
 }
 
