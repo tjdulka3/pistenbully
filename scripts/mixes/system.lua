@@ -64,7 +64,7 @@ local PIVOT_RADIUS_FT =
   TRACK_CENTER_SPACING_FT / 2.0
 
 local FULL_TURN_RADIUS_FT =
-  6.0
+  4.0
 
 local STEER_GAIN_LOW =
   0.70
@@ -74,7 +74,7 @@ local STEER_GAIN_FULL =
   FULL_TURN_RADIUS_FT
 
 local STEER_TAPER_START =
-  0.75
+  0.90
 
 
 -- ============================================================
@@ -100,7 +100,7 @@ local RUDDER_DB_KNEE_VALUE =
   0.060
 
 local RUDDER_DB_MAX =
-  0.200
+  0.100
 
 
 -- Time-based hydrostatic output rates.
@@ -126,6 +126,18 @@ local ACCEL_MID_BOOST =
 
 local DECEL_RATE =
   512
+
+
+-- Brake-assisted steering: with rudder applied, a track being slowed sheds
+-- speed at up to this rate (full rudder), blending from DECEL_RATE at none.
+-- The rate rises from STEER_BRAKE_RATE at standstill to STEER_BRAKE_RATE_FAST
+-- at full drive, so turns at speed bite harder.
+-- 1536 units/sec ~= 0.67 sec full power -> zero; 3072 ~= 0.33 sec.
+local STEER_BRAKE_RATE =
+  1536
+
+local STEER_BRAKE_RATE_FAST =
+  3072
 
 
 -- Additional pressure-dump rate while crossing zero
@@ -1192,12 +1204,23 @@ local function run()
   end
 
 
+  local brakeRate =
+    DECEL_RATE +
+    (
+      STEER_BRAKE_RATE +
+      (STEER_BRAKE_RATE_FAST - STEER_BRAKE_RATE) *
+      math.abs(drive) -
+      DECEL_RATE
+    ) *
+    math.abs(effectiveRudder)
+
+
   local leftCmd =
     smoothDirectional(
       lastLeft,
       leftTarget * 1024,
       ACCEL_RATE,
-      DECEL_RATE,
+      brakeRate,
       REVERSE_BOOST,
       dt
     ) /
@@ -1208,7 +1231,7 @@ local function run()
       lastRight,
       rightTarget * 1024,
       ACCEL_RATE,
-      DECEL_RATE,
+      brakeRate,
       REVERSE_BOOST,
       dt
     ) /
