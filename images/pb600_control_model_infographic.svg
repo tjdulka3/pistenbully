@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">PB600 Custom Control Model Infographic</title>
+  <desc id="desc">One-page infographic summarizing PB600 control flow, drive, blade, tiller, safety, modes, state management, and operator and diagnostic panels.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08131f"/>
+      <stop offset="55%" stop-color="#0b1f33"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+    <style>
+      text{font-family:Arial,Helvetica,sans-serif}
+      .title{font-size:36px;font-weight:700;fill:#f8fafc}
+      .subtitle{font-size:16px;fill:#cbd5e1}
+      .section{font-size:19px;font-weight:700;letter-spacing:1px;fill:#e2e8f0}
+      .label{font-size:15px;font-weight:700;fill:#f8fafc}
+      .body{font-size:14px;fill:#dbe4f0}
+      .small{font-size:12px;fill:#94a3b8}
+      .chip{font-size:12px;font-weight:700}
+      .panel{fill:#0f172a;stroke:#334155;stroke-width:1.5;filter:url(#shadow)}
+      .flowbox{fill:#111c2e;stroke:#4b5563;stroke-width:1.5}
+      .flowtext{font-size:15px;font-weight:700;fill:#f8fafc}
+      .bullet{font-size:13px;fill:#dbe4f0}
+      .divider{stroke:#243244;stroke-width:1}
+      .arrow{stroke:url(#flow);stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .accent-teal{fill:#22d3ee}
+      .accent-green{fill:#34d399}
+      .accent-cyan{fill:#38bdf8}
+      .accent-orange{fill:#fb923c}
+      .accent-red{fill:#f87171}
+      .accent-purple{fill:#a78bfa}
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 z" fill="#60a5fa"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1552" height="852" rx="28" fill="none" stroke="#1e293b" stroke-width="2"/>
+
+  <text x="70" y="82" class="title">PB600 Custom Control Model</text>
+  <text x="70" y="112" class="subtitle">EdgeTX + Lua mixer architecture for coordinated track drive, blade automation, tiller grooming, safety, and operator feedback.</text>
+
+  <text x="70" y="160" class="section">CONTROL FLOW</text>
+  <path d="M260 221 H430 M610 221 H780 M960 221 H1130" class="arrow" marker-end="url(#arrowhead)"/>
+  <g>
+    <rect x="70" y="180" width="190" height="82" rx="18" class="flowbox"/>
+    <text x="95" y="213" class="flowtext">Inputs</text>
+    <text x="95" y="236" class="body">Sticks, trims, sliders,</text>
+    <text x="95" y="254" class="body">switches, GV tuning</text>
+  </g>
+  <g>
+    <rect x="430" y="180" width="180" height="82" rx="18" class="flowbox"/>
+    <text x="455" y="213" class="flowtext">EdgeTX Model</text>
+    <text x="455" y="236" class="body">Mixes, channel routing,</text>
+    <text x="455" y="254" class="body">logical switches</text>
+  </g>
+  <g>
+    <rect x="780" y="180" width="180" height="82" rx="18" class="flowbox"/>
+    <text x="808" y="213" class="flowtext">Lua Scripts</text>
+    <text x="808" y="236" class="body">system.lua · blade.lua</text>
+    <text x="808" y="254" class="body">tiller.lua</text>
+  </g>
+  <g>
+    <rect x="1130" y="180" width="220" height="82" rx="18" class="flowbox"/>
+    <text x="1156" y="213" class="flowtext">Outputs</text>
+    <text x="1156" y="236" class="body">Tracks, blade, tiller,</text>
+    <text x="1156" y="254" class="body">rotor safety, sound, UI state</text>
+  </g>
+
+  <g>
+    <rect x="70" y="305" width="440" height="240" rx="24" class="panel"/>
+    <rect x="70" y="305" width="440" height="10" rx="10" class="accent-green"/>
+    <text x="96" y="345" class="label">Track + Drive Control</text>
+    <text x="96" y="372" class="body">system.lua owns left/right track output generation and machine-level drive behavior.</text>
+    <line x1="96" y1="392" x2="484" y2="392" class="divider"/>
+    <text x="96" y="420" class="bullet">• Differential steering with throttle-scaled rudder deadband</text>
+    <text x="96" y="445" class="bullet">• Hydrostatic acceleration, braking, and reversal behavior</text>
+    <text x="96" y="470" class="bullet">• Turn-radius endpoint calibration with progressive response</text>
+    <text x="96" y="495" class="bullet">• Transition-aware power reduction and reverse gating</text>
+    <text x="96" y="520" class="bullet">• Engine/load output derived from real track demand</text>
+    <rect x="96" y="335" width="108" height="24" rx="12" fill="#052e2b" stroke="#34d399"/>
+    <text x="114" y="351" class="chip" fill="#86efac">Drive Core</text>
+  </g>
+
+  <g>
+    <rect x="540" y="305" width="440" height="240" rx="24" class="panel"/>
+    <rect x="540" y="305" width="440" height="10" rx="10" class="accent-cyan"/>
+    <text x="566" y="345" class="label">Blade Control</text>
+    <text x="566" y="372" class="body">blade.lua dedicates all six Lua outputs to the front blade subsystem.</text>
+    <line x1="566" y1="392" x2="954" y2="392" class="divider"/>
+    <text x="566" y="420" class="bullet">• 6 dedicated outputs: Lift, Tilt, Angle, Slew, LW, RW</text>
+    <text x="566" y="445" class="bullet">• Automatic transport ↔ working positioning for lift, angle, wings</text>
+    <text x="566" y="470" class="bullet">• Manual tilt and slew remain directly operator-controlled</text>
+    <text x="566" y="495" class="bullet">• Groom coordination links rudder to wings, slew, tilt, and angle</text>
+    <text x="566" y="520" class="bullet">• Reverse-clearance lift captures and restores exact prior position</text>
+    <rect x="566" y="335" width="124" height="24" rx="12" fill="#082f49" stroke="#38bdf8"/>
+    <text x="586" y="351" class="chip" fill="#7dd3fc">6/6 Outputs Used</text>
+  </g>
+
+  <g>
+    <rect x="1010" y="305" width="520" height="240" rx="24" class="panel"/>
+    <rect x="1010" y="305" width="520" height="10" rx="10" class="accent-orange"/>
+    <text x="1036" y="345" class="label">Tiller + Grooming Control</text>
+    <text x="1036" y="372" class="body">tiller.lua manages rear implement posture while system.lua enforces rotor safety.</text>
+    <line x1="1036" y1="392" x2="1504" y2="392" class="divider"/>
+    <text x="1036" y="420" class="bullet">• Tiller lift, tiller angle, left finisher, right finisher outputs</text>
+    <text x="1036" y="445" class="bullet">• Automatic entry to Groom mode and raised return to Transport/Plow</text>
+    <text x="1036" y="470" class="bullet">• Shared GV1 coordination ties tiller angle response to machine turns</text>
+    <text x="1036" y="495" class="bullet">• Reverse sequence raises tiller before backing and restores start height</text>
+    <text x="1036" y="520" class="bullet">• Safety interlocks disable rotor during reverse, transitions, and E-stop</text>
+    <rect x="1036" y="335" width="150" height="24" rx="12" fill="#431407" stroke="#fb923c"/>
+    <text x="1054" y="351" class="chip" fill="#fdba74">Grooming + Safety</text>
+  </g>
+
+  <g>
+    <rect x="70" y="575" width="540" height="238" rx="24" class="panel"/>
+    <rect x="70" y="575" width="540" height="10" rx="10" class="accent-red"/>
+    <text x="96" y="615" class="label">Safety, Modes &amp; State Management</text>
+    <text x="96" y="642" class="body">Distributed, redundant safety logic keeps each script responsible for its own stop behavior.</text>
+    <line x1="96" y1="662" x2="584" y2="662" class="divider"/>
+    <text x="96" y="690" class="bullet">• SD selects Transport, Plow, and Groom operating modes</text>
+    <text x="96" y="715" class="bullet">• SF E-stop independently zeros tracks and freezes blade/tiller outputs</text>
+    <text x="96" y="740" class="bullet">• TranB / TranT expose blade and tiller transition state to EdgeTX logic</text>
+    <text x="96" y="765" class="bullet">• GV1–GV5 support live tuning for coordination, depth, reverse lift, and angle</text>
+    <text x="96" y="790" class="bullet">• Position models capture current implement state before automatic motion</text>
+    <rect x="392" y="606" width="184" height="24" rx="12" fill="#3f0d19" stroke="#f87171"/>
+    <text x="411" y="622" class="chip" fill="#fca5a5">Redundant Safety Paths</text>
+  </g>
+
+  <g>
+    <rect x="640" y="575" width="890" height="238" rx="24" class="panel"/>
+    <rect x="640" y="575" width="890" height="10" rx="10" class="accent-purple"/>
+    <text x="666" y="615" class="label">UI Panels</text>
+    <text x="666" y="642" class="body">Widgets visualize the same machine state already computed by the Lua mixer scripts.</text>
+    <line x1="666" y1="662" x2="1504" y2="662" class="divider"/>
+
+    <g>
+      <rect x="680" y="690" width="380" height="92" rx="18" fill="#191438" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="706" y="724" class="label">PB600Op</text>
+      <text x="706" y="748" class="body">Operator panel with animated machine posture, drivetrain gauges,</text>
+      <text x="706" y="768" class="body">mode/reverse/transition overlays, and intuitive top/side views.</text>
+    </g>
+
+    <g>
+      <rect x="1100" y="690" width="390" height="92" rx="18" fill="#141733" stroke="#8b5cf6" stroke-width="1.5"/>
+      <text x="1126" y="724" class="label">PB600Dbg</text>
+      <text x="1126" y="748" class="body">Diagnostic panel for inputs, switches, logical states, channel values,</text>
+      <text x="1126" y="768" class="body">Lua outputs, and GV tuning during calibration and troubleshooting.</text>
+    </g>
+  </g>
+
+  <g>
+    <text x="70" y="852" class="small">Reference sources: README system overview, operating modes, track control, blade control, tiller control, transition-state, and widget documentation.</text>
+    <text x="1398" y="852" class="small">PB600 · one-page summary</text>
+  </g>
+</svg>
