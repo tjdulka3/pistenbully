@@ -916,13 +916,13 @@ local function run()
 
   local pivotRequested =
     isGroom
-    and not manualMode
+    and fullSteer
     and math.abs(thr) <= PIVOT_LIFT_THR
     and math.abs(rud) > PIVOT_LIFT_RUD
 
   local reverseRequested =
     isGroom
-    and not manualMode
+    and fullSteer
     and (
       thr < -REVERSE_DEADBAND
       or pivotRequested
@@ -1367,8 +1367,9 @@ local function run()
     and reverseState == "ready"
 
 
+  -- Reverse lockout applies only where auto lift is active (SB Down).
   if isGroom
-    and not manualMode
+    and fullSteer
     and not reverseAllowed
     and not pivotActive
   then

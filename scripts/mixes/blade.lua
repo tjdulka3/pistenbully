@@ -660,10 +660,10 @@ lastSh =
     -- ==========================================================
     -- GROOM AUTO-LIFT (reverse throttle or pivot)    -- ==========================================================
 
-    -- SB Up (full manual) disables auto lift.
+    -- Auto lift only with SB Down.
     local reverseRequested =
       inGroom
-      and sb > -500
+      and sb > 500
       and (
         thr < -INPUT_DEADBAND
         or (

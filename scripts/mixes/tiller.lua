@@ -1130,9 +1130,9 @@ local function run()
 
     if inGroom then
 
-      -- SB Up (full manual) disables auto lift.
+      -- Auto lift only with SB Down.
       local reverseRequested =
-        sb > -500
+        sb > 500
         and (
           thr < -INPUT_DEADBAND
           or (
