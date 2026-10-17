@@ -153,6 +153,7 @@ that same state to visualize the machine without creating a second control path.
   - [Preserve spare capacity](#preserve-spare-capacity)
 - [Repository Structure](#repository-structure)
 - [Development and Deployment](#development-and-deployment)
+- [Release Notes](#release-notes)
 - [Current Development Status](#current-development-status)
   - [Safety](#safety)
 - [Appendix A: PB600 System Specifications](#appendix-a-pb600-system-specifications)
@@ -382,6 +383,20 @@ enabled, coordinated-turn control.
 Plow and Groom use the same normal blade working configuration, so
 changing between Plow and Groom does not reposition the blade solely
 because of the mode change.
+
+------------------------------------------------------------------------
+
+## Control Modes (SB)
+
+SB selects how much control logic is active, so the logic can be compared.
+
+| SB | Tracks | Tiller | Groom auto lift |
+|---|---|---|---|
+| Up | Plain mix (L = thr + rud, R = thr - rud), no hydrostatic smoothing, no deadbands, no reverse lockout | Manual; swing from S2; no coordination | Off |
+| Middle | Hydrostatic smoothing; rudder passes straight through (gain 1.0, no rudder deadband curve, no steer taper, no brake-assisted steering) | Swing and angle coordination | Off |
+| Down | Full steering contribution (rudder deadband curve, steer taper, brake-assisted steering) | Swing and angle coordination | On |
+
+Blade coordination is on hold and is not enabled in any SB position.
 
 ------------------------------------------------------------------------
 
@@ -980,6 +995,8 @@ The complete control path is:
 
 ## Groom Auto Lift
 
+Groom auto lift is active only with SB Down.
+
 In Groom mode, the blade and tiller are raised automatically before any
 track motion that would run a track in reverse, rather than blocking it.
 
@@ -1238,6 +1255,10 @@ automatic movement.
 
 ## Blade Coordination
 
+Blade coordination is currently on hold: `coordEnabled` is forced to
+`false` in `blade.lua`, so no SB position activates it. The description
+below applies once it is re-enabled.
+
 In Groom mode, rudder input can automatically coordinate blade movement
 with vehicle turns.
 
@@ -1317,8 +1338,9 @@ When leaving Groom, the tiller returns to its raised position.
 
 ## Tiller Coordination
 
-When coordination is enabled in Groom mode, rudder input can
+When coordination is enabled (SB Middle or Down) in Groom mode, rudder input can
 automatically adjust tiller angle to follow the vehicle through a turn.
+Tiller swing coordination also follows SB Middle or Down.
 
 Overall coordination strength uses the same `GV1` master coordination
 setting used by the blade.
@@ -1830,6 +1852,25 @@ This keeps source control independent of the removable radio storage.
 
 ------------------------------------------------------------------------
 
+## Release Notes
+
+Newest first. Version numbers match `APP_VERSION` in `radio/version.lua`.
+Add an entry here for each deployment.
+
+### 1.2.0 (Test)
+
+-   SB now selects the control logic (see [Control Modes (SB)](#control-modes-sb)):
+    Up = full manual, Middle = tiller coordination, Down = tiller
+    coordination + steering contribution + Groom auto lift.
+-   SB Up uses a plain, unsmoothed track mix with no coordination and
+    no auto lift.
+-   Groom auto lift (reverse or pivot) now runs only with SB Down, in
+    `system.lua`, `tiller.lua`, and `blade.lua`.
+-   Tiller swing and angle coordination now follow SB Middle or Down.
+-   Blade coordination is on hold; no switch position enables it.
+
+------------------------------------------------------------------------
+
 ## Safety
 
 This is hobby RC control software.
@@ -1886,7 +1927,9 @@ calibration constants.
   SD Up       Transport
   SD Middle   Plow
   SD Down     Groom
-  SB Up       Coordination enabled
+  SB Up       Full manual: plain track mix, no coordination, no auto lift
+  SB Middle   Tiller coordination (swing + angle); basic steering; no auto lift
+  SB Down     Tiller coordination + steering contribution + Groom auto lift
   SF Up       E-stop
   LS          Left blade wing
   RS          Right blade wing
