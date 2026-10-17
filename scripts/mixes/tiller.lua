@@ -23,10 +23,9 @@
 --   ELE = Tiller Lift
 --
 -- SB:
---   -1024 = Up      = Manual Swing via S2 radio mix
---       0 = Neutral = Coordinated Swing only
---    1024 = Down    = Coordinated Swing +
---                      Blade/Tiller coordination
+--   -1024 = Up      = Full manual: S2 swing, no coordination, no auto lift
+--       0 = Neutral = Tiller coordination (swing + angle)
+--    1024 = Down    = Tiller coordination + track steering contribution
 --
 -- SE / SG = manual finishers
 -- SF Up   = E-stop
@@ -726,10 +725,10 @@ local function run()
 
   -- Full implement coordination:
   --
-  -- SB Down only.
+  -- SB Mid or Down.
   local coordEnabled =
     inGroom
-    and sb > 500
+    and sb > -500
 
 
   -- Swing coordination:
@@ -1131,11 +1130,15 @@ local function run()
 
     if inGroom then
 
+      -- SB Up (full manual) disables auto lift.
       local reverseRequested =
-        thr < -INPUT_DEADBAND
-        or (
-          math.abs(thr) <= PIVOT_LIFT_THR
-          and math.abs(rawRud) > PIVOT_LIFT_RUD
+        sb > -500
+        and (
+          thr < -INPUT_DEADBAND
+          or (
+            math.abs(thr) <= PIVOT_LIFT_THR
+            and math.abs(rawRud) > PIVOT_LIFT_RUD
+          )
         )
 
 

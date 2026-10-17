@@ -535,6 +535,17 @@ local function run()
     getValue("sf") or 0
 
 
+  -- SB Up = full manual, Mid = tiller coordination, Down = + steering contribution.
+  local sb =
+    getValue("sb") or 0
+
+  local manualMode =
+    sb < -500
+
+  local fullSteer =
+    sb > 500
+
+
   local thr =
     normStick(
       getValue("thr")
@@ -905,11 +916,13 @@ local function run()
 
   local pivotRequested =
     isGroom
+    and not manualMode
     and math.abs(thr) <= PIVOT_LIFT_THR
     and math.abs(rud) > PIVOT_LIFT_RUD
 
   local reverseRequested =
     isGroom
+    and not manualMode
     and (
       thr < -REVERSE_DEADBAND
       or pivotRequested
@@ -1131,6 +1144,15 @@ local function run()
   end
 
 
+  -- Without the steering contribution the rudder passes straight through.
+  if not fullSteer then
+
+    effectiveRudder =
+      rud
+
+  end
+
+
   -- ----------------------------------------------------------
   -- NORMAL DIFFERENTIAL STEERING
   -- ----------------------------------------------------------
@@ -1142,7 +1164,11 @@ local function run()
 
 
   -- No forward/reverse drive inside the deadband; drive rescales from 0 at its edge.
-  if throttleNorm <= DRIVE_DEADBAND then
+  if manualMode then
+
+    drive = thr
+
+  elseif throttleNorm <= DRIVE_DEADBAND then
 
     drive = 0
 
@@ -1159,7 +1185,12 @@ local function run()
   local steerGain =
     STEER_GAIN_LOW
 
-  if math.abs(drive) > STEER_TAPER_START then
+  if not fullSteer then
+
+    steerGain =
+      1.0
+
+  elseif math.abs(drive) > STEER_TAPER_START then
 
     steerGain =
       STEER_GAIN_LOW +
@@ -1237,37 +1268,60 @@ local function run()
 
 
   local brakeRate =
-    DECEL_RATE +
-    (
-      STEER_BRAKE_RATE +
-      (STEER_BRAKE_RATE_FAST - STEER_BRAKE_RATE) *
-      math.abs(drive) -
-      DECEL_RATE
-    ) *
-    math.abs(effectiveRudder)
+    DECEL_RATE
+
+  if fullSteer then
+
+    brakeRate =
+      DECEL_RATE +
+      (
+        STEER_BRAKE_RATE +
+        (STEER_BRAKE_RATE_FAST - STEER_BRAKE_RATE) *
+        math.abs(drive) -
+        DECEL_RATE
+      ) *
+      math.abs(effectiveRudder)
+
+  end
 
 
-  local leftCmd =
-    smoothDirectional(
-      lastLeft,
-      leftTarget * 1024,
-      ACCEL_RATE,
-      brakeRate,
-      REVERSE_BOOST,
-      dt
-    ) /
-    1024
+  local leftCmd
+  local rightCmd
 
-  local rightCmd =
-    smoothDirectional(
-      lastRight,
-      rightTarget * 1024,
-      ACCEL_RATE,
-      brakeRate,
-      REVERSE_BOOST,
-      dt
-    ) /
-    1024
+  if manualMode then
+
+    -- Standard track mix, no hydrostatic smoothing.
+    leftCmd =
+      leftTarget
+
+    rightCmd =
+      rightTarget
+
+  else
+
+    leftCmd =
+      smoothDirectional(
+        lastLeft,
+        leftTarget * 1024,
+        ACCEL_RATE,
+        brakeRate,
+        REVERSE_BOOST,
+        dt
+      ) /
+      1024
+
+    rightCmd =
+      smoothDirectional(
+        lastRight,
+        rightTarget * 1024,
+        ACCEL_RATE,
+        brakeRate,
+        REVERSE_BOOST,
+        dt
+      ) /
+      1024
+
+  end
 
   lastLeft =
     leftCmd *
@@ -1314,6 +1368,7 @@ local function run()
 
 
   if isGroom
+    and not manualMode
     and not reverseAllowed
     and not pivotActive
   then

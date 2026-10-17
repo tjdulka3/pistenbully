@@ -23,7 +23,7 @@
 --   Middle= AIL Slew / ELE Angle
 --
 -- LS / RS = manual wings
--- SB Up   = coordination enabled
+-- SB Up   = full manual: no auto lift (blade coordination on hold)
 -- SF Up   = E-stop
 -- ============================================================
 
@@ -429,8 +429,9 @@ local function run()
   local inGroom =
     sd > 500
 
+  -- Blade coordination is on hold; no switch position enables it.
   local coordEnabled =
-    inGroom and sb > 500
+    false
 
   -- ----------------------------------------------------------
   -- one shot rehome initialization
@@ -659,8 +660,10 @@ lastSh =
     -- ==========================================================
     -- GROOM AUTO-LIFT (reverse throttle or pivot)    -- ==========================================================
 
+    -- SB Up (full manual) disables auto lift.
     local reverseRequested =
       inGroom
+      and sb > -500
       and (
         thr < -INPUT_DEADBAND
         or (
