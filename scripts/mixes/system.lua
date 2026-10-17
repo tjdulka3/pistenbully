@@ -155,6 +155,10 @@ local REVERSE_BOOST =
 local RUDDER_DEADBAND =
   0.01
 
+-- Small thr/rud deadband (rescaled) used in SB Up and Mid.
+local BASIC_DEADBAND =
+  0.03
+
 local REVERSE_DEADBAND =
   0.02
 
@@ -564,6 +568,30 @@ local function run()
 
     rud =
       0
+
+  end
+
+
+  if not fullSteer then
+
+    local function basicDeadband(v)
+
+      if math.abs(v) <= BASIC_DEADBAND then
+        return 0
+      end
+
+      return
+        (v > 0 and 1 or -1) *
+        (math.abs(v) - BASIC_DEADBAND) /
+        (1 - BASIC_DEADBAND)
+
+    end
+
+    thr =
+      basicDeadband(thr)
+
+    rud =
+      basicDeadband(rud)
 
   end
 
