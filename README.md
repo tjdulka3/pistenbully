@@ -398,6 +398,10 @@ SB selects how much control logic is active, so the logic can be compared.
 
 Blade coordination is on hold and is not enabled in any SB position.
 
+SB Up and Middle apply a small 3% throttle and rudder deadband
+(`BASIC_DEADBAND` in `system.lua`), rescaled so full stick still gives
+full output.
+
 ------------------------------------------------------------------------
 
 ## Track Control
@@ -1002,7 +1006,9 @@ track motion that would run a track in reverse, rather than blocking it.
 
 Auto lift is requested by either:
 
--   Any reverse throttle, or
+-   Any reverse throttle beyond 10% (`REVERSE_DEADBAND` in `system.lua`,
+    `REVERSE_LIFT_THR` in `blade.lua` and `tiller.lua`; keep all three
+    matched), or
 -   A pivot: rudder above 5% with throttle inside the pivot band
     (+/-15%), where one track runs in reverse.
 
@@ -1868,6 +1874,9 @@ Add an entry here for each deployment.
     `system.lua`, `tiller.lua`, and `blade.lua`.
 -   Tiller swing and angle coordination now follow SB Middle or Down.
 -   Blade coordination is on hold; no switch position enables it.
+-   SB Up and Middle apply a small 3% throttle and rudder deadband.
+-   Groom auto lift now needs more than 10% reverse throttle (was 2%) so
+    it does not trigger when the stick returns to center.
 
 ------------------------------------------------------------------------
 

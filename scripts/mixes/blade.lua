@@ -54,6 +54,9 @@ local INPUT_DEADBAND = 0.02
 local PIVOT_LIFT_THR = 0.15
 local PIVOT_LIFT_RUD = 0.05
 
+-- Reverse throttle needed to request auto lift. Must match system.lua.
+local REVERSE_LIFT_THR = 0.10
+
 -- Default non-Transport blade geometry.
 -- These normally should not need live adjustment.
 local WORK_WING_OPEN = 0.40
@@ -665,7 +668,7 @@ lastSh =
       inGroom
       and sb > 500
       and (
-        thr < -INPUT_DEADBAND
+        thr < -REVERSE_LIFT_THR
         or (
           math.abs(thr) <= PIVOT_LIFT_THR
           and math.abs(normStick(getValue("rud"))) > PIVOT_LIFT_RUD

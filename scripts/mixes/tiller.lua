@@ -58,6 +58,10 @@ local PIVOT_LIFT_THR =
 local PIVOT_LIFT_RUD =
   0.05
 
+-- Reverse throttle needed to request auto lift. Must match system.lua.
+local REVERSE_LIFT_THR =
+  0.10
+
 
 -- Tiller angle coordination range at GV1=100%.
 local ANGLE_COORD_RANGE =
@@ -1134,7 +1138,7 @@ local function run()
       local reverseRequested =
         sb > 500
         and (
-          thr < -INPUT_DEADBAND
+          thr < -REVERSE_LIFT_THR
           or (
             math.abs(thr) <= PIVOT_LIFT_THR
             and math.abs(rawRud) > PIVOT_LIFT_RUD

@@ -159,8 +159,9 @@ local RUDDER_DEADBAND =
 local BASIC_DEADBAND =
   0.03
 
+-- Reverse throttle needed to request Groom auto lift. Must match blade.lua and tiller.lua.
 local REVERSE_DEADBAND =
-  0.02
+  0.10
 
 
 -- Groom auto lift: reverse throttle, or a pivot (rudder with throttle inside
